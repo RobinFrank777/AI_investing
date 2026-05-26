@@ -19,6 +19,11 @@ df["Low"] = pd.to_numeric(df["Low"])
 df["Open"] = pd.to_numeric(df["Open"])
 df["Volume"] = pd.to_numeric(df["Volume"])
 
+# 计算日收益率和移动均线
+df["Return"] = df["Close"].pct_change()
+df["MA20"] = df["Close"].rolling(window=20).mean()
+df["MA60"] = df["Close"].rolling(window=60).mean()
+
 print("\n收盘价平均值：")
 print(df["Close"].mean())
 
@@ -30,3 +35,6 @@ print(df["Close"].min())
 
 print("\n基本统计：")
 print(df.describe())
+
+print("\n最近5天指标：")
+print(df[["Close", "Return", "MA20", "MA60"]].tail())
