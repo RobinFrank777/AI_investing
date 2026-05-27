@@ -76,15 +76,18 @@ for ticker in tickers:
 
     print(f"\n图表已保存到 {chart_path}")
     print(f"趋势：{trend}")
+
     summary = {
-    "Ticker": ticker,
-    "Latest_Close": df["Close"].iloc[-1],
-    "MA20": df["MA20"].iloc[-1],
-    "MA60": df["MA60"].iloc[-1],
-    "Return": df["Return"].iloc[-1]
-}
+        "Ticker": ticker,
+        "Latest_Close": latest_close,
+        "MA20": latest_ma20,
+        "MA60": latest_ma60,
+        "Return": df["Return"].iloc[-1],
+        "Trend": trend,
+    }
 
     summary_list.append(summary)
+
 summary_df = pd.DataFrame(summary_list)
 
 summary_df.to_csv("summary.csv", index=False)
