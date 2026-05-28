@@ -1,4 +1,5 @@
 import pandas as pd
+from pathlib import Path
 
 # 读取CSV
 summary_df = pd.read_csv("summary.csv")
@@ -6,6 +7,20 @@ rank_df = pd.read_csv("stock_rank.csv")
 risk_df = pd.read_csv("risk_analysis.csv")
 sharpe_df = pd.read_csv("sharpe_analysis.csv")
 
+tickers = ["AAPL", "NVDA", "TSLA", "AMD", "GOOGL"]
+
+charts_html = ""
+
+for ticker in tickers:
+
+    chart_file = f"charts/{ticker}_chart.png"
+
+    charts_html += f"""
+    <h2>{ticker} Chart</h2>
+
+    <img src="{chart_file}"
+         width="900">
+    """
 # HTML内容
 html_content = f"""
 <html>
@@ -62,7 +77,9 @@ html_content = f"""
 
     <h2>Sharpe Ratio Analysis</h2>
     {sharpe_df.to_html(index=False)}
-
+    
+    <h2>Stock Charts</h2>
+    {charts_html}
 </body>
 
 </html>
