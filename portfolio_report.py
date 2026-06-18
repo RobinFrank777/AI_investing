@@ -65,6 +65,7 @@ for stock, info in portfolio.items():
     total_cost += shares * cost
     total_value += market_value
     total_profit += profit
+
     print(f"股票：{stock}")
 
     print(f"持仓：{shares}")
@@ -72,11 +73,13 @@ for stock, info in portfolio.items():
     print(f"成本价：{cost}")
 
     print(f"现价：{current_price:.2f}")
+
     print(f"市值：{market_value:.2f}")
 
     print(f"盈亏：{profit:.2f}")
 
     print(f"收益率：{profit_rate:.2%}")
+    
     print()
 total_profit_rate = total_profit / total_cost
 
