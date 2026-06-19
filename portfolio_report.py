@@ -1,17 +1,6 @@
-import pandas as pd
+from stock_loader import load_stock
 
-def load_stock(ticker):
-    file_path = f"data/{ticker}.csv"
-    df = pd.read_csv(file_path, skiprows=1)
-    df.columns = [
-        "Date",
-        "Close",
-        "High",
-        "Low",
-        "Open",
-        "Volume"
-    ]
-    return df
+
 
 portfolio = {
     "TSLA": {
