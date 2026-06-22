@@ -152,6 +152,10 @@ html = f"""
 
 {table_html}
 
+<h2>资产配置图</h2>
+
+<img src="charts/allocation.png" width="600">
+
 """
 
 with open("report.html", "w") as f:
