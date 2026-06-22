@@ -4,7 +4,6 @@ from stock_loader import load_stock
 
 portfolio_df = pd.read_csv("portfolio.csv")
 
-portfolio_df = pd.read_csv("portfolio.csv")
 
 total_cost = 0
 
@@ -96,6 +95,48 @@ for i in range(len(result_df)):
     row = result_df.iloc[i]
     ranking_html += f"<p>{i+1}. {row['Ticker']} {row['Profit Rate %']}%</p>"
 
+table_html = '''
+<table border="1" cellpadding="8">
+<tr>
+    <th>股票</th>
+    <th>股数</th>
+    <th>成本价</th>
+    <th>现价</th>
+    <th>市值</th>
+    <th>总成本</th>
+    <th>盈亏</th>
+    <th>收益率</th>
+</tr>
+'''
+
+for i in range(len(result_df)):
+
+    row = result_df.iloc[i]
+
+    profit = row["Profit"]
+
+    if profit > 0:
+        color = "green"
+    else:
+        color = "red"
+
+    table_html += f'''
+<tr>
+    <td>{row["Ticker"]}</td>
+    <td>{row["Shares"]}</td>
+    <td>{row["Cost"]:.2f}</td>
+    <td>{row["Current Price"]:.2f}</td>
+    <td>{row["Market Value"]:.2f}</td>
+    <td>{row["Cost Basis"]:.2f}</td>
+    <td style="color:{color}">{row["Profit"]:.2f}</td>
+    <td>{row["Profit Rate %"]:.2f}%</td>
+</tr>
+'''
+
+table_html += '''
+</table>
+'''
+
 html = f"""
 <h1>投资组合报告</h1>
 
@@ -107,9 +148,14 @@ html = f"""
 <h2>收益率排行榜</h2>
 
 {ranking_html}
+<h2>持仓明细</h2>
+
+{table_html}
+
 """
 
 with open("report.html", "w") as f:
     f.write(html)
 
 print("报告已生成")
+
