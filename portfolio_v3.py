@@ -88,12 +88,24 @@ for i in range(len(result_df)):
 
     print(f"{row['Ticker']}: {row['Profit Rate']:.2%}")
 
-
+chart_html = ""
 ranking_html = ""
 
 for i in range(len(result_df)):
     row = result_df.iloc[i]
     ranking_html += f"<p>{i+1}. {row['Ticker']} {row['Profit Rate %']}%</p>"
+
+for i in range(len(result_df)):
+
+    row = result_df.iloc[i]
+
+    ticker = row["Ticker"]
+
+    chart_html += f"""
+    <h2>{ticker}走势图</h2>
+
+    <img src="charts/{ticker}_line.png" width="800">
+    """
 
 table_html = '''
 <table border="1" cellpadding="8">
@@ -155,6 +167,10 @@ html = f"""
 <h2>资产配置图</h2>
 
 <img src="charts/allocation.png" width="600">
+
+{chart_html}
+
+
 
 """
 
