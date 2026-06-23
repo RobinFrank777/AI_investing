@@ -44,7 +44,7 @@ heatmap.py
 
 ```text
 ma_optimization.csv
-optimization_heatmap.png
+charts/heatmap.png
 ```
 
 ---
