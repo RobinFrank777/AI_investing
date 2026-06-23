@@ -1,59 +1,31 @@
+from stock_loader import load_stock
+
 import pandas as pd
-import numpy as np
-from pathlib import Path
 
-tickers = ["AAPL", "NVDA", "TSLA", "AMD", "GOOGL"]
+ticker = "TSLA"
 
-data_dir = Path("data")
+df = load_stock(ticker)
 
-results = []
+returns = df["Close"].pct_change()
 
-for ticker in tickers:
+avg_return = returns.mean()
 
-    file_path = data_dir / f"{ticker}.csv"
+std_return = returns.std()
 
-    df = pd.read_csv(file_path, skiprows=1)
+sharpe = (
+    avg_return
+    /
+    std_return
+) * (252 ** 0.5)
 
-    df.columns = ["Date", "Close", "High", "Low", "Open", "Volume"]
-
-    df["Close"] = pd.to_numeric(df["Close"])
-
-    # 日收益率
-    df["Return"] = df["Close"].pct_change()
-
-    # 年化收益率
-    annual_return = (
-        df["Return"].mean()
-    ) * 252
-
-    # 年化波动率
-    annual_volatility = (
-        df["Return"].std()
-    ) * np.sqrt(252)
-
-    # 夏普比率
-    sharpe_ratio = (
-        annual_return / annual_volatility
-    )
-
-    results.append({
-        "Ticker": ticker,
-        "Annual_Return": annual_return,
-        "Annual_Volatility": annual_volatility,
-        "Sharpe_Ratio": sharpe_ratio
-    })
-
-sharpe_df = pd.DataFrame(results)
-
-# 夏普比率排序
-sharpe_df = sharpe_df.sort_values(
-    by="Sharpe_Ratio",
-    ascending=False
+print(
+    f"平均日收益: {avg_return:.4%}"
 )
 
-print("\n===== 夏普比率分析 =====")
-print(sharpe_df)
+print(
+    f"波动率: {std_return:.4%}"
+)
 
-sharpe_df.to_csv("sharpe_analysis.csv", index=False)
-
-print("\n已保存到 sharpe_analysis.csv")
+print(
+    f"夏普比率: {sharpe:.2f}"
+)

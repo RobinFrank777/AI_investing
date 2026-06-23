@@ -1,63 +1,29 @@
-import pandas as pd
-from pathlib import Path
+from stock_loader import load_stock
 
-tickers = ["AAPL", "NVDA", "TSLA", "AMD", "GOOGL"]
+ticker = "TSLA"
 
-data_dir = Path("data")
+df = load_stock(ticker)
 
-results = []
+prices = df["Close"]
 
-for ticker in tickers:
+peak = prices.iloc[0]
 
-    file_path = data_dir / f"{ticker}.csv"
+max_drawdown = 0
 
-    df = pd.read_csv(file_path, skiprows=1)
+for price in prices:
 
-    df.columns = ["Date", "Close", "High", "Low", "Open", "Volume"]
+    if price > peak:
 
-    df["Close"] = pd.to_numeric(df["Close"])
+        peak = price
 
-    # 日收益率
-    df["Return"] = df["Close"].pct_change()
-
-    # 波动率
-    volatility = df["Return"].std()
-
-    # 累计最大值
-    rolling_max = df["Close"].cummax()
-
-    # 回撤
     drawdown = (
-        df["Close"] - rolling_max
-    ) / rolling_max
+        peak - price
+    ) / peak
 
-    # 最大回撤
-    max_drawdown = drawdown.min()
+    if drawdown > max_drawdown:
 
-    # 总收益率
-    total_return = (
-        df["Close"].iloc[-1]
-        / df["Close"].iloc[0]
-    ) - 1
+        max_drawdown = drawdown
 
-    results.append({
-        "Ticker": ticker,
-        "Total_Return": total_return,
-        "Volatility": volatility,
-        "Max_Drawdown": max_drawdown
-    })
-
-risk_df = pd.DataFrame(results)
-
-# 风险收益排序
-risk_df = risk_df.sort_values(
-    by="Total_Return",
-    ascending=False
+print(
+    f"最大回撤: {max_drawdown:.2%}"
 )
-
-print("\n===== 风险分析 =====")
-print(risk_df)
-
-risk_df.to_csv("risk_analysis.csv", index=False)
-
-print("\n已保存到 risk_analysis.csv")

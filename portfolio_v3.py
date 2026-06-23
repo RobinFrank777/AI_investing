@@ -149,6 +149,32 @@ table_html += '''
 </table>
 '''
 
+opt_df = pd.read_csv("ma_optimization.csv")
+
+optimization_html = """
+<table border="1" cellpadding="8">
+<tr>
+<th>排名</th>
+<th>短均线</th>
+<th>长均线</th>
+<th>收益率</th>
+</tr>
+"""
+
+for i in range(min(10, len(opt_df))):
+
+    row = opt_df.iloc[i]
+
+    optimization_html += f"""
+<tr>
+<td>{i+1}</td>
+<td>{int(row['Short MA'])}</td>
+<td>{int(row['Long MA'])}</td>
+<td>{row['Return %']:.2f}%</td>
+</tr>
+"""
+optimization_html += "</table>"
+
 html = f"""
 <h1>投资组合报告</h1>
 
@@ -168,8 +194,15 @@ html = f"""
 
 <img src="charts/allocation.png" width="600">
 
-{chart_html}
+<h2>均线优化排行榜</h2>
 
+{optimization_html}
+
+<h2>均线优化热力图</h2>
+
+<img src="charts/heatmap.png" width="800">
+
+{chart_html}
 
 
 """
