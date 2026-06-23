@@ -64,7 +64,7 @@ result_df["Profit Rate %"] = (
     result_df["Profit Rate"] * 100
 ).round(2)
 result_df.to_csv(
-    "ranking.csv",
+    "results/ranking.csv",
     index=False
 )
 
@@ -149,7 +149,7 @@ table_html += '''
 </table>
 '''
 
-opt_df = pd.read_csv("ma_optimization.csv")
+opt_df = pd.read_csv("results/ma_optimization.csv")
 
 optimization_html = """
 <table border="1" cellpadding="8">
@@ -207,7 +207,7 @@ html = f"""
 
 """
 
-with open("report.html", "w") as f:
+with open("reports/portfolio_report.html", "w") as f:
     f.write(html)
 
 print("报告已生成")

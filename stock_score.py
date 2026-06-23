@@ -1,6 +1,6 @@
 import pandas as pd
 
-df = pd.read_csv("stock_personality.csv")
+df = pd.read_csv("results/stock_personality.csv")
 
 df["Return Score"] = (
     df["Annual Return %"]

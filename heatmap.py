@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 
 import pandas as pd
 
-df = pd.read_csv("ma_optimization.csv")
+df = pd.read_csv("results/ma_optimization.csv")
 
 print(df.head())
 

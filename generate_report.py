@@ -2,10 +2,10 @@ import pandas as pd
 from pathlib import Path
 
 # 读取CSV
-summary_df = pd.read_csv("summary.csv")
-rank_df = pd.read_csv("stock_rank.csv")
-risk_df = pd.read_csv("risk_analysis.csv")
-sharpe_df = pd.read_csv("sharpe_analysis.csv")
+summary_df = pd.read_csv("results/summary.csv")
+rank_df = pd.read_csv("results/stock_rank.csv")
+risk_df = pd.read_csv("results/risk_analysis.csv")
+sharpe_df = pd.read_csv("results/sharpe_analysis.csv")
 
 tickers = ["AAPL", "NVDA", "TSLA", "AMD", "GOOGL"]
 
@@ -86,7 +86,7 @@ html_content = f"""
 """
 
 # 保存HTML
-with open("report.html", "w") as file:
+with open("reports/ai_report.html", "w") as file:
     file.write(html_content)
 
-print("HTML报告已生成: report.html")
+print("HTML报告已生成: reports/ai_report.html")
