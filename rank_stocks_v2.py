@@ -1,3 +1,23 @@
+def calculate_rank_score(
+    latest_close,
+    latest_ma20,
+    latest_ma60,
+    recent_return
+):
+
+    score = 0
+
+    if latest_close > latest_ma20:
+        score += 30
+
+    if latest_ma20 > latest_ma60:
+        score += 30
+
+    if recent_return > 0.10:
+        score += 40
+
+    return score
+
 import pandas as pd
 from stock_loader import load_stock
 
@@ -18,25 +38,17 @@ for ticker in tickers:
     latest_close = df["Close"].iloc[-1]
     latest_ma20 = df["MA20"].iloc[-1]
     latest_ma60 = df["MA60"].iloc[-1]
-
-    score = 0
-
-    # 条件1：站上MA20
-    if latest_close > latest_ma20:
-        score += 30
-
-    # 条件2：MA20在MA60上方
-    if latest_ma20 > latest_ma60:
-        score += 30
-
-    # 条件3：最近涨幅
     recent_return = (
-        df["Close"].iloc[-1] /
-        df["Close"].iloc[-20]
-    ) - 1
-
-    if recent_return > 0.10:
-        score += 40
+    df["Close"].iloc[-1]
+    /
+    df["Close"].iloc[-20]
+) - 1
+    score = calculate_rank_score(
+    latest_close,
+    latest_ma20,
+    latest_ma60,
+    recent_return
+)
 
     results.append({
         "Ticker": ticker,
