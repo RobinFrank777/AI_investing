@@ -8,7 +8,8 @@ def calculate_rank_score(
     latest_close,
     latest_ma20,
     latest_ma60,
-    recent_return
+    recent_return,
+    return_60d
 ):
 
     score = 0
@@ -19,7 +20,8 @@ def calculate_rank_score(
     if latest_ma20 > latest_ma60:
         score += 30
 
-    score += recent_return * 100
+    score += recent_return * 70
+    score += return_60d * 30
 
     return score
 
@@ -48,12 +50,18 @@ def rank_stocks(tickers):
             /
             df["Close"].iloc[-20]
         ) - 1
+        return_60d = (
+            df["Close"].iloc[-1]
+            /
+            df["Close"].iloc[-60]
+        ) - 1
 
         score = calculate_rank_score(
             latest_close,
             latest_ma20,
             latest_ma60,
-            recent_return
+            recent_return,
+            return_60d
         )
 
         results.append({
@@ -62,6 +70,7 @@ def rank_stocks(tickers):
             "MA20": latest_ma20,
             "MA60": latest_ma60,
             "20Day_Return": recent_return,
+            "60Day_Return": return_60d,
             "Score": score
         })
 
