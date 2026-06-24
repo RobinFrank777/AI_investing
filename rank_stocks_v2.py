@@ -9,7 +9,9 @@ def calculate_rank_score(
     latest_ma20,
     latest_ma60,
     recent_return,
-    return_60d
+    return_60d,
+    volume_ratio,
+    latest_high60
 ):
 
     score = 0
@@ -22,7 +24,10 @@ def calculate_rank_score(
 
     score += recent_return * 70
     score += return_60d * 30
-
+    if volume_ratio > 1.5:
+        score += 20
+    if latest_close >= latest_high60:
+        score += 20
     return score
 
 import pandas as pd
@@ -40,10 +45,20 @@ def rank_stocks(tickers):
 
         df["MA20"] = df["Close"].rolling(window=20).mean()
         df["MA60"] = df["Close"].rolling(window=60).mean()
+        df["High60"] = df["Close"].rolling(window=60).max()
+        df["VolumeMA20"] = df["Volume"].rolling(window=20).mean()
 
         latest_close = df["Close"].iloc[-1]
         latest_ma20 = df["MA20"].iloc[-1]
         latest_ma60 = df["MA60"].iloc[-1]
+        latest_high60 = df["High60"].iloc[-1]
+        latest_volume = df["Volume"].iloc[-1]
+        latest_volume_ma20 = df["VolumeMA20"].iloc[-1]
+
+        volume_ratio = (
+            latest_volume /
+            latest_volume_ma20
+        )
 
         recent_return = (
             df["Close"].iloc[-1]
@@ -61,7 +76,9 @@ def rank_stocks(tickers):
             latest_ma20,
             latest_ma60,
             recent_return,
-            return_60d
+            return_60d,
+            volume_ratio,
+            latest_high60
         )
 
         results.append({
@@ -71,6 +88,7 @@ def rank_stocks(tickers):
             "MA60": latest_ma60,
             "20Day_Return": recent_return,
             "60Day_Return": return_60d,
+            "Volume_Ratio": volume_ratio,
             "Score": score
         })
 
