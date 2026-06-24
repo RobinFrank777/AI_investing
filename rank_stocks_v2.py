@@ -1,3 +1,9 @@
+def load_watchlist():
+
+    df = pd.read_csv("data/watchlist.csv")
+
+    return df["Ticker"].tolist()
+
 def calculate_rank_score(
     latest_close,
     latest_ma20,
@@ -21,7 +27,7 @@ def calculate_rank_score(
 import pandas as pd
 from stock_loader import load_stock
 
-tickers = ["AAPL", "NVDA", "TSLA", "AMD", "GOOGL"]
+tickers = load_watchlist()
 
 def rank_stocks(tickers):
 
@@ -72,7 +78,7 @@ def rank_stocks(tickers):
 
 if __name__ == "__main__":
 
-    tickers = ["AAPL", "NVDA", "TSLA", "AMD", "GOOGL"]
+    tickers = load_watchlist()
 
     rank_df = rank_stocks(tickers)
 
