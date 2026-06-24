@@ -99,8 +99,19 @@ def rank_stocks(tickers):
 
     rank_df = pd.DataFrame(results)
 
+    rank_df["RS_Score"] = (
+    rank_df["60Day_Return"]
+    .rank(pct=True)
+    * 100
+    )
+
+    rank_df["FinalScore"] = (
+        rank_df["Score"]
+        + rank_df["RS_Score"] * 0.3
+    )
+
     rank_df = rank_df.sort_values(
-        by="Score",
+        by="FinalScore",
         ascending=False
     )
 
