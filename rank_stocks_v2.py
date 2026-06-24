@@ -19,8 +19,7 @@ def calculate_rank_score(
     if latest_ma20 > latest_ma60:
         score += 30
 
-    if recent_return > 0.10:
-        score += 40
+    score += recent_return * 100
 
     return score
 
@@ -83,9 +82,16 @@ if __name__ == "__main__":
     rank_df = rank_stocks(tickers)
 
     print("\n===== 股票评分排名 =====")
-    print(rank_df)
+    print(rank_df.head(10))
 
     rank_df.to_csv("results/stock_rank.csv", index=False)
+
+    top10_df = rank_df.head(10)
+
+    top10_df.to_csv(
+    "results/top10.csv",
+    index=False
+)
 
     print("\n已保存到 results/stock_rank.csv")
 
