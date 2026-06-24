@@ -23,55 +23,63 @@ from stock_loader import load_stock
 
 tickers = ["AAPL", "NVDA", "TSLA", "AMD", "GOOGL"]
 
+def rank_stocks(tickers):
+
+    results = []
+
+    for ticker in tickers:
+
+        df = load_stock(ticker)
+
+        df["MA20"] = df["Close"].rolling(window=20).mean()
+        df["MA60"] = df["Close"].rolling(window=60).mean()
+
+        latest_close = df["Close"].iloc[-1]
+        latest_ma20 = df["MA20"].iloc[-1]
+        latest_ma60 = df["MA60"].iloc[-1]
+
+        recent_return = (
+            df["Close"].iloc[-1]
+            /
+            df["Close"].iloc[-20]
+        ) - 1
+
+        score = calculate_rank_score(
+            latest_close,
+            latest_ma20,
+            latest_ma60,
+            recent_return
+        )
+
+        results.append({
+            "Ticker": ticker,
+            "Close": latest_close,
+            "MA20": latest_ma20,
+            "MA60": latest_ma60,
+            "20Day_Return": recent_return,
+            "Score": score
+        })
+
+    rank_df = pd.DataFrame(results)
+
+    rank_df = rank_df.sort_values(
+        by="Score",
+        ascending=False
+    )
+
+    return rank_df
 
 
-results = []
+if __name__ == "__main__":
 
-for ticker in tickers:
+    tickers = ["AAPL", "NVDA", "TSLA", "AMD", "GOOGL"]
 
-    df = load_stock(ticker)
+    rank_df = rank_stocks(tickers)
 
-    # 计算均线
-    df["MA20"] = df["Close"].rolling(window=20).mean()
-    df["MA60"] = df["Close"].rolling(window=60).mean()
+    print("\n===== 股票评分排名 =====")
+    print(rank_df)
 
-    latest_close = df["Close"].iloc[-1]
-    latest_ma20 = df["MA20"].iloc[-1]
-    latest_ma60 = df["MA60"].iloc[-1]
-    recent_return = (
-    df["Close"].iloc[-1]
-    /
-    df["Close"].iloc[-20]
-) - 1
-    score = calculate_rank_score(
-    latest_close,
-    latest_ma20,
-    latest_ma60,
-    recent_return
-)
+    rank_df.to_csv("results/stock_rank.csv", index=False)
 
-    results.append({
-        "Ticker": ticker,
-        "Close": latest_close,
-        "MA20": latest_ma20,
-        "MA60": latest_ma60,
-        "20Day_Return": recent_return,
-        "Score": score
-    })
+    print("\n已保存到 results/stock_rank.csv")
 
-# 转成DataFrame
-rank_df = pd.DataFrame(results)
-
-# 按分数排序
-rank_df = rank_df.sort_values(
-    by="Score",
-    ascending=False
-)
-
-print("\n===== 股票评分排名 =====")
-print(rank_df)
-
-# 保存
-rank_df.to_csv("stock_rank.csv", index=False)
-
-print("\n已保存到 stock_rank.csv")
