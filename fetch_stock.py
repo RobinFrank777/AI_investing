@@ -3,7 +3,8 @@ import pandas as pd
 from pathlib import Path
 
 # 你要抓取的股票代码
-tickers = ["AAPL", "GOOGL", "NVDA", "TSLA", "AMD"]
+watchlist_df = pd.read_csv("data/watchlist.csv")
+tickers = watchlist_df["Ticker"].tolist()
 
 # 数据时间范围
 start_date = "2024-01-01"
