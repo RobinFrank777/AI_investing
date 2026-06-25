@@ -56,12 +56,7 @@ def rank_stocks(tickers):
         df = calculate_indicators(df)
 
 
-        df["High252"] = (
-            df["Close"]
-            .shift(1)
-            .rolling(window=252)
-            .max()
-        )
+        
 
 
         latest_close = df["Close"].iloc[-1]
