@@ -60,6 +60,26 @@ def rank_stocks(tickers):
             .max()
         )
         df["VolumeMA20"] = df["Volume"].rolling(window=20).mean()
+
+        df["PrevClose"] = df["Close"].shift(1)
+
+        df["TR"] = (
+            pd.concat(
+                [
+                    df["High"] - df["Low"],
+                    (df["High"] - df["PrevClose"]).abs(),
+                    (df["Low"] - df["PrevClose"]).abs()
+                ],
+                axis=1
+            )
+        ).max(axis=1)
+
+        df["ATR14"] = (
+            df["TR"]
+            .rolling(window=14)
+            .mean()
+        )
+
         df["High252"] = (
             df["Close"]
             .shift(1)
@@ -75,6 +95,7 @@ def rank_stocks(tickers):
         latest_high252 = df["High252"].iloc[-1]
         latest_volume = df["Volume"].iloc[-1]
         latest_volume_ma20 = df["VolumeMA20"].iloc[-1]
+        latest_atr = df["ATR14"].iloc[-1]
 
         volume_ratio = (
             latest_volume /
@@ -113,6 +134,9 @@ def rank_stocks(tickers):
             "Close": latest_close,
             "MA20": latest_ma20,
             "MA60": latest_ma60,
+            "ATR14": latest_atr,
+            "StopLoss": latest_close - latest_atr * 2,
+            "RiskPerShare": latest_close - (latest_close - latest_atr * 2),
             "20Day_Return": recent_return,
             "60Day_Return": return_60d,
             "Volume_Ratio": volume_ratio,
