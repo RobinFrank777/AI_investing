@@ -198,8 +198,10 @@ def rank_stocks(tickers):
 
     rank_df.loc[
         (rank_df["FinalScore"] >= 145) &
-        (rank_df["Volume_Ratio"] > 1.0) &
-        (rank_df["DistanceToHigh"] >= 0.95),
+        (rank_df["Volume_Ratio"] > 0.8) &
+        (rank_df["DistanceToHigh"] >= 0.95)&
+        (rank_df["Close"] > rank_df["MA20"]) &
+        (rank_df["MA20"] > rank_df["MA60"]),
         "Signal"
     ] = "BUY"
 
