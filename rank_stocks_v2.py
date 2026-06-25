@@ -40,6 +40,7 @@ def calculate_rank_score(
 
 import pandas as pd
 from stock_loader import load_stock
+from indicators import calculate_indicators
 
 tickers = load_watchlist()
 ACCOUNT_SIZE = 100000
@@ -52,35 +53,8 @@ def rank_stocks(tickers):
     for ticker in tickers:
 
         df = load_stock(ticker)
+        df = calculate_indicators(df)
 
-        df["MA20"] = df["Close"].rolling(window=20).mean()
-        df["MA60"] = df["Close"].rolling(window=60).mean()
-        df["High60"] = (
-            df["Close"]
-            .shift(1)
-            .rolling(window=60)
-            .max()
-        )
-        df["VolumeMA20"] = df["Volume"].rolling(window=20).mean()
-
-        df["PrevClose"] = df["Close"].shift(1)
-
-        df["TR"] = (
-            pd.concat(
-                [
-                    df["High"] - df["Low"],
-                    (df["High"] - df["PrevClose"]).abs(),
-                    (df["Low"] - df["PrevClose"]).abs()
-                ],
-                axis=1
-            )
-        ).max(axis=1)
-
-        df["ATR14"] = (
-            df["TR"]
-            .rolling(window=14)
-            .mean()
-        )
 
         df["High252"] = (
             df["Close"]
