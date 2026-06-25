@@ -189,6 +189,20 @@ def rank_stocks(tickers):
         + rank_df["NearHighScore"] * 0.1
     )
 
+    rank_df["Signal"] = "IGNORE"
+
+    rank_df.loc[
+        rank_df["FinalScore"] >= 120,
+        "Signal"
+    ] = "WATCH"
+
+    rank_df.loc[
+        (rank_df["FinalScore"] >= 145) &
+        (rank_df["Volume_Ratio"] > 1.0) &
+        (rank_df["DistanceToHigh"] >= 0.95),
+        "Signal"
+    ] = "BUY"
+
     rank_df = rank_df.sort_values(
         by="FinalScore",
         ascending=False
