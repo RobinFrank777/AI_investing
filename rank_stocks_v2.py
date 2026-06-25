@@ -42,6 +42,8 @@ import pandas as pd
 from stock_loader import load_stock
 
 tickers = load_watchlist()
+ACCOUNT_SIZE = 100000
+RISK_PER_TRADE = 0.01
 
 def rank_stocks(tickers):
 
@@ -128,7 +130,8 @@ def rank_stocks(tickers):
             latest_high60,
             distance_to_high
         )
-
+        risk_dollar = ACCOUNT_SIZE * RISK_PER_TRADE
+        position_size = risk_dollar / (latest_atr * 2)
         results.append({
             "Ticker": ticker,
             "Close": latest_close,
@@ -136,7 +139,10 @@ def rank_stocks(tickers):
             "MA60": latest_ma60,
             "ATR14": latest_atr,
             "StopLoss": latest_close - latest_atr * 2,
-            "RiskPerShare": latest_close - (latest_close - latest_atr * 2),
+            "RiskPerShare": latest_atr * 2,
+            "PositionSize": int(position_size),
+            "PositionValue": int(position_size * latest_close),
+            "PortfolioPct":position_size * latest_close / ACCOUNT_SIZE * 100,
             "20Day_Return": recent_return,
             "60Day_Return": return_60d,
             "Volume_Ratio": volume_ratio,
