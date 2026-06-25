@@ -11,9 +11,9 @@ def calculate_rank_score(
     recent_return,
     return_60d,
     volume_ratio,
-    latest_high60
+    latest_high60,
+    distance_to_high
 ):
-
     score = 0
 
     if latest_close > latest_ma20:
@@ -28,6 +28,14 @@ def calculate_rank_score(
         score += 20
     if latest_close > latest_high60:
         score += 20
+
+    if distance_to_high >= 0.95:
+        score += 30
+    elif distance_to_high >= 0.90:
+        score += 20
+    elif distance_to_high >= 0.80:
+        score += 10
+
     return score
 
 import pandas as pd
@@ -52,17 +60,30 @@ def rank_stocks(tickers):
             .max()
         )
         df["VolumeMA20"] = df["Volume"].rolling(window=20).mean()
+        df["High252"] = (
+            df["Close"]
+            .shift(1)
+            .rolling(window=252)
+            .max()
+        )
+
 
         latest_close = df["Close"].iloc[-1]
         latest_ma20 = df["MA20"].iloc[-1]
         latest_ma60 = df["MA60"].iloc[-1]
         latest_high60 = df["High60"].iloc[-1]
+        latest_high252 = df["High252"].iloc[-1]
         latest_volume = df["Volume"].iloc[-1]
         latest_volume_ma20 = df["VolumeMA20"].iloc[-1]
 
         volume_ratio = (
             latest_volume /
             latest_volume_ma20
+        )
+
+        distance_to_high = (
+            latest_close
+            / latest_high252
         )
 
         recent_return = (
@@ -83,7 +104,8 @@ def rank_stocks(tickers):
             recent_return,
             return_60d,
             volume_ratio,
-            latest_high60
+            latest_high60,
+            distance_to_high
         )
 
         results.append({
@@ -94,6 +116,7 @@ def rank_stocks(tickers):
             "20Day_Return": recent_return,
             "60Day_Return": return_60d,
             "Volume_Ratio": volume_ratio,
+            "DistanceToHigh": distance_to_high,
             "Score": score
         })
 
@@ -105,9 +128,35 @@ def rank_stocks(tickers):
     * 100
     )
 
+    rank_df["NearHighScore"] = 0
+
+    rank_df.loc[
+        rank_df["DistanceToHigh"] >= 1.00,
+        "NearHighScore"
+    ] = 40
+
+    rank_df.loc[
+        (rank_df["DistanceToHigh"] >= 0.98) &
+        (rank_df["DistanceToHigh"] < 1.00),
+        "NearHighScore"
+    ] = 30
+
+    rank_df.loc[
+        (rank_df["DistanceToHigh"] >= 0.95) &
+        (rank_df["DistanceToHigh"] < 0.98),
+        "NearHighScore"
+    ] = 20
+
+    rank_df.loc[
+        (rank_df["DistanceToHigh"] >= 0.90) &
+        (rank_df["DistanceToHigh"] < 0.95),
+        "NearHighScore"
+    ] = 10
+
     rank_df["FinalScore"] = (
-        rank_df["Score"]
-        + rank_df["RS_Score"] * 0.3
+        rank_df["Score"] * 0.7
+        + rank_df["RS_Score"] * 0.2
+        + rank_df["NearHighScore"] * 0.1
     )
 
     rank_df = rank_df.sort_values(
