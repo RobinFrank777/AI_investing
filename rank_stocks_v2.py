@@ -103,6 +103,15 @@ def rank_stocks(tickers):
         )
         risk_dollar = ACCOUNT_SIZE * RISK_PER_TRADE
         position_size = risk_dollar / (latest_atr * 2)
+        if latest_rsi < 60:
+            rsi_position_factor = 1.0
+        elif latest_rsi < 75:
+            rsi_position_factor = 0.8
+        else:
+            rsi_position_factor = 0.5
+
+        position_size = position_size * rsi_position_factor
+
         results.append({
             "Ticker": ticker,
             "Close": latest_close,
@@ -110,6 +119,7 @@ def rank_stocks(tickers):
             "MA60": latest_ma60,
             "ATR14": latest_atr,
             "RSI14": latest_rsi,
+            "RSI_Position_Factor": rsi_position_factor,
             "StopLoss": latest_close - latest_atr * 2,
             "RiskPerShare": latest_atr * 2,
             "PositionSize": int(position_size),
