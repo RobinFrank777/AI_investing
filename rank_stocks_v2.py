@@ -7,10 +7,10 @@ from indicators import calculate_indicators
 from position import calculate_position_size
 from score import calculate_rank_score, calculate_final_score
 from trade_signal import generate_signals
+from config import ACCOUNT_SIZE, RISK_PER_TRADE
 
 tickers = load_watchlist()
-ACCOUNT_SIZE = 100000
-RISK_PER_TRADE = 0.01
+
 
 def process_single_stock(ticker):
 
