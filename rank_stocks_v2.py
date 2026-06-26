@@ -12,39 +12,60 @@ def calculate_rank_score(
     return_60d,
     volume_ratio,
     latest_high60,
-    distance_to_high
+    distance_to_high,
+    latest_macd,
+    latest_signal,
+    latest_hist
 ):
     trend_score = 0
     momentum_score = 0
     volume_score = 0
     risk_score = 0
+    confidence = 0
 
     # Trend Score
     if latest_close > latest_ma20:
         trend_score += 30
+        confidence += 20
 
     if latest_ma20 > latest_ma60:
         trend_score += 30
+        confidence += 20
 
     if latest_close > latest_high60:
         trend_score += 20
 
     if distance_to_high >= 0.95:
         trend_score += 30
+        confidence += 20
     elif distance_to_high >= 0.90:
         trend_score += 20
+        confidence += 10
     elif distance_to_high >= 0.80:
         trend_score += 10
+        confidence += 5
 
     # Momentum Score
     momentum_score += recent_return * 70
     momentum_score += return_60d * 30
+    if latest_macd > latest_signal:
+        momentum_score += 20
+        confidence += 15
+
+    if latest_macd > 0:
+        momentum_score += 10
+        
+
+    if latest_hist > 0:
+        momentum_score += 10
+        confidence += 10
 
     # Volume Score
     if volume_ratio > 1.5:
         volume_score += 20
     elif volume_ratio > 1.0:
         volume_score += 10
+        confidence += 8
 
     # Risk Score
     risk_score += 50
@@ -56,7 +77,26 @@ def calculate_rank_score(
         + risk_score * 0.15
     )
 
-    return score
+    return score, confidence
+
+def calculate_position_size(
+    latest_atr,
+    latest_rsi,
+    account_size,
+    risk_per_trade
+):
+
+    risk_dollar = account_size * risk_per_trade
+    position_size = risk_dollar / (latest_atr * 2)
+    if latest_rsi < 60:
+        rsi_position_factor = 1.0
+    elif latest_rsi < 75:
+        rsi_position_factor = 0.8
+    else:
+        rsi_position_factor = 0.5
+
+    position_size = position_size * rsi_position_factor
+    return position_size, rsi_position_factor
 
 import pandas as pd
 from stock_loader import load_stock
@@ -114,7 +154,7 @@ def rank_stocks(tickers):
             df["Close"].iloc[-60]
         ) - 1
 
-        score = calculate_rank_score(
+        score, confidence = calculate_rank_score(
             latest_close,
             latest_ma20,
             latest_ma60,
@@ -122,18 +162,17 @@ def rank_stocks(tickers):
             return_60d,
             volume_ratio,
             latest_high60,
-            distance_to_high
+            distance_to_high,
+            latest_macd,
+            latest_signal,
+            latest_hist
         )
-        risk_dollar = ACCOUNT_SIZE * RISK_PER_TRADE
-        position_size = risk_dollar / (latest_atr * 2)
-        if latest_rsi < 60:
-            rsi_position_factor = 1.0
-        elif latest_rsi < 75:
-            rsi_position_factor = 0.8
-        else:
-            rsi_position_factor = 0.5
-
-        position_size = position_size * rsi_position_factor
+        position_size, rsi_position_factor = calculate_position_size(
+            latest_atr,
+            latest_rsi,
+            ACCOUNT_SIZE,
+            RISK_PER_TRADE
+        )
 
         results.append({
             "Ticker": ticker,
@@ -155,7 +194,8 @@ def rank_stocks(tickers):
             "60Day_Return": return_60d,
             "Volume_Ratio": volume_ratio,
             "DistanceToHigh": distance_to_high,
-            "Score": score
+            "Score": score,
+            "Confidence": confidence
         })
 
     rank_df = pd.DataFrame(results)
@@ -200,12 +240,12 @@ def rank_stocks(tickers):
     rank_df["Signal"] = "IGNORE"
 
     rank_df.loc[
-        rank_df["FinalScore"] >= 120,
+        rank_df["FinalScore"] >= 60,
         "Signal"
     ] = "WATCH"
 
     rank_df.loc[
-        (rank_df["FinalScore"] >= 145) &
+        (rank_df["FinalScore"] >= 75) &
         (rank_df["Volume_Ratio"] > 0.8) &
         (rank_df["DistanceToHigh"] >= 0.95)&
         (rank_df["Close"] > rank_df["MA20"]) &
