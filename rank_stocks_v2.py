@@ -7,7 +7,7 @@ from indicators import calculate_indicators
 from position import calculate_position_size
 from score import calculate_rank_score, calculate_final_score
 from trade_signal import generate_signals
-from config import ACCOUNT_SIZE, RISK_PER_TRADE
+from config import ACCOUNT_SIZE, RISK_PER_TRADE, STOCK_RANK_OUTPUT, TOP10_OUTPUT
 
 tickers = load_watchlist()
 
@@ -129,14 +129,14 @@ if __name__ == "__main__":
     print("\n===== 股票评分排名 =====")
     print(rank_df.head(10))
 
-    rank_df.to_csv("results/stock_rank.csv", index=False)
+    rank_df.to_csv(STOCK_RANK_OUTPUT, index=False)
 
     top10_df = rank_df.head(10)
 
     top10_df.to_csv(
-    "results/top10.csv",
+    TOP10_OUTPUT,
     index=False
 )
 
-    print("\n已保存到 results/stock_rank.csv")
+    print(f"\n已保存到 {STOCK_RANK_OUTPUT}")
 
