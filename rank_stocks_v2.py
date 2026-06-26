@@ -67,6 +67,8 @@ def rank_stocks(tickers):
         latest_volume = df["Volume"].iloc[-1]
         latest_volume_ma20 = df["VolumeMA20"].iloc[-1]
         latest_atr = df["ATR14"].iloc[-1]
+        latest_rsi = df["RSI14"].iloc[-1]
+
 
         volume_ratio = (
             latest_volume /
@@ -107,6 +109,7 @@ def rank_stocks(tickers):
             "MA20": latest_ma20,
             "MA60": latest_ma60,
             "ATR14": latest_atr,
+            "RSI14": latest_rsi,
             "StopLoss": latest_close - latest_atr * 2,
             "RiskPerShare": latest_atr * 2,
             "PositionSize": int(position_size),
