@@ -117,6 +117,44 @@ def generate_signals(rank_df):
 
     return rank_df
 
+def calculate_final_score(rank_df):
+    rank_df["RS_Score"] = (
+    rank_df["60Day_Return"]
+    .rank(pct=True)
+    * 100
+    )
+    rank_df["NearHighScore"] = 0
+
+    rank_df.loc[
+        rank_df["DistanceToHigh"] >= 1.00,
+        "NearHighScore"
+    ] = 40
+
+    rank_df.loc[
+        (rank_df["DistanceToHigh"] >= 0.98) &
+        (rank_df["DistanceToHigh"] < 1.00),
+        "NearHighScore"
+    ] = 30
+
+    rank_df.loc[
+        (rank_df["DistanceToHigh"] >= 0.95) &
+        (rank_df["DistanceToHigh"] < 0.98),
+        "NearHighScore"
+    ] = 20
+
+    rank_df.loc[
+        (rank_df["DistanceToHigh"] >= 0.90) &
+        (rank_df["DistanceToHigh"] < 0.95),
+        "NearHighScore"
+    ] = 10
+
+    rank_df["FinalScore"] = (
+        rank_df["Score"] * 0.7
+        + rank_df["RS_Score"] * 0.2
+        + rank_df["NearHighScore"] * 0.1
+    )
+    return rank_df
+
 import pandas as pd
 from stock_loader import load_stock
 from indicators import calculate_indicators
@@ -134,8 +172,6 @@ def rank_stocks(tickers):
         df = load_stock(ticker)
         df = calculate_indicators(df)
 
-
-        
 
 
         latest_close = df["Close"].iloc[-1]
@@ -219,42 +255,7 @@ def rank_stocks(tickers):
 
     rank_df = pd.DataFrame(results)
 
-    rank_df["RS_Score"] = (
-    rank_df["60Day_Return"]
-    .rank(pct=True)
-    * 100
-    )
-
-    rank_df["NearHighScore"] = 0
-
-    rank_df.loc[
-        rank_df["DistanceToHigh"] >= 1.00,
-        "NearHighScore"
-    ] = 40
-
-    rank_df.loc[
-        (rank_df["DistanceToHigh"] >= 0.98) &
-        (rank_df["DistanceToHigh"] < 1.00),
-        "NearHighScore"
-    ] = 30
-
-    rank_df.loc[
-        (rank_df["DistanceToHigh"] >= 0.95) &
-        (rank_df["DistanceToHigh"] < 0.98),
-        "NearHighScore"
-    ] = 20
-
-    rank_df.loc[
-        (rank_df["DistanceToHigh"] >= 0.90) &
-        (rank_df["DistanceToHigh"] < 0.95),
-        "NearHighScore"
-    ] = 10
-
-    rank_df["FinalScore"] = (
-        rank_df["Score"] * 0.7
-        + rank_df["RS_Score"] * 0.2
-        + rank_df["NearHighScore"] * 0.1
-    )
+    rank_df = calculate_final_score(rank_df)
 
     rank_df = generate_signals(rank_df)
 
