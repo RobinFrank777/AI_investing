@@ -14,27 +14,47 @@ def calculate_rank_score(
     latest_high60,
     distance_to_high
 ):
-    score = 0
+    trend_score = 0
+    momentum_score = 0
+    volume_score = 0
+    risk_score = 0
 
+    # Trend Score
     if latest_close > latest_ma20:
-        score += 30
+        trend_score += 30
 
     if latest_ma20 > latest_ma60:
-        score += 30
+        trend_score += 30
 
-    score += recent_return * 70
-    score += return_60d * 30
-    if volume_ratio > 1.5:
-        score += 20
     if latest_close > latest_high60:
-        score += 20
+        trend_score += 20
 
     if distance_to_high >= 0.95:
-        score += 30
+        trend_score += 30
     elif distance_to_high >= 0.90:
-        score += 20
+        trend_score += 20
     elif distance_to_high >= 0.80:
-        score += 10
+        trend_score += 10
+
+    # Momentum Score
+    momentum_score += recent_return * 70
+    momentum_score += return_60d * 30
+
+    # Volume Score
+    if volume_ratio > 1.5:
+        volume_score += 20
+    elif volume_ratio > 1.0:
+        volume_score += 10
+
+    # Risk Score
+    risk_score += 50
+
+    score = (
+        trend_score * 0.40
+        + momentum_score * 0.25
+        + volume_score * 0.20
+        + risk_score * 0.15
+    )
 
     return score
 
