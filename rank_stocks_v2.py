@@ -15,6 +15,9 @@ def process_single_stock(ticker):
     df = load_stock(ticker)
     df = calculate_indicators(df)
 
+    latest_date = df["Date"].iloc[-1]
+    print(f"{ticker} 最新数据日期：{latest_date}")
+
     latest_close = df["Close"].iloc[-1]
     latest_ma20 = df["MA20"].iloc[-1]
     latest_ma60 = df["MA60"].iloc[-1]
@@ -100,9 +103,11 @@ def rank_stocks(tickers):
     results = []
 
     for ticker in tickers:
-
-        result = process_single_stock(ticker)
-        results.append(result)
+        try:
+            result = process_single_stock(ticker)
+            results.append(result)
+        except Exception as e:
+            print(f"跳过 {ticker}，原因：{e}")
 
     rank_df = pd.DataFrame(results)
 
@@ -116,7 +121,45 @@ def rank_stocks(tickers):
     )
 
     return rank_df
+def print_signal_summary(rank_df):
+    buy_df = rank_df[rank_df["Signal"] == "BUY"]
+    watch_df = rank_df[rank_df["Signal"] == "WATCH"]
 
+    print("\n===== 今日 BUY 清单 =====")
+    if buy_df.empty:
+        print("无")
+    else:
+        print(
+            buy_df[
+                [
+                    "Ticker",
+                    "Close",
+                    "FinalScore",
+                    "Confidence",
+                    "PositionSize",
+                    "StopLoss",
+                    "PortfolioPct",
+                ]
+            ]
+        )
+
+    print("\n===== 今日 WATCH 清单 =====")
+    if watch_df.empty:
+        print("无")
+    else:
+        print(
+            watch_df[
+                [
+                    "Ticker",
+                    "Close",
+                    "FinalScore",
+                    "Confidence",
+                    "DistanceToHigh",
+                    "Volume_Ratio",
+                    "RSI14",
+                ]
+            ]
+        )
 
 if __name__ == "__main__":
 
@@ -126,6 +169,7 @@ if __name__ == "__main__":
 
     print("\n===== 股票评分排名 =====")
     print(rank_df.head(10))
+    print_signal_summary(rank_df)
 
     rank_df.to_csv(STOCK_RANK_OUTPUT, index=False)
 
