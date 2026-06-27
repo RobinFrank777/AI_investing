@@ -1,6 +1,7 @@
 
 
 import pandas as pd
+from reason import generate_reason
 from watchlist import load_watchlist
 from stock_loader import load_stock
 from indicators import calculate_indicators
@@ -114,6 +115,7 @@ def rank_stocks(tickers):
     rank_df = calculate_final_score(rank_df)
 
     rank_df = generate_signals(rank_df)
+    rank_df["Reason"] = rank_df.apply(generate_reason, axis=1)
 
     rank_df = rank_df.sort_values(
         by="FinalScore",
@@ -125,41 +127,38 @@ def print_signal_summary(rank_df):
     buy_df = rank_df[rank_df["Signal"] == "BUY"]
     watch_df = rank_df[rank_df["Signal"] == "WATCH"]
 
-    print("\n===== 今日 BUY 清单 =====")
+    print("\n===== Today's BUY LIST =====")
     if buy_df.empty:
         print("无")
     else:
-        print(
-            buy_df[
-                [
-                    "Ticker",
-                    "Close",
-                    "FinalScore",
-                    "Confidence",
-                    "PositionSize",
-                    "StopLoss",
-                    "PortfolioPct",
-                ]
-            ]
-        )
+        for _, row in buy_df.iterrows():
+            print(f"\n{row['Ticker']}")
+            print(f"Price: {row['Close']:.2f}")
+            print(f"FinalScore: {row['FinalScore']:.2f}")
+            print(f"Confidence: {row['Confidence']}")
+            print(f"PositionSize: {row['PositionSize']} shares")
+            print(f"StopLoss: {row['StopLoss']:.2f}")
+            print("Reasons:")
+            for reason in row["Reason"].split(" | "):
+                print(f"   ✓ {reason}")
+            print("-" * 50)
 
-    print("\n===== 今日 WATCH 清单 =====")
+    print("\n===== Today's WATCH LIST =====")
     if watch_df.empty:
         print("无")
     else:
-        print(
-            watch_df[
-                [
-                    "Ticker",
-                    "Close",
-                    "FinalScore",
-                    "Confidence",
-                    "DistanceToHigh",
-                    "Volume_Ratio",
-                    "RSI14",
-                ]
-            ]
-        )
+        for _, row in watch_df.iterrows():
+            print(f"\n{row['Ticker']}")
+            print(f"Price: {row['Close']:.2f}")
+            print(f"FinalScore: {row['FinalScore']:.2f}")
+            print(f"Confidence: {row['Confidence']}")
+            print(f"DistanceToHigh: {row['DistanceToHigh']:.1%}")
+            print(f"Volume_Ratio: {row['Volume_Ratio']:.2f}x")
+            print(f"RSI14: {row['RSI14']:.1f}")
+            print("Reasons:")
+            for reason in row["Reason"].split(" | "):
+                print(f"   ✓ {reason}")
+            print("-" * 50)
 
 if __name__ == "__main__":
 
@@ -167,7 +166,7 @@ if __name__ == "__main__":
 
     rank_df = rank_stocks(tickers)
 
-    print("\n===== 股票评分排名 =====")
+    print("\n===== TOP 10 STOCK RANKING =====")
     print(rank_df.head(10))
     print_signal_summary(rank_df)
 
