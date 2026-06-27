@@ -9,8 +9,6 @@ from score import calculate_rank_score, calculate_final_score
 from trade_signal import generate_signals
 from config import ACCOUNT_SIZE, RISK_PER_TRADE, STOCK_RANK_OUTPUT, TOP10_OUTPUT
 
-tickers = load_watchlist()
-
 
 def process_single_stock(ticker):
 
@@ -71,7 +69,7 @@ def process_single_stock(ticker):
         ACCOUNT_SIZE,
         RISK_PER_TRADE
     )
-    return{
+    return {
         "Ticker": ticker,
         "Close": latest_close,
         "MA20": latest_ma20,
