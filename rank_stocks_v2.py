@@ -1,6 +1,7 @@
 
 
 import pandas as pd
+from report import save_daily_report
 from reason import generate_reason
 from watchlist import load_watchlist
 from stock_loader import load_stock
@@ -180,7 +181,7 @@ if __name__ == "__main__":
     print_signal_summary(rank_df)
 
     rank_df.to_csv(STOCK_RANK_OUTPUT, index=False)
-
+    save_daily_report(rank_df)
     top10_df = rank_df.head(10)
 
     top10_df.to_csv(
