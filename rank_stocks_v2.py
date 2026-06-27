@@ -132,14 +132,18 @@ def print_signal_summary(rank_df):
         print("无")
     else:
         for _, row in buy_df.iterrows():
-            print(f"\n{row['Ticker']}")
+            print("=" * 30)
+            print(f"{'Ticker':<15}: {row['Ticker']}")
+            print("=" * 30)
             print(f"{'Price':<15}: {row['Close']:.2f}")
             print(f"{'Final Score':<15}: {row['FinalScore']:.2f}")
-            print(f"{'Confidence':<15}: {row['Confidence']}")
+            print(f"{'Confidence':<15}: {row['Confidence']} / 100")
             print(f"{'Position Size':<15}: {row['PositionSize']} shares")
             print(f"{'Stop Loss':<15}: {row['StopLoss']:.2f}")
             print(f"{'ATR(14)':<15}: {row['ATR14']:.2f}")
-            print("Reasons:")
+            print(f"{'MACD':<15}: {row['MACD']:.2f}")
+            print(f"{'MACD Histogram':<15}: {row['Histogram']:.2f}")
+            print("\nReasons")
             for reason in row["Reason"].split(" | "):
                 print(f"   ✓ {reason}")
             print("-" * 50)
@@ -149,16 +153,18 @@ def print_signal_summary(rank_df):
         print("无")
     else:
         for _, row in watch_df.iterrows():
-            print(f"\n{row['Ticker']}")
+            print("=" * 30)
+            print(f"{'Ticker':<15}: {row['Ticker']}")
+            print("=" * 30)
             print(f"{'Price':<15}: {row['Close']:.2f}")
             print(f"{'Final Score':<15}: {row['FinalScore']:.2f}")
-            print(f"{'Confidence':<15}: {row['Confidence']}")
+            print(f"{'Confidence':<15}: {row['Confidence']} / 100")
             print(f"{'Distance High':<15}: {row['DistanceToHigh']:.1%}")
             print(f"{'Volume Ratio':<15}: {row['Volume_Ratio']:.2f}x")
             print(f"{'RSI(14)':<15}: {row['RSI14']:.1f}")
             print(f"{'MACD':<15}: {row['MACD']:.2f}")
             print(f"{'MACD Histogram':<15}: {row['Histogram']:.2f}")
-            print("Reasons:")
+            print("\nReasons")
             for reason in row["Reason"].split(" | "):
                 print(f"   ✓ {reason}")
             print("-" * 50)
