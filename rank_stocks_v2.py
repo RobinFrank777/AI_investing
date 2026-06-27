@@ -133,11 +133,12 @@ def print_signal_summary(rank_df):
     else:
         for _, row in buy_df.iterrows():
             print(f"\n{row['Ticker']}")
-            print(f"Price: {row['Close']:.2f}")
-            print(f"FinalScore: {row['FinalScore']:.2f}")
-            print(f"Confidence: {row['Confidence']}")
-            print(f"PositionSize: {row['PositionSize']} shares")
-            print(f"StopLoss: {row['StopLoss']:.2f}")
+            print(f"{'Price':<15}: {row['Close']:.2f}")
+            print(f"{'Final Score':<15}: {row['FinalScore']:.2f}")
+            print(f"{'Confidence':<15}: {row['Confidence']}")
+            print(f"{'Position Size':<15}: {row['PositionSize']} shares")
+            print(f"{'Stop Loss':<15}: {row['StopLoss']:.2f}")
+            print(f"{'ATR(14)':<15}: {row['ATR14']:.2f}")
             print("Reasons:")
             for reason in row["Reason"].split(" | "):
                 print(f"   ✓ {reason}")
@@ -149,12 +150,14 @@ def print_signal_summary(rank_df):
     else:
         for _, row in watch_df.iterrows():
             print(f"\n{row['Ticker']}")
-            print(f"Price: {row['Close']:.2f}")
-            print(f"FinalScore: {row['FinalScore']:.2f}")
-            print(f"Confidence: {row['Confidence']}")
-            print(f"DistanceToHigh: {row['DistanceToHigh']:.1%}")
-            print(f"Volume_Ratio: {row['Volume_Ratio']:.2f}x")
-            print(f"RSI14: {row['RSI14']:.1f}")
+            print(f"{'Price':<15}: {row['Close']:.2f}")
+            print(f"{'Final Score':<15}: {row['FinalScore']:.2f}")
+            print(f"{'Confidence':<15}: {row['Confidence']}")
+            print(f"{'Distance High':<15}: {row['DistanceToHigh']:.1%}")
+            print(f"{'Volume Ratio':<15}: {row['Volume_Ratio']:.2f}x")
+            print(f"{'RSI(14)':<15}: {row['RSI14']:.1f}")
+            print(f"{'MACD':<15}: {row['MACD']:.2f}")
+            print(f"{'MACD Histogram':<15}: {row['Histogram']:.2f}")
             print("Reasons:")
             for reason in row["Reason"].split(" | "):
                 print(f"   ✓ {reason}")
