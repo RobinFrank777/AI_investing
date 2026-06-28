@@ -2,7 +2,7 @@
 DAILY TRADING REPORT
 ============================================================
 
-Report Generated At   : 2026-06-27 21:44:04
+Report Generated At   : 2026-06-27 22:25:00
 Market Data Date      : 2026-06-25, 2026-06-26
 Source File           : results/stock_rank.csv
 
@@ -12,10 +12,10 @@ MARKET OVERVIEW
 
 BUY Signals        : 0
 WATCH Signals      : 8
-IGNORE Signals     : 58
+IGNORE Signals     : 57
 
-Average Score      : 33.92
-Average Confidence : 41.9
+Average Score      : 34.10
+Average Confidence : 42.3
 
 Top Candidate      : SNDK
 
@@ -26,15 +26,15 @@ TOP 10 STOCK RANKING
 Ticker  Score     Signal    Confidence  
 ------------------------------------------
 SNDK    72.82     WATCH     83          
-MU      70.97     WATCH     83          
-CAT     70.78     WATCH     85          
-CAKE    70.38     WATCH     93          
-INTC    65.29     WATCH     75          
-AMD     63.96     WATCH     60          
-USB     63.32     WATCH     93          
-ETSY    63.26     WATCH     85          
-JPM     56.52     IGNORE    85          
-TGT     56.06     IGNORE    93          
+MU      70.96     WATCH     83          
+CAT     70.72     WATCH     85          
+CAKE    70.33     WATCH     93          
+INTC    65.28     WATCH     75          
+AMD     63.95     WATCH     60          
+ETSY    63.23     WATCH     85          
+USB     63.20     WATCH     93          
+JPM     56.38     IGNORE    85          
+TGT     55.94     IGNORE    93          
 
 ============================================================
 TODAY'S BUY LIST
@@ -63,7 +63,7 @@ Reasons:
 
 Ticker: MU
 Price: 1139.07
-Final Score: 70.97
+Final Score: 70.96
 Confidence: 83 / 100
 Distance High: 92.4%
 Volume Ratio: 1.45x
@@ -77,7 +77,7 @@ Reasons:
 
 Ticker: CAT
 Price: 1031.85
-Final Score: 70.78
+Final Score: 70.72
 Confidence: 85 / 100
 Distance High: 100.7%
 Volume Ratio: 3.54x
@@ -91,7 +91,7 @@ Reasons:
 
 Ticker: CAKE
 Price: 78.26
-Final Score: 70.38
+Final Score: 70.33
 Confidence: 93 / 100
 Distance High: 100.9%
 Volume Ratio: 1.39x
@@ -105,7 +105,7 @@ Reasons:
 
 Ticker: INTC
 Price: 128.70
-Final Score: 65.29
+Final Score: 65.28
 Confidence: 75 / 100
 Distance High: 92.1%
 Volume Ratio: 0.72x
@@ -119,7 +119,7 @@ Reasons:
 
 Ticker: AMD
 Price: 519.79
-Final Score: 63.96
+Final Score: 63.95
 Confidence: 60 / 100
 Distance High: 95.0%
 Volume Ratio: 1.61x
@@ -131,23 +131,9 @@ Reasons:
   - Near 52-week high
   - RSI not overbought
 
-Ticker: USB
-Price: 61.44
-Final Score: 63.32
-Confidence: 93 / 100
-Distance High: 100.7%
-Volume Ratio: 1.38x
-RSI(14): 81.8
-Reasons:
-  - Price above MA20
-  - Bullish MA alignment
-  - Above-average volume
-  - Near 52-week high
-  - RSI overbought
-
 Ticker: ETSY
 Price: 77.30
-Final Score: 63.26
+Final Score: 63.23
 Confidence: 85 / 100
 Distance High: 98.1%
 Volume Ratio: 0.74x
@@ -156,5 +142,19 @@ Reasons:
   - Price above MA20
   - Bullish MA alignment
   - Weak volume
+  - Near 52-week high
+  - RSI overbought
+
+Ticker: USB
+Price: 61.44
+Final Score: 63.20
+Confidence: 93 / 100
+Distance High: 100.7%
+Volume Ratio: 1.38x
+RSI(14): 81.8
+Reasons:
+  - Price above MA20
+  - Bullish MA alignment
+  - Above-average volume
   - Near 52-week high
   - RSI overbought

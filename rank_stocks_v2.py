@@ -3,6 +3,10 @@
 import pandas as pd
 from report import save_daily_report
 from reason import generate_reason
+from data_validator import (
+    print_validation_summary,
+    validate_watchlist,
+)
 from watchlist import load_watchlist
 from stock_loader import load_stock
 from indicators import calculate_indicators
@@ -175,7 +179,25 @@ def print_signal_summary(rank_df):
 
 if __name__ == "__main__":
 
-    tickers = load_watchlist()
+    validation_results, universe_latest_date = (
+        validate_watchlist()
+    )
+
+    print_validation_summary(
+        validation_results,
+        universe_latest_date,
+    )
+
+    tickers = [
+    result["Ticker"]
+    for result in validation_results
+    if result["IsValid"]
+    ]
+
+    if not tickers:
+        raise RuntimeError(
+            "No valid stock data available for ranking."
+        )
 
     rank_df = rank_stocks(tickers)
 
