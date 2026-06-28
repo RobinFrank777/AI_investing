@@ -31,7 +31,7 @@ def process_single_stock(ticker):
     latest_atr = df["ATR14"].iloc[-1]
     latest_rsi = df["RSI14"].iloc[-1]
     latest_macd = df["MACD"].iloc[-1]
-    latest_signal = df["Signal"].iloc[-1]
+    latest_macd_signal = df["MACD_Signal"].iloc[-1]
     latest_hist = df["Histogram"].iloc[-1]
 
     volume_ratio = (
@@ -65,7 +65,7 @@ def process_single_stock(ticker):
         latest_high60,
         distance_to_high,
         latest_macd,
-        latest_signal,
+        latest_macd_signal,
         latest_hist
     )
     position_size, rsi_position_factor = calculate_position_size(
@@ -82,7 +82,7 @@ def process_single_stock(ticker):
         "ATR14": latest_atr,
         "RSI14": latest_rsi,
         "MACD": latest_macd,
-        "Signal": latest_signal,
+        "MACD_Signal": latest_macd_signal,
         "Histogram": latest_hist,
         "RSI_Position_Factor": rsi_position_factor,
         "StopLoss": latest_close - latest_atr * 2,
@@ -125,8 +125,8 @@ def rank_stocks(tickers):
 
     return rank_df
 def print_signal_summary(rank_df):
-    buy_df = rank_df[rank_df["Signal"] == "BUY"]
-    watch_df = rank_df[rank_df["Signal"] == "WATCH"]
+    buy_df = rank_df[rank_df["TradeSignal"] == "BUY"]
+    watch_df = rank_df[rank_df["TradeSignal"] == "WATCH"]
 
     print("\n===== Today's BUY LIST =====")
     if buy_df.empty:

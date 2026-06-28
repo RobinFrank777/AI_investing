@@ -7,14 +7,14 @@ def save_daily_report(rank_df):
 
     report_path = f"reports/daily_trading_report_{today}.txt"
 
-    buy_df = rank_df[rank_df["Signal"] == "BUY"]
-    watch_df = rank_df[rank_df["Signal"] == "WATCH"]
+    buy_df = rank_df[rank_df["TradeSignal"] == "BUY"]
+    watch_df = rank_df[rank_df["TradeSignal"] == "WATCH"]
     top10_df = rank_df.head(10)
 
     with open(report_path, "w", encoding="utf-8") as f:
         buy_count = len(buy_df)
         watch_count = len(watch_df)
-        ignore_count = len(rank_df[rank_df["Signal"] == "IGNORE"])
+        ignore_count = len(rank_df[rank_df["TradeSignal"] == "IGNORE"])
 
         avg_score = rank_df["FinalScore"].mean()
         avg_conf = rank_df["Confidence"].mean()
@@ -52,7 +52,7 @@ def save_daily_report(rank_df):
             f.write(
                 f"{row['Ticker']:<8}"
                 f"{row['FinalScore']:<10.2f}"
-                f"{row['Signal']:<10}"
+                f"{row['TradeSignal']:<10}"
                 f"{row['Confidence']:<12}\n"
             )
 

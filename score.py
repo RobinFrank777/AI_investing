@@ -10,7 +10,7 @@ def calculate_rank_score(
     latest_high60,
     distance_to_high,
     latest_macd,
-    latest_signal,
+    latest_macd_signal,
     latest_hist
 ):
     trend_score = 0
@@ -44,7 +44,7 @@ def calculate_rank_score(
     # Momentum Score
     momentum_score += recent_return * 70
     momentum_score += return_60d * 30
-    if latest_macd > latest_signal:
+    if latest_macd > latest_macd_signal:
         momentum_score += 20
         confidence += 15
 

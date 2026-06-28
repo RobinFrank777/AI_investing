@@ -67,7 +67,7 @@ def calculate_indicators(df):
 
     df["MACD"] = df["EMA12"] - df["EMA26"]
 
-    df["Signal"] = (
+    df["MACD_Signal"] = (
         df["MACD"]
         .ewm(span=9, adjust=False)
         .mean()
@@ -75,7 +75,7 @@ def calculate_indicators(df):
 
     df["Histogram"] = (
         df["MACD"]
-        - df["Signal"]
+        - df["MACD_Signal"]
     )
 
     return df
