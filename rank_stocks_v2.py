@@ -17,8 +17,10 @@ def process_single_stock(ticker):
     df = load_stock(ticker)
     df = calculate_indicators(df)
 
-    latest_date = df["Date"].iloc[-1]
-    print(f"{ticker} 最新数据日期：{latest_date}")
+    latest_date = pd.to_datetime(df["Date"].iloc[-1])
+    market_data_date = latest_date.strftime("%Y-%m-%d")
+
+    print(f"{ticker} 最新数据日期: {market_data_date}")
 
     latest_close = df["Close"].iloc[-1]
     latest_ma20 = df["MA20"].iloc[-1]
@@ -76,6 +78,7 @@ def process_single_stock(ticker):
     )
     return {
         "Ticker": ticker,
+        "MarketDataDate": market_data_date,
         "Close": latest_close,
         "MA20": latest_ma20,
         "MA60": latest_ma60,

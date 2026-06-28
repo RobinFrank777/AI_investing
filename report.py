@@ -3,13 +3,31 @@ from config import STOCK_RANK_OUTPUT
 
 
 def save_daily_report(rank_df):
-    today = datetime.now().strftime("%Y-%m-%d")
+    now = datetime.now()
 
-    report_path = f"reports/daily_trading_report_{today}.txt"
+    report_date = now.strftime("%Y-%m-%d")
+    report_generated_at = now.strftime("%Y-%m-%d %H:%M:%S")
+
+    report_path = (
+        f"reports/daily_trading_report_{report_date}.txt"
+    )
 
     buy_df = rank_df[rank_df["TradeSignal"] == "BUY"]
     watch_df = rank_df[rank_df["TradeSignal"] == "WATCH"]
     top10_df = rank_df.head(10)
+    market_data_dates = sorted(
+    rank_df["MarketDataDate"]
+    .dropna()
+    .astype(str)
+    .unique()
+    )
+
+    if len(market_data_dates) == 1:
+        market_data_date = market_data_dates[0]
+    elif len(market_data_dates) == 0:
+        market_data_date = "Unavailable"
+    else:
+        market_data_date = ", ".join(market_data_dates)
 
     with open(report_path, "w", encoding="utf-8") as f:
         buy_count = len(buy_df)
@@ -25,8 +43,20 @@ def save_daily_report(rank_df):
         f.write("DAILY TRADING REPORT\n")
         f.write("=" * 60 + "\n\n")
 
-        f.write(f"Date: {today}\n")
-        f.write(f"Source File: {STOCK_RANK_OUTPUT}\n\n")
+        f.write(
+            f"{'Report Generated At':<22}: "
+            f"{report_generated_at}\n"
+        )
+
+        f.write(
+            f"{'Market Data Date':<22}: "
+            f"{market_data_date}\n"
+        )
+
+        f.write(
+            f"{'Source File':<22}: "
+            f"{STOCK_RANK_OUTPUT}\n\n"
+        )
 
         f.write("=" * 60 + "\n")
         f.write("MARKET OVERVIEW\n")

@@ -2,8 +2,9 @@
 DAILY TRADING REPORT
 ============================================================
 
-Date: 2026-06-27
-Source File: results/stock_rank.csv
+Report Generated At   : 2026-06-27 21:44:04
+Market Data Date      : 2026-06-25, 2026-06-26
+Source File           : results/stock_rank.csv
 
 ============================================================
 MARKET OVERVIEW
