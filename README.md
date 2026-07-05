@@ -1,12 +1,11 @@
-# AI_investing
+## AI_investing
 
 AI_investing is a technical stock screening and daily report system.
 
 Current version:
-
-```text
 AI_investing Technical Screener & Daily Report V1.0.1
-Current Purpose
+
+## Current Purpose
 
 This system is designed for:
 
@@ -21,7 +20,7 @@ This system is not a verified automatic trading system.
 
 Before a full backtest is completed, any BUY signal should be treated only as a candidate screening signal, not as a real trading instruction.
 
-Daily Usage
+## Daily Usage
 
 Run the full daily pipeline:
 
@@ -42,7 +41,8 @@ The pipeline will:
 6. generate stock signal cards
 7. generate the daily trading report
 8. write a runtime log
-Main Output Files
+
+## Main Output Files
 
 Daily trading report:
 
@@ -59,7 +59,8 @@ results/top10.csv
 Runtime log:
 
 logs/daily_pipeline_YYYY-MM-DD.log
-Data Quality Rules
+
+## Data Quality Rules
 
 Before ranking, the system validates each stock file.
 
@@ -79,7 +80,7 @@ A stock may receive a warning if:
 Invalid stocks are excluded from ranking.
 Warning-only stocks are kept in the ranking.
 
-Signal Meaning
+## Signal Meaning
 
 The system currently produces three trade signals:
 
@@ -91,7 +92,8 @@ Important rule:
 
 BUY means "candidate for further review".
 BUY does not mean "verified buy order".
-Git Rules
+
+## Git Rules
 
 The following files are ignored by Git because they are generated automatically:
 
@@ -110,7 +112,8 @@ git add <changed_code_files>
 git commit -m "Message"
 git push
 git status
-Current System Boundary
+
+## Current System Boundary
 
 The current system is based mainly on technical indicators and rule-based scoring.
 
@@ -124,7 +127,8 @@ It does not yet include:
 - AI analyst summary
 - paper trading execution
 - live broker connection
-Development Roadmap
+
+## Development Roadmap
 
 Next development stages:
 
