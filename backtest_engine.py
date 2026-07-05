@@ -3,6 +3,9 @@ import pandas as pd
 from stock_loader import load_stock
 from indicators import calculate_indicators
 from watchlist import load_watchlist
+MIN_COMPLETED_TRADES = 10
+MIN_AVERAGE_RETURN = 0
+MIN_WIN_RATE = 0.5
 
 def generate_historical_trade_signals(df):
     df = df.copy()
@@ -350,6 +353,33 @@ def backtest_watchlist(holding_days=20):
 
     summary_df = pd.DataFrame(summaries)
 
+    summary_df["AverageReturn"] = pd.to_numeric(
+        summary_df["AverageReturn"],
+        errors="coerce",
+    )
+
+    summary_df["WinRate"] = pd.to_numeric(
+        summary_df["WinRate"],
+        errors="coerce",
+    )
+
+    summary_df["BestTrade"] = pd.to_numeric(
+        summary_df["BestTrade"],
+        errors="coerce",
+    )
+
+    summary_df["WorstTrade"] = pd.to_numeric(
+        summary_df["WorstTrade"],
+        errors="coerce",
+    )
+
+    summary_df["IsQualified"] = (
+        (summary_df["CompletedTradeCount"] >= MIN_COMPLETED_TRADES)
+        & (summary_df["AverageReturn"] > MIN_AVERAGE_RETURN)
+        & (summary_df["WinRate"] >= MIN_WIN_RATE)
+        & (summary_df["Error"] == "")
+    )
+
     summary_df = summary_df.sort_values(
         by=["AverageReturn", "WinRate"],
         ascending=False,
@@ -358,6 +388,17 @@ def backtest_watchlist(holding_days=20):
 
     summary_output_path = f"results/backtest_summary_{holding_days}d.csv"
     summary_df.to_csv(summary_output_path, index=False)
+
+    qualified_df = summary_df[summary_df["IsQualified"]].copy()
+
+    qualified_df = qualified_df.sort_values(
+        by=["AverageReturn", "WinRate", "CompletedTradeCount"],
+        ascending=False,
+        na_position="last",
+    )
+
+    qualified_output_path = f"results/backtest_qualified_{holding_days}d.csv"
+    qualified_df.to_csv(qualified_output_path, index=False)
 
     if all_trades:
         all_trades_df = pd.concat(all_trades, ignore_index=True)
@@ -372,8 +413,10 @@ def backtest_watchlist(holding_days=20):
     print("=" * 70)
 
     print(f"Stocks Tested      : {len(summary_df)}")
+    print(f"Qualified Stocks   : {len(qualified_df)}")
     print(f"Total Trades       : {len(all_trades_df)}")
     print(f"Saved Summary To   : {summary_output_path}")
+    print(f"Saved Qualified To : {qualified_output_path}")
     print(f"Saved Trades To    : {trades_output_path}")
 
     print("\nTop 10 by Average Return:")
@@ -387,7 +430,24 @@ def backtest_watchlist(holding_days=20):
                 "WinRate",
                 "BestTrade",
                 "WorstTrade",
+                "IsQualified",
                 "Error",
+            ]
+        ].head(10)
+    )
+
+    print("\nQualified Top 10:")
+    print(
+        qualified_df[
+            [
+                "Ticker",
+                "EntrySignalCount",
+                "CompletedTradeCount",
+                "AverageReturn",
+                "WinRate",
+                "BestTrade",
+                "WorstTrade",
+                "IsQualified",
             ]
         ].head(10)
     )
