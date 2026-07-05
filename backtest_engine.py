@@ -6,6 +6,7 @@ from watchlist import load_watchlist
 MIN_COMPLETED_TRADES = 10
 MIN_AVERAGE_RETURN = 0
 MIN_WIN_RATE = 0.5
+TRADE_COUNT_CAP = 30
 
 def generate_historical_trade_signals(df):
     df = df.copy()
@@ -379,6 +380,39 @@ def backtest_watchlist(holding_days=20):
         & (summary_df["WinRate"] >= MIN_WIN_RATE)
         & (summary_df["Error"] == "")
     )
+    summary_df["AverageReturnScore"] = (
+        summary_df["AverageReturn"]
+        .fillna(0)
+        .clip(lower=-0.20, upper=0.30)
+        * 100
+    )
+
+    summary_df["WinRateScore"] = (
+        summary_df["WinRate"]
+        .fillna(0)
+        * 40
+    )
+
+    summary_df["TradeCountScore"] = (
+        summary_df["CompletedTradeCount"]
+        .clip(upper=TRADE_COUNT_CAP)
+        / TRADE_COUNT_CAP
+        * 20
+    )
+
+    summary_df["RiskScore"] = (
+        (1 + summary_df["WorstTrade"].fillna(-1))
+        .clip(lower=0, upper=1)
+        * 10
+    )
+
+    summary_df["BacktestScore"] = (
+        summary_df["AverageReturnScore"]
+        + summary_df["WinRateScore"]
+        + summary_df["TradeCountScore"]
+        + summary_df["RiskScore"]
+    )
+
 
     summary_df = summary_df.sort_values(
         by=["AverageReturn", "WinRate"],
@@ -392,9 +426,9 @@ def backtest_watchlist(holding_days=20):
     qualified_df = summary_df[summary_df["IsQualified"]].copy()
 
     qualified_df = qualified_df.sort_values(
-        by=["AverageReturn", "WinRate", "CompletedTradeCount"],
-        ascending=False,
-        na_position="last",
+    by=["BacktestScore", "AverageReturn", "WinRate"],
+    ascending=False,
+    na_position="last",
     )
 
     qualified_output_path = f"results/backtest_qualified_{holding_days}d.csv"
@@ -431,12 +465,13 @@ def backtest_watchlist(holding_days=20):
                 "BestTrade",
                 "WorstTrade",
                 "IsQualified",
+                "BacktestScore",
                 "Error",
             ]
         ].head(10)
     )
 
-    print("\nQualified Top 10:")
+    print("\nQualified Top 10 by BacktestScore:")
     print(
         qualified_df[
             [
@@ -447,6 +482,7 @@ def backtest_watchlist(holding_days=20):
                 "WinRate",
                 "BestTrade",
                 "WorstTrade",
+                "BacktestScore",
                 "IsQualified",
             ]
         ].head(10)
