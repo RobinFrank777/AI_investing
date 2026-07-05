@@ -68,9 +68,40 @@ def add_forward_returns(df):
     df["Forward_60D_Return"] = (
         df["Forward_60D_Close"] / df["Close"] - 1
     )
-
+    
     return df
 
+def build_fixed_holding_trades(df, holding_days=20):
+    trades = []
+
+    entry_df = df[df["EntrySignal"]].copy()
+
+    for entry_index, entry_row in entry_df.iterrows():
+        exit_index = entry_index + holding_days
+
+        if exit_index >= len(df):
+            continue
+
+        exit_row = df.iloc[exit_index]
+
+        entry_price = entry_row["Close"]
+        exit_price = exit_row["Close"]
+
+        trade_return = exit_price / entry_price - 1
+
+        trades.append(
+            {
+                "Ticker": entry_row.get("Ticker", None),
+                "EntryDate": entry_row["Date"],
+                "EntryPrice": entry_price,
+                "ExitDate": exit_row["Date"],
+                "ExitPrice": exit_price,
+                "HoldingDays": holding_days,
+                "Return": trade_return,
+            }
+        )
+
+    return pd.DataFrame(trades)
 
 def prepare_backtest_data(ticker):
     df = load_stock(ticker)
@@ -87,7 +118,7 @@ def prepare_backtest_data(ticker):
     df = generate_historical_trade_signals(df)
     df = add_entry_signals(df)
     df = add_forward_returns(df)
-
+    df["Ticker"] = ticker
     return df
 
 
@@ -126,9 +157,17 @@ def print_entry_signal_summary(ticker):
 
     signal_output_path = f"results/backtest_signals_{ticker}.csv"
     entry_output_path = f"results/backtest_entries_{ticker}.csv"
+    trades_output_path = f"results/backtest_trades_{ticker}_20d.csv"
 
     buy_df.to_csv(signal_output_path, index=False)
     entry_df.to_csv(entry_output_path, index=False)
+
+    trades_df = build_fixed_holding_trades(
+        df,
+        holding_days=20,
+    )
+
+    trades_df.to_csv(trades_output_path, index=False)
 
     summary = summarize_entries(entry_df)
 
@@ -178,6 +217,17 @@ def print_entry_signal_summary(ticker):
 
     print(f"\nSaved signal days to {signal_output_path}")
     print(f"Saved entry signals to {entry_output_path}")
+    print(f"Saved 20D trades to {trades_output_path}")
+
+    if not trades_df.empty:
+        print("\n20D fixed holding trade summary:")
+        print(f"Trade Count        : {len(trades_df)}")
+        print(f"Average Return     : {trades_df['Return'].mean():.2%}")
+        print(f"Win Rate           : {(trades_df['Return'] > 0).mean():.1%}")
+        print(f"Best Trade         : {trades_df['Return'].max():.2%}")
+        print(f"Worst Trade        : {trades_df['Return'].min():.2%}")
+    else:
+        print("\nNo completed 20D trades found.")
 
     print("\nRecent entry signals:")
     print(
