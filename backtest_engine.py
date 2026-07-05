@@ -274,6 +274,37 @@ def summarize_fixed_holding_trades(trades_df):
         "WorstTrade": trades_df["Return"].min(),
     }
 
+def calculate_trade_performance(trades_df):
+    if trades_df.empty:
+        return {
+            "TotalReturn": None,
+            "MaxDrawdown": None,
+        }
+
+    trades_df = trades_df.copy()
+
+    trades_df = trades_df.sort_values(
+        by="EntryDate"
+    )
+
+    trades_df["Equity"] = (
+        1 + trades_df["Return"]
+    ).cumprod()
+
+    trades_df["RunningMaxEquity"] = (
+        trades_df["Equity"].cummax()
+    )
+
+    trades_df["Drawdown"] = (
+        trades_df["Equity"]
+        / trades_df["RunningMaxEquity"]
+        - 1
+    )
+
+    return {
+        "TotalReturn": trades_df["Equity"].iloc[-1] - 1,
+        "MaxDrawdown": trades_df["Drawdown"].min(),
+    }
 
 def backtest_single_stock(ticker, holding_days=20):
     df = prepare_backtest_data(ticker)
@@ -287,6 +318,7 @@ def backtest_single_stock(ticker, holding_days=20):
     )
 
     trade_summary = summarize_fixed_holding_trades(trades_df)
+    performance_summary = calculate_trade_performance(trades_df)
 
     summary = {
         "Ticker": ticker,
@@ -298,6 +330,8 @@ def backtest_single_stock(ticker, holding_days=20):
         "WinRate": trade_summary["WinRate"],
         "BestTrade": trade_summary["BestTrade"],
         "WorstTrade": trade_summary["WorstTrade"],
+        "TotalReturn": performance_summary["TotalReturn"],
+        "MaxDrawdown": performance_summary["MaxDrawdown"],
         "Error": "",
     }
 
@@ -346,6 +380,8 @@ def backtest_watchlist(holding_days=20):
                     "WinRate": None,
                     "BestTrade": None,
                     "WorstTrade": None,
+                    "TotalReturn": None,
+                    "MaxDrawdown": None,
                     "Error": str(error),
                 }
             )
@@ -369,8 +405,13 @@ def backtest_watchlist(holding_days=20):
         errors="coerce",
     )
 
-    summary_df["WorstTrade"] = pd.to_numeric(
-        summary_df["WorstTrade"],
+    summary_df["TotalReturn"] = pd.to_numeric(
+        summary_df["TotalReturn"],
+        errors="coerce",
+    )
+
+    summary_df["MaxDrawdown"] = pd.to_numeric(
+        summary_df["MaxDrawdown"],
         errors="coerce",
     )
 
@@ -464,6 +505,8 @@ def backtest_watchlist(holding_days=20):
                 "WinRate",
                 "BestTrade",
                 "WorstTrade",
+                "TotalReturn",
+                "MaxDrawdown",
                 "IsQualified",
                 "BacktestScore",
                 "Error",
@@ -482,6 +525,8 @@ def backtest_watchlist(holding_days=20):
                 "WinRate",
                 "BestTrade",
                 "WorstTrade",
+                "TotalReturn",
+                "MaxDrawdown",
                 "BacktestScore",
                 "IsQualified",
             ]
