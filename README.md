@@ -1,187 +1,162 @@
-# AI Investing
+# AI_investing
 
-Python量化投资学习项目。
+AI_investing is a technical stock screening and daily report system.
 
-通过真实投资分析场景学习：
-
-* Python编程
-* Pandas数据分析
-* Matplotlib数据可视化
-* 股票风险分析
-* 量化选股
-* 策略研究
-
----
-
-## 项目功能
-
-### 1. 投资组合分析
-
-* 收益统计
-* 收益率排行
-* 持仓分析
-* HTML报告生成
-
-文件：
+Current version:
 
 ```text
-portfolio_v3.py
-```
+AI_investing Technical Screener & Daily Report V1.0.1
+Current Purpose
 
----
+This system is designed for:
 
-### 2. 均线优化分析
+updating market data
+validating stock data quality
+calculating technical indicators
+ranking stocks
+generating BUY / WATCH / IGNORE signals
+generating a daily trading report
 
-寻找历史表现最佳均线组合。
+This system is not a verified automatic trading system.
 
-文件：
+Before a full backtest is completed, any BUY signal should be treated only as a candidate screening signal, not as a real trading instruction.
 
-```text
-heatmap.py
-```
+Daily Usage
 
-输出：
+Run the full daily pipeline:
 
-```text
-ma_optimization.csv
-charts/heatmap.png
-```
+python3 run_daily.py
 
----
+This command will automatically run:
 
-### 3. 持仓周期分析
+1. update_all_stocks()
+2. run_ranking_pipeline()
 
-研究不同持有时间的收益表现。
+The pipeline will:
 
-文件：
+1. update market data
+2. validate all watchlist data files
+3. exclude invalid stocks
+4. calculate indicators
+5. rank stocks
+6. generate stock signal cards
+7. generate the daily trading report
+8. write a runtime log
+Main Output Files
 
-```text
-holding_period.py
-holding_chart.py
-```
+Daily trading report:
 
----
+reports/daily_trading_report_YYYY-MM-DD.txt
 
-### 4. 风险分析
+Ranking result:
 
-计算：
+results/stock_rank.csv
 
-* 最大回撤
-* 波动率
+Top 10 candidates:
 
-文件：
+results/top10.csv
 
-```text
-risk_analysis.py
-```
+Runtime log:
 
----
+logs/daily_pipeline_YYYY-MM-DD.log
+Data Quality Rules
 
-### 5. 夏普比率分析
+Before ranking, the system validates each stock file.
 
-计算风险调整后收益。
+A stock may be excluded if:
 
-文件：
+- data file is missing
+- required columns are missing
+- Date column contains invalid values
+- numeric columns contain invalid values
+- duplicate dates exist
+- historical data is less than 252 rows
 
-```text
-sharpe_analysis.py
-```
+A stock may receive a warning if:
 
----
+- its latest data date is behind the universe latest date
 
-### 6. 股票画像分析
+Invalid stocks are excluded from ranking.
+Warning-only stocks are kept in the ranking.
 
-计算：
+Signal Meaning
 
-* 年化收益
-* 波动率
-* 最大回撤
-* 夏普比率
+The system currently produces three trade signals:
 
-文件：
+BUY
+WATCH
+IGNORE
 
-```text
-stock_personality.py
-stock_personality_chart.py
-```
+Important rule:
 
----
+BUY means "candidate for further review".
+BUY does not mean "verified buy order".
+Git Rules
 
-### 7. 风险收益分析
+The following files are ignored by Git because they are generated automatically:
 
-构建风险收益散点图。
+data/*.csv
+results/*.csv
+reports/daily_trading_report_*.txt
+logs/*.log
 
-文件：
+Code files should still be committed.
 
-```text
-risk_return_chart.py
-```
+Typical Git workflow:
 
----
+git status
+git diff --check
+git add <changed_code_files>
+git commit -m "Message"
+git push
+git status
+Current System Boundary
 
-### 8. 股票评分系统
+The current system is based mainly on technical indicators and rule-based scoring.
 
-综合：
+It does not yet include:
 
-* 收益率
-* 夏普比率
-* 最大回撤
-* 波动率
+- full historical backtesting
+- benchmark comparison
+- slippage and transaction cost modeling
+- portfolio-level risk simulation
+- fundamental scoring
+- AI analyst summary
+- paper trading execution
+- live broker connection
+Development Roadmap
 
-自动生成股票排名。
+Next development stages:
 
-文件：
+V1.0.1 System Hardening
+- improve validation
+- improve logging
+- improve report reliability
+- clean project structure
 
-```text
-stock_score.py
-```
+V1.1 Backtesting Foundation
+- define entry and exit rules
+- simulate historical trades
+- calculate win rate, drawdown, CAGR, Sharpe ratio
 
----
+V2.0 Risk and Portfolio Layer
+- portfolio exposure
+- position limits
+- sector concentration
+- drawdown control
 
-## 技术栈
+V3.0 Fundamental Scoring
+- PE, EPS, revenue growth, ROE
+- quality and valuation filters
 
-* Python
-* Pandas
-* NumPy
-* Matplotlib
+V4.0 AI Analyst Summary
+- English stock commentary
+- daily candidate explanation
+- risk notes
 
----
+V5.1 Paper Trading
+- simulated order generation
+- daily paper trade log
+- performance tracking
 
-## 项目结构
-
-```text
-AI_investing
-│
-├── stock_loader.py
-├── portfolio_v3.py
-├── heatmap.py
-├── holding_period.py
-├── holding_chart.py
-├── risk_analysis.py
-├── sharpe_analysis.py
-├── stock_personality.py
-├── stock_personality_chart.py
-├── risk_return_chart.py
-├── stock_score.py
-│
-├── data/
-├── charts/
-├── report.html
-└── README.md
-```
-
----
-
-## 学习目标
-
-本项目用于学习：
-
-* Python编程
-* 数据分析
-* 数据可视化
-* 量化投资研究
-* 自动化投资报告生成
-
----
-
-作者：Robin
+---Robin
