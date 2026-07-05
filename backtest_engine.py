@@ -68,7 +68,7 @@ def add_forward_returns(df):
     df["Forward_60D_Return"] = (
         df["Forward_60D_Close"] / df["Close"] - 1
     )
-    
+
     return df
 
 def build_fixed_holding_trades(df, holding_days=20):
