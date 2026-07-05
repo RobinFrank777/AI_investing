@@ -138,10 +138,71 @@ V1.0.1 System Hardening
 - improve report reliability
 - clean project structure
 
-V1.1 Backtesting Foundation
-- define entry and exit rules
-- simulate historical trades
-- calculate win rate, drawdown, CAGR, Sharpe ratio
+## V1.1 Backtesting Foundation
+
+The system now includes a basic backtesting foundation.
+
+Current backtest capabilities:
+
+- generate historical BUY / WATCH / IGNORE signals
+- detect EntrySignal to avoid counting repeated BUY days as separate entries
+- simulate fixed 20-trading-day holding trades
+- run batch backtests across the full watchlist
+- save all historical simulated trades
+- save per-stock backtest summaries
+- filter qualified stocks using basic performance rules
+- calculate BacktestScore for ranking qualified candidates
+
+Main backtest output files:
+
+- `results/backtest_summary_20d.csv`
+- `results/backtest_qualified_20d.csv`
+- `results/backtest_all_trades_20d.csv`
+- `results/backtest_signals_<TICKER>.csv`
+- `results/backtest_entries_<TICKER>.csv`
+- `results/backtest_trades_<TICKER>_20d.csv`
+
+Current backtest metrics:
+
+- `EntrySignalCount`
+- `CompletedTradeCount`
+- `AverageReturn`
+- `WinRate`
+- `BestTrade`
+- `WorstTrade`
+- `TotalReturn`
+- `MaxDrawdown`
+- `BacktestScore`
+
+Qualified stock rule:
+
+A stock is currently marked as qualified if:
+
+- `CompletedTradeCount >= 10`
+- `AverageReturn > 0`
+- `WinRate >= 0.5`
+- no backtest error exists
+
+BacktestScore currently combines:
+
+- average return
+- win rate
+- completed trade count
+- worst trade risk
+- max drawdown risk
+
+Important limitation:
+
+The current backtest is still a simplified research backtest. It does not yet include:
+
+- transaction costs
+- slippage
+- position sizing
+- overlapping portfolio positions
+- benchmark comparison
+- CAGR
+- Sharpe ratio
+- real order execution
 
 V2.0 Risk and Portfolio Layer
 - portfolio exposure
