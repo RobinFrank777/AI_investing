@@ -7,6 +7,7 @@ MIN_COMPLETED_TRADES = 10
 MIN_AVERAGE_RETURN = 0
 MIN_WIN_RATE = 0.5
 TRADE_COUNT_CAP = 30
+DRAWDOWN_SCORE_WEIGHT = 20
 
 def generate_historical_trade_signals(df):
     df = df.copy()
@@ -447,11 +448,18 @@ def backtest_watchlist(holding_days=20):
         * 10
     )
 
+    summary_df["DrawdownScore"] = (
+        (1 + summary_df["MaxDrawdown"].fillna(-1))
+        .clip(lower=0, upper=1)
+        * DRAWDOWN_SCORE_WEIGHT
+    )
+
     summary_df["BacktestScore"] = (
         summary_df["AverageReturnScore"]
         + summary_df["WinRateScore"]
         + summary_df["TradeCountScore"]
         + summary_df["RiskScore"]
+        + summary_df["DrawdownScore"]
     )
 
 
@@ -527,6 +535,7 @@ def backtest_watchlist(holding_days=20):
                 "WorstTrade",
                 "TotalReturn",
                 "MaxDrawdown",
+                "DrawdownScore",
                 "BacktestScore",
                 "IsQualified",
             ]
