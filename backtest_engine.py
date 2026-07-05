@@ -37,6 +37,19 @@ def generate_historical_trade_signals(df):
     return df
 
 
+def add_entry_signals(df):
+    df = df.copy()
+
+    previous_signal = df["TradeSignal"].shift(1)
+
+    df["EntrySignal"] = (
+        (df["TradeSignal"] == "BUY")
+        & (previous_signal != "BUY")
+    )
+
+    return df
+
+
 def add_forward_returns(df):
     df = df.copy()
 
@@ -72,15 +85,16 @@ def prepare_backtest_data(ticker):
     )
 
     df = generate_historical_trade_signals(df)
+    df = add_entry_signals(df)
     df = add_forward_returns(df)
 
     return df
 
 
-def summarize_buy_signals(buy_df):
-    if buy_df.empty:
+def summarize_entries(entry_df):
+    if entry_df.empty:
         return {
-            "BuySignalCount": 0,
+            "EntrySignalCount": 0,
             "Avg5DReturn": None,
             "Avg20DReturn": None,
             "Avg60DReturn": None,
@@ -89,12 +103,12 @@ def summarize_buy_signals(buy_df):
             "WinRate60D": None,
         }
 
-    valid_5d = buy_df["Forward_5D_Return"].dropna()
-    valid_20d = buy_df["Forward_20D_Return"].dropna()
-    valid_60d = buy_df["Forward_60D_Return"].dropna()
+    valid_5d = entry_df["Forward_5D_Return"].dropna()
+    valid_20d = entry_df["Forward_20D_Return"].dropna()
+    valid_60d = entry_df["Forward_60D_Return"].dropna()
 
     return {
-        "BuySignalCount": len(buy_df),
+        "EntrySignalCount": len(entry_df),
         "Avg5DReturn": valid_5d.mean(),
         "Avg20DReturn": valid_20d.mean(),
         "Avg60DReturn": valid_60d.mean(),
@@ -104,28 +118,33 @@ def summarize_buy_signals(buy_df):
     }
 
 
-def print_buy_signal_summary(ticker):
+def print_entry_signal_summary(ticker):
     df = prepare_backtest_data(ticker)
 
     buy_df = df[df["TradeSignal"] == "BUY"].copy()
+    entry_df = df[df["EntrySignal"]].copy()
 
-    output_path = f"results/backtest_signals_{ticker}.csv"
-    buy_df.to_csv(output_path, index=False)
+    signal_output_path = f"results/backtest_signals_{ticker}.csv"
+    entry_output_path = f"results/backtest_entries_{ticker}.csv"
 
-    summary = summarize_buy_signals(buy_df)
+    buy_df.to_csv(signal_output_path, index=False)
+    entry_df.to_csv(entry_output_path, index=False)
+
+    summary = summarize_entries(entry_df)
 
     print("\n" + "=" * 70)
-    print(f"BACKTEST SIGNAL SUMMARY: {ticker}")
+    print(f"BACKTEST ENTRY SUMMARY: {ticker}")
     print("=" * 70)
 
-    print(f"Total Rows       : {len(df)}")
-    print(f"BUY Signal Count : {summary['BuySignalCount']}")
+    print(f"Total Rows        : {len(df)}")
+    print(f"BUY Signal Days   : {len(buy_df)}")
+    print(f"Entry Signal Count: {summary['EntrySignalCount']}")
 
-    if buy_df.empty:
-        print("No historical BUY signals found.")
+    if entry_df.empty:
+        print("No historical entry signals found.")
         return
 
-    print("\nForward return summary:")
+    print("\nForward return summary based on entry signals:")
 
     print(
         f"Average 5D Return  : "
@@ -157,11 +176,12 @@ def print_buy_signal_summary(ticker):
         f"{summary['WinRate60D']:.1%}"
     )
 
-    print(f"\nSaved to {output_path}")
+    print(f"\nSaved signal days to {signal_output_path}")
+    print(f"Saved entry signals to {entry_output_path}")
 
-    print("\nRecent BUY signals:")
+    print("\nRecent entry signals:")
     print(
-        buy_df[
+        entry_df[
             [
                 "Date",
                 "Close",
@@ -177,10 +197,11 @@ def print_buy_signal_summary(ticker):
                 "MACD_Signal",
                 "Histogram",
                 "TradeSignal",
+                "EntrySignal",
             ]
         ].tail(10)
     )
 
 
 if __name__ == "__main__":
-    print_buy_signal_summary("AMD")
+    print_entry_signal_summary("AMD")
