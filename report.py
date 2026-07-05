@@ -2,7 +2,11 @@ from datetime import datetime
 from config import STOCK_RANK_OUTPUT
 
 
-def save_daily_report(rank_df):
+def save_daily_report(
+    rank_df,
+    validation_results,
+    universe_latest_date,
+):
     now = datetime.now()
 
     report_date = now.strftime("%Y-%m-%d")
@@ -15,6 +19,35 @@ def save_daily_report(rank_df):
     buy_df = rank_df[rank_df["TradeSignal"] == "BUY"]
     watch_df = rank_df[rank_df["TradeSignal"] == "WATCH"]
     top10_df = rank_df.head(10)
+
+    stocks_checked = len(validation_results)
+
+    valid_count = sum(
+        result["IsValid"]
+        for result in validation_results
+    )
+
+    invalid_results = [
+        result
+        for result in validation_results
+        if not result["IsValid"]
+    ]
+
+    warning_results = [
+        result
+        for result in validation_results
+        if result["Warnings"]
+    ]
+
+    invalid_count = len(invalid_results)
+    warning_count = len(warning_results)
+
+    universe_latest_display = (
+        universe_latest_date
+        if universe_latest_date is not None
+        else "Unavailable"
+    )
+
     market_data_dates = sorted(
     rank_df["MarketDataDate"]
     .dropna()
@@ -57,6 +90,67 @@ def save_daily_report(rank_df):
             f"{'Source File':<22}: "
             f"{STOCK_RANK_OUTPUT}\n\n"
         )
+
+        f.write("=" * 60 + "\n")
+        f.write("DATA QUALITY SUMMARY\n")
+        f.write("=" * 60 + "\n\n")
+
+        f.write(
+            f"{'Universe Latest Date':<22}: "
+            f"{universe_latest_display}\n"
+        )
+
+        f.write(
+            f"{'Stocks Checked':<22}: "
+            f"{stocks_checked}\n"
+        )
+
+        f.write(
+            f"{'Valid for Ranking':<22}: "
+            f"{valid_count}\n"
+        )
+
+        f.write(
+            f"{'Invalid Stocks':<22}: "
+            f"{invalid_count}\n"
+        )
+
+        f.write(
+            f"{'Stocks with Warnings':<22}: "
+            f"{warning_count}\n"
+        )
+
+        f.write("\nExcluded Stocks:\n")
+
+        if invalid_results:
+            for result in invalid_results:
+                if result["Errors"]:
+                    for error in result["Errors"]:
+                        f.write(
+                            f"- {result['Ticker']}: "
+                            f"{error}\n"
+                        )
+                else:
+                    f.write(
+                        f"- {result['Ticker']}: "
+                        f"Validation failed.\n"
+                    )
+        else:
+            f.write("- None\n")
+
+        f.write("\nWarnings:\n")
+
+        if warning_results:
+            for result in warning_results:
+                for warning in result["Warnings"]:
+                    f.write(
+                        f"- {result['Ticker']}: "
+                        f"{warning}\n"
+                    )
+        else:
+            f.write("- None\n")
+
+        f.write("\n")
 
         f.write("=" * 60 + "\n")
         f.write("MARKET OVERVIEW\n")
