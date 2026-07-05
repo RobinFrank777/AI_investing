@@ -2,7 +2,7 @@ import pandas as pd
 
 from stock_loader import load_stock
 from indicators import calculate_indicators
-
+from watchlist import load_watchlist
 
 def generate_historical_trade_signals(df):
     df = df.copy()
@@ -252,6 +252,147 @@ def print_entry_signal_summary(ticker):
         ].tail(10)
     )
 
+def summarize_fixed_holding_trades(trades_df):
+    if trades_df.empty:
+        return {
+            "CompletedTradeCount": 0,
+            "AverageReturn": None,
+            "WinRate": None,
+            "BestTrade": None,
+            "WorstTrade": None,
+        }
+
+    return {
+        "CompletedTradeCount": len(trades_df),
+        "AverageReturn": trades_df["Return"].mean(),
+        "WinRate": (trades_df["Return"] > 0).mean(),
+        "BestTrade": trades_df["Return"].max(),
+        "WorstTrade": trades_df["Return"].min(),
+    }
+
+
+def backtest_single_stock(ticker, holding_days=20):
+    df = prepare_backtest_data(ticker)
+
+    buy_df = df[df["TradeSignal"] == "BUY"].copy()
+    entry_df = df[df["EntrySignal"]].copy()
+
+    trades_df = build_fixed_holding_trades(
+        df,
+        holding_days=holding_days,
+    )
+
+    trade_summary = summarize_fixed_holding_trades(trades_df)
+
+    summary = {
+        "Ticker": ticker,
+        "TotalRows": len(df),
+        "BuySignalDays": len(buy_df),
+        "EntrySignalCount": len(entry_df),
+        "CompletedTradeCount": trade_summary["CompletedTradeCount"],
+        "AverageReturn": trade_summary["AverageReturn"],
+        "WinRate": trade_summary["WinRate"],
+        "BestTrade": trade_summary["BestTrade"],
+        "WorstTrade": trade_summary["WorstTrade"],
+        "Error": "",
+    }
+
+    return summary, trades_df
+
+
+def backtest_watchlist(holding_days=20):
+    tickers = load_watchlist()
+
+    summaries = []
+    all_trades = []
+
+    print("\n" + "=" * 70)
+    print(f"BATCH BACKTEST: {holding_days}D FIXED HOLDING")
+    print("=" * 70)
+
+    for ticker in tickers:
+        try:
+            summary, trades_df = backtest_single_stock(
+                ticker,
+                holding_days=holding_days,
+            )
+
+            summaries.append(summary)
+
+            if not trades_df.empty:
+                all_trades.append(trades_df)
+
+            print(
+                f"{ticker:<8} "
+                f"Entries: {summary['EntrySignalCount']:<4} "
+                f"Trades: {summary['CompletedTradeCount']:<4} "
+                f"Avg: {summary['AverageReturn'] if summary['AverageReturn'] is not None else 0:.2%} "
+                f"Win: {summary['WinRate'] if summary['WinRate'] is not None else 0:.1%}"
+            )
+
+        except Exception as error:
+            summaries.append(
+                {
+                    "Ticker": ticker,
+                    "TotalRows": 0,
+                    "BuySignalDays": 0,
+                    "EntrySignalCount": 0,
+                    "CompletedTradeCount": 0,
+                    "AverageReturn": None,
+                    "WinRate": None,
+                    "BestTrade": None,
+                    "WorstTrade": None,
+                    "Error": str(error),
+                }
+            )
+
+            print(f"{ticker:<8} ERROR: {error}")
+
+    summary_df = pd.DataFrame(summaries)
+
+    summary_df = summary_df.sort_values(
+        by=["AverageReturn", "WinRate"],
+        ascending=False,
+        na_position="last",
+    )
+
+    summary_output_path = f"results/backtest_summary_{holding_days}d.csv"
+    summary_df.to_csv(summary_output_path, index=False)
+
+    if all_trades:
+        all_trades_df = pd.concat(all_trades, ignore_index=True)
+    else:
+        all_trades_df = pd.DataFrame()
+
+    trades_output_path = f"results/backtest_all_trades_{holding_days}d.csv"
+    all_trades_df.to_csv(trades_output_path, index=False)
+
+    print("\n" + "=" * 70)
+    print("BATCH BACKTEST SUMMARY")
+    print("=" * 70)
+
+    print(f"Stocks Tested      : {len(summary_df)}")
+    print(f"Total Trades       : {len(all_trades_df)}")
+    print(f"Saved Summary To   : {summary_output_path}")
+    print(f"Saved Trades To    : {trades_output_path}")
+
+    print("\nTop 10 by Average Return:")
+    print(
+        summary_df[
+            [
+                "Ticker",
+                "EntrySignalCount",
+                "CompletedTradeCount",
+                "AverageReturn",
+                "WinRate",
+                "BestTrade",
+                "WorstTrade",
+                "Error",
+            ]
+        ].head(10)
+    )
+
+    return summary_df, all_trades_df
 
 if __name__ == "__main__":
-    print_entry_signal_summary("AMD")
+    backtest_watchlist(holding_days=20)
