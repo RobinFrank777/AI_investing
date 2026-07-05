@@ -1,46 +1,42 @@
-import subprocess
-import sys
 from datetime import datetime
 
+from rank_stocks_v2 import run_ranking_pipeline
+from update_data import update_all_stocks
 
-def run_command(command):
+
+def print_section(title):
     print("\n" + "=" * 70)
-    print(f"Running: {' '.join(command)}")
+    print(title)
     print("=" * 70)
 
-    subprocess.run(
-        command,
-        check=True,
-    )
+
+def run_step(step_name, step_function):
+    print_section(f"Running: {step_name}")
+
+    step_function()
+
+    print_section(f"Completed: {step_name}")
 
 
 def main():
     started_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    print("\n" + "=" * 70)
-    print("AI INVESTING DAILY PIPELINE")
-    print("=" * 70)
+    print_section("AI INVESTING DAILY PIPELINE")
     print(f"Started At: {started_at}")
 
-    run_command(
-        [
-            sys.executable,
-            "update_data.py",
-        ]
+    run_step(
+        "Update market data",
+        update_all_stocks,
     )
 
-    run_command(
-        [
-            sys.executable,
-            "rank_stocks_v2.py",
-        ]
+    run_step(
+        "Generate ranking and daily report",
+        run_ranking_pipeline,
     )
 
     finished_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    print("\n" + "=" * 70)
-    print("DAILY PIPELINE COMPLETED")
-    print("=" * 70)
+    print_section("DAILY PIPELINE COMPLETED")
     print(f"Finished At: {finished_at}")
 
 
