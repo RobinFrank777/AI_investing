@@ -177,8 +177,15 @@ def print_signal_summary(rank_df):
                 print(f"   ✓ {reason}")
             print("-" * 50)
 
-if __name__ == "__main__":
+def get_valid_tickers(validation_results):
+    return [
+        result["Ticker"]
+        for result in validation_results
+        if result["IsValid"]
+    ]
 
+
+def run_ranking_pipeline():
     validation_results, universe_latest_date = (
         validate_watchlist()
     )
@@ -188,11 +195,7 @@ if __name__ == "__main__":
         universe_latest_date,
     )
 
-    tickers = [
-    result["Ticker"]
-    for result in validation_results
-    if result["IsValid"]
-    ]
+    tickers = get_valid_tickers(validation_results)
 
     if not tickers:
         raise RuntimeError(
@@ -200,23 +203,34 @@ if __name__ == "__main__":
         )
 
     rank_df = rank_stocks(tickers)
-
-    print("\n===== TOP 10 STOCK RANKING =====")
-    print(rank_df.head(10))
-    print_signal_summary(rank_df)
-
-    rank_df.to_csv(STOCK_RANK_OUTPUT, index=False)
-    save_daily_report(
-    rank_df,
-    validation_results,
-    universe_latest_date,
-    )
     top10_df = rank_df.head(10)
 
-    top10_df.to_csv(
-    TOP10_OUTPUT,
-    index=False
-)
+    print("\n===== TOP 10 STOCK RANKING =====")
+    print(top10_df)
 
-    print(f"\n已保存到 {STOCK_RANK_OUTPUT}")
+    print_signal_summary(rank_df)
+
+    rank_df.to_csv(
+        STOCK_RANK_OUTPUT,
+        index=False,
+    )
+
+    top10_df.to_csv(
+        TOP10_OUTPUT,
+        index=False,
+    )
+
+    save_daily_report(
+        rank_df,
+        validation_results,
+        universe_latest_date,
+    )
+
+    print(f"\nSaved to {STOCK_RANK_OUTPUT}")
+
+    return rank_df
+
+
+if __name__ == "__main__":
+    run_ranking_pipeline()
 
