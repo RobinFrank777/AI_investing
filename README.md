@@ -63,6 +63,33 @@ The backtest pipeline will:
 5. save summary, qualified, and trade CSV files
 6. validate that key CSV columns remain numeric
 
+## Portfolio Usage
+
+Run the model portfolio pipeline:
+
+```bash
+python3 run_portfolio.py
+```
+This command will automatically run:
+
+1. `print_model_portfolio()`
+
+The portfolio pipeline will:
+
+1. read qualified backtest candidates
+2. sort candidates by BacktestScore
+3. select the top 10 candidates
+4. assign equal target weights
+5. cap total exposure at 80%
+6. keep 20% cash reserve
+
+Current portfolio risk rules:
+
+- aximum single position weight: 10%
+- maximum total exposure: 80%
+- maximum holdings: 10
+- cash reserve: 20%
+
 ## Main Output Files
 
 Daily trading report:
