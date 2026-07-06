@@ -294,6 +294,7 @@ BacktestScore =
     + RiskScore
     + DrawdownScore
 
+```
 Important limitation:
 
 The current backtest is still a simplified research backtest. It does not yet include:
@@ -306,6 +307,27 @@ The current backtest is still a simplified research backtest. It does not yet in
 - CAGR
 - Sharpe ratio
 - real order execution
+
+Backtest output validation:
+
+The system includes a validation script for backtest output CSV files:
+
+```bash
+python3 validate_backtest_outputs.py
+```
+
+This script checks that the following columns remain numeric in both summary and qualified output files:
+
+AverageReturn
+WinRate
+TotalReturn
+MaxDrawdown
+SharpeRatio
+BacktestScore
+
+The terminal display may show percentage strings such as 45.08%, but the CSV files must keep raw numeric values such as 0.450785.
+
+This is important because future analysis, scoring, charting, and portfolio simulation require numeric CSV data.
 
 V2.0 Risk and Portfolio Layer
 - portfolio exposure
