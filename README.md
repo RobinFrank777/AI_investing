@@ -73,6 +73,7 @@ python3 run_portfolio.py
 This command will automatically run:
 
 1. `print_model_portfolio()`
+2. `validate_portfolio_outputs()`
 
 The portfolio pipeline will:
 
@@ -82,6 +83,7 @@ The portfolio pipeline will:
 4. assign equal target weights
 5. cap total exposure at 80%
 6. keep 20% cash reserve
+7. validate model portfolio output quality
 
 Current portfolio risk rules:
 
@@ -122,6 +124,7 @@ It includes:
 - risk metrics
 - target weight
 - portfolio role
+The portfolio output is validated by `validate_portfolio_outputs.py`.
 
 ## Data Quality Rules
 
