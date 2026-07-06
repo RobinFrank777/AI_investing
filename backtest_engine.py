@@ -19,6 +19,13 @@ TRADE_COUNT_SCORE_WEIGHT = 20
 WORST_TRADE_SCORE_WEIGHT = 10
 DRAWDOWN_SCORE_WEIGHT = 20
 
+def format_percent_column(df, column_name, decimals=2):
+    df[column_name] = (
+        df[column_name] * 100
+    ).round(decimals).astype(str) + "%"
+
+    return df
+
 def generate_historical_trade_signals(df):
     df = df.copy()
 
@@ -591,21 +598,29 @@ def backtest_watchlist(holding_days=20):
         ]
     ].head(10).copy()
 
-    average_display_df["AverageReturn"] = (
-        average_display_df["AverageReturn"] * 100
-    ).round(2).astype(str) + "%"
+    average_display_df = format_percent_column(
+        average_display_df,
+        "AverageReturn",
+        decimals=2,
+    )
 
-    average_display_df["WinRate"] = (
-        average_display_df["WinRate"] * 100
-    ).round(1).astype(str) + "%"
+    average_display_df = format_percent_column(
+        average_display_df,
+        "WinRate",
+        decimals=1,
+    )
 
-    average_display_df["TotalReturn"] = (
-        average_display_df["TotalReturn"] * 100
-    ).round(2).astype(str) + "%"
+    average_display_df = format_percent_column(
+        average_display_df,
+        "TotalReturn",
+        decimals=2,
+    )
 
-    average_display_df["MaxDrawdown"] = (
-        average_display_df["MaxDrawdown"] * 100
-    ).round(2).astype(str) + "%"
+    average_display_df = format_percent_column(
+        average_display_df,
+        "MaxDrawdown",
+        decimals=2,
+    )
 
     average_display_df["SharpeRatio"] = average_display_df[
         "SharpeRatio"
@@ -640,21 +655,29 @@ def backtest_watchlist(holding_days=20):
         "BacktestScore"
     ].round(2)
 
-    qualified_display_df["AverageReturn"] = (
-        qualified_display_df["AverageReturn"] * 100
-    ).round(2).astype(str) + "%"
+    qualified_display_df = format_percent_column(
+        qualified_display_df,
+        "AverageReturn",
+        decimals=2,
+    )
 
-    qualified_display_df["WinRate"] = (
-        qualified_display_df["WinRate"] * 100
-    ).round(1).astype(str) + "%"
+    qualified_display_df = format_percent_column(
+        qualified_display_df,
+        "WinRate",
+        decimals=1,
+    )
 
-    qualified_display_df["TotalReturn"] = (
-        qualified_display_df["TotalReturn"] * 100
-    ).round(2).astype(str) + "%"
+    qualified_display_df = format_percent_column(
+        qualified_display_df,
+        "TotalReturn",
+        decimals=2,
+    )
 
-    qualified_display_df["MaxDrawdown"] = (
-        qualified_display_df["MaxDrawdown"] * 100
-    ).round(2).astype(str) + "%"
+    qualified_display_df = format_percent_column(
+        qualified_display_df,
+        "MaxDrawdown",
+        decimals=2,
+    )
 
     qualified_display_df["SharpeRatio"] = qualified_display_df[
         "SharpeRatio"
