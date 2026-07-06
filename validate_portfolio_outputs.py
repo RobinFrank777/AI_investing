@@ -15,6 +15,7 @@ REQUIRED_COLUMNS = [
     "WinRate",
     "MaxDrawdown",
     "SharpeRatio",
+    "RiskLevel",
     "TargetWeight",
     "TargetWeightPercent",
     "PortfolioRole",
@@ -30,6 +31,12 @@ NUMERIC_COLUMNS = [
     "TargetWeight",
 ]
 
+ALLOWED_RISK_LEVELS = [
+    "Low",
+    "Medium",
+    "High",
+    "Unknown",
+]
 
 def validate_portfolio_outputs():
     errors = []
@@ -59,6 +66,14 @@ def validate_portfolio_outputs():
 
         if duplicate_tickers:
             errors.append(f"Duplicate tickers: {duplicate_tickers}")
+
+    if "RiskLevel" in df.columns:
+        invalid_risk_levels = sorted(
+            set(df["RiskLevel"].dropna()) - set(ALLOWED_RISK_LEVELS)
+        )
+
+        if invalid_risk_levels:
+            errors.append(f"Invalid risk levels: {invalid_risk_levels}")
 
     if len(df) > MAX_HOLDINGS:
         errors.append(

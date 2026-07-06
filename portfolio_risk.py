@@ -9,6 +9,7 @@ MAX_TOTAL_EXPOSURE = 0.80
 MAX_HOLDINGS = 10
 
 
+
 def load_qualified_candidates():
     df = pd.read_csv(QUALIFIED_BACKTEST_OUTPUT)
 
@@ -19,6 +20,20 @@ def load_qualified_candidates():
 
     return df
 
+def assign_risk_level(row):
+    max_drawdown = row["MaxDrawdown"]
+    sharpe_ratio = row["SharpeRatio"]
+
+    if pd.isna(max_drawdown) or pd.isna(sharpe_ratio):
+        return "Unknown"
+
+    if max_drawdown >= -0.10 and sharpe_ratio >= 2:
+        return "Low"
+
+    if max_drawdown >= -0.25 and sharpe_ratio >= 1:
+        return "Medium"
+
+    return "High"
 
 def build_model_portfolio():
     candidates_df = load_qualified_candidates()
@@ -30,6 +45,11 @@ def build_model_portfolio():
     position_weight = min(
         equal_weight,
         MAX_POSITION_WEIGHT,
+    )
+
+    selected_df["RiskLevel"] = selected_df.apply(
+        assign_risk_level,
+        axis=1,
     )
 
     selected_df["TargetWeight"] = position_weight
@@ -66,6 +86,7 @@ def print_model_portfolio():
                 "WinRate",
                 "MaxDrawdown",
                 "SharpeRatio",
+                "RiskLevel",
                 "TargetWeightPercent",
                 "PortfolioRole",
             ]
