@@ -172,7 +172,36 @@ Current backtest metrics:
 - `WorstTrade`
 - `TotalReturn`
 - `MaxDrawdown`
+- `CAGR`
+- `SharpeRatio`
 - `BacktestScore`
+
+Backtest metric notes:
+
+- `AverageReturn` is the average return of completed fixed-holding trades.
+- `WinRate` is the percentage of completed trades with positive return.
+- `TotalReturn` is calculated from the compounded sequence of simulated trades for one stock.
+- `MaxDrawdown` is calculated from the simulated trade equity curve.
+- `CAGR` is a simplified research metric based on the simulated trade sequence.
+- `SharpeRatio` is a simplified trade-return-based Sharpe ratio.
+- `BacktestScore` is used only for ranking research candidates.
+
+Important warning:
+
+`CAGR` and `TotalReturn` are not real portfolio-level returns.
+
+They do not yet account for:
+
+- position sizing
+- overlapping trades
+- cash availability
+- transaction costs
+- slippage
+- portfolio allocation
+- benchmark comparison
+- real execution constraints
+
+Therefore, a high `CAGR` should not be interpreted as a real achievable annual return.
 
 Qualified stock rule:
 
