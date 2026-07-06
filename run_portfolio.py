@@ -8,6 +8,8 @@ from position_sizing import print_position_sizing
 from validate_position_sizing_outputs import validate_position_sizing_outputs
 from order_draft import print_order_draft
 from validate_order_draft_outputs import validate_order_draft_outputs
+from order_review import print_order_review
+from validate_order_review_outputs import validate_order_review_outputs
 
 LOG_DIR = Path("logs")
 
@@ -75,6 +77,14 @@ def main():
     print_section("Running: Validate order draft outputs")
     validate_order_draft_outputs()
     print_section("Completed: Validate order draft outputs")
+
+    print_section("Running: Review order draft")
+    print_order_review()
+    print_section("Completed: Review order draft")
+
+    print_section("Running: Validate order review outputs")
+    validate_order_review_outputs()
+    print_section("Completed: Validate order review outputs")
 
     finished_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
