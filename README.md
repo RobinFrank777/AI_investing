@@ -108,6 +108,21 @@ Runtime log:
 
 logs/daily_pipeline_YYYY-MM-DD.log
 
+Model portfolio:
+
+results/model_portfolio.csv
+
+This file contains the current model portfolio generated from qualified backtest candidates.
+
+It includes:
+
+- ticker
+- backtest score
+- historical return metrics
+- risk metrics
+- target weight
+- portfolio role
+
 ## Data Quality Rules
 
 Before ranking, the system validates each stock file.
