@@ -16,6 +16,7 @@ REQUIRED_COLUMNS = [
     "MaxDrawdown",
     "SharpeRatio",
     "RiskLevel",
+    "RiskWeightMultiplier",
     "TargetWeight",
     "TargetWeightPercent",
     "PortfolioRole",
@@ -28,6 +29,7 @@ NUMERIC_COLUMNS = [
     "WinRate",
     "MaxDrawdown",
     "SharpeRatio",
+    "RiskWeightMultiplier",
     "TargetWeight",
 ]
 

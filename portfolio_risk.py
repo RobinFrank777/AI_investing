@@ -8,7 +8,12 @@ MAX_POSITION_WEIGHT = 0.10
 MAX_TOTAL_EXPOSURE = 0.80
 MAX_HOLDINGS = 10
 
-
+RISK_LEVEL_WEIGHT_MULTIPLIERS = {
+    "Low": 1.00,
+    "Medium": 0.80,
+    "High": 0.50,
+    "Unknown": 0.40,
+}
 
 def load_qualified_candidates():
     df = pd.read_csv(QUALIFIED_BACKTEST_OUTPUT)
@@ -35,24 +40,31 @@ def assign_risk_level(row):
 
     return "High"
 
+def get_risk_weight_multiplier(risk_level):
+    return RISK_LEVEL_WEIGHT_MULTIPLIERS.get(
+        risk_level,
+        RISK_LEVEL_WEIGHT_MULTIPLIERS["Unknown"],
+    )
+
 def build_model_portfolio():
     candidates_df = load_qualified_candidates()
 
     selected_df = candidates_df.head(MAX_HOLDINGS).copy()
 
-    equal_weight = MAX_TOTAL_EXPOSURE / len(selected_df)
-
-    position_weight = min(
-        equal_weight,
-        MAX_POSITION_WEIGHT,
-    )
+    base_weight = MAX_TOTAL_EXPOSURE / len(selected_df)
 
     selected_df["RiskLevel"] = selected_df.apply(
         assign_risk_level,
         axis=1,
     )
 
-    selected_df["TargetWeight"] = position_weight
+    selected_df["RiskWeightMultiplier"] = selected_df["RiskLevel"].apply(
+        get_risk_weight_multiplier
+    )
+
+    selected_df["TargetWeight"] = (
+        base_weight * selected_df["RiskWeightMultiplier"]
+    ).clip(upper=MAX_POSITION_WEIGHT)
 
     selected_df["TargetWeightPercent"] = (
         selected_df["TargetWeight"] * 100
@@ -87,6 +99,7 @@ def print_model_portfolio():
                 "MaxDrawdown",
                 "SharpeRatio",
                 "RiskLevel",
+                "RiskWeightMultiplier",
                 "TargetWeightPercent",
                 "PortfolioRole",
             ]
