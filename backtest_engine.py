@@ -275,11 +275,13 @@ def summarize_fixed_holding_trades(trades_df):
         "WorstTrade": trades_df["Return"].min(),
     }
 
-def calculate_trade_performance(trades_df):
+def calculate_trade_performance(trades_df, holding_days=20):
     if trades_df.empty:
         return {
             "TotalReturn": None,
             "MaxDrawdown": None,
+            "CAGR": None,
+            "SharpeRatio": None,
         }
 
     trades_df = trades_df.copy()
@@ -302,9 +304,50 @@ def calculate_trade_performance(trades_df):
         - 1
     )
 
+    total_return = trades_df["Equity"].iloc[-1] - 1
+    max_drawdown = trades_df["Drawdown"].min()
+
+    entry_dates = pd.to_datetime(
+        trades_df["EntryDate"],
+        errors="coerce",
+    )
+
+    exit_dates = pd.to_datetime(
+        trades_df["ExitDate"],
+        errors="coerce",
+    )
+
+    first_entry_date = entry_dates.min()
+    last_exit_date = exit_dates.max()
+
+    if pd.isna(first_entry_date) or pd.isna(last_exit_date):
+        cagr = None
+    else:
+        test_days = (last_exit_date - first_entry_date).days
+
+        if test_days <= 0:
+            cagr = None
+        else:
+            test_years = test_days / 365
+            cagr = (1 + total_return) ** (1 / test_years) - 1
+
+    return_std = trades_df["Return"].std()
+
+    if return_std == 0 or pd.isna(return_std):
+        sharpe_ratio = None
+    else:
+        periods_per_year = 252 / holding_days
+        sharpe_ratio = (
+            trades_df["Return"].mean()
+            / return_std
+            * (periods_per_year ** 0.5)
+        )
+
     return {
-        "TotalReturn": trades_df["Equity"].iloc[-1] - 1,
-        "MaxDrawdown": trades_df["Drawdown"].min(),
+        "TotalReturn": total_return,
+        "MaxDrawdown": max_drawdown,
+        "CAGR": cagr,
+        "SharpeRatio": sharpe_ratio,
     }
 
 def backtest_single_stock(ticker, holding_days=20):
@@ -319,7 +362,10 @@ def backtest_single_stock(ticker, holding_days=20):
     )
 
     trade_summary = summarize_fixed_holding_trades(trades_df)
-    performance_summary = calculate_trade_performance(trades_df)
+    performance_summary = calculate_trade_performance(
+        trades_df,
+        holding_days=holding_days,
+    )
 
     summary = {
         "Ticker": ticker,
@@ -333,6 +379,8 @@ def backtest_single_stock(ticker, holding_days=20):
         "WorstTrade": trade_summary["WorstTrade"],
         "TotalReturn": performance_summary["TotalReturn"],
         "MaxDrawdown": performance_summary["MaxDrawdown"],
+        "CAGR": performance_summary["CAGR"],
+        "SharpeRatio": performance_summary["SharpeRatio"],
         "Error": "",
     }
 
@@ -383,6 +431,8 @@ def backtest_watchlist(holding_days=20):
                     "WorstTrade": None,
                     "TotalReturn": None,
                     "MaxDrawdown": None,
+                    "CAGR": None,
+                    "SharpeRatio": None,
                     "Error": str(error),
                 }
             )
@@ -413,6 +463,16 @@ def backtest_watchlist(holding_days=20):
 
     summary_df["MaxDrawdown"] = pd.to_numeric(
         summary_df["MaxDrawdown"],
+        errors="coerce",
+    )
+
+    summary_df["CAGR"] = pd.to_numeric(
+        summary_df["CAGR"],
+        errors="coerce",
+    )
+
+    summary_df["SharpeRatio"] = pd.to_numeric(
+        summary_df["SharpeRatio"],
         errors="coerce",
     )
 
@@ -515,6 +575,8 @@ def backtest_watchlist(holding_days=20):
                 "WorstTrade",
                 "TotalReturn",
                 "MaxDrawdown",
+                "CAGR",
+                "SharpeRatio",
                 "IsQualified",
                 "BacktestScore",
                 "Error",
@@ -535,6 +597,8 @@ def backtest_watchlist(holding_days=20):
                 "WorstTrade",
                 "TotalReturn",
                 "MaxDrawdown",
+                "CAGR",
+                "SharpeRatio",
                 "DrawdownScore",
                 "BacktestScore",
                 "IsQualified",
