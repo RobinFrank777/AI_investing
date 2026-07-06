@@ -141,13 +141,11 @@ Current risk weight multipliers:
 - `High`: 0.50
 - `Unknown`: 0.40
 
-The final target weight is calculated as:
+The final target weight is calculated from normalized risk-adjusted weights:
 
-base weight x risk weight multiplier
+risk weight multiplier / sum of all selected risk weight multipliers * maximum total exposure
 
-The current base weight is:
-
-maximum total exposure / selected holdings count
+Each position is still capped by the maximum single position weight.
 
 The portfolio output is validated by `validate_portfolio_outputs.py`.
 
