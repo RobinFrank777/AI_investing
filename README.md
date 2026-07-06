@@ -477,6 +477,34 @@ V2.3.0 actual share sizing:
 - calculates remaining cash per position
 - validates share sizing formulas
 
+V2.4.0 order draft pipeline:
+- reads `results/model_portfolio_sizing.csv`
+- generates draft BUY orders
+- keeps all orders in DRAFT_ONLY status
+- calculates estimated order value
+- writes `results/order_draft.csv`
+- validates order draft output with `validate_order_draft_outputs.py`
+
+V2.5.0 order review pipeline:
+- reads `results/order_draft.csv`
+- reviews each draft order before execution
+- assigns ReviewStatus: PASS / REVIEW / BLOCKED
+- flags high-risk orders for manual review
+- checks maximum single order value
+- checks portfolio-level total order value
+- writes `results/order_review.csv`
+- validates order review output with `validate_order_review_outputs.py`
+
+Current order review rules:
+- only BUY actions are allowed
+- only DRAFT_ONLY orders are allowed
+- TargetShares must be greater than 0
+- EstimatedOrderValue must be greater than 0
+- single order value above $10,000 requires REVIEW
+- High risk level requires REVIEW
+- total order value above $80,000 requires portfolio-level REVIEW
+- order count above 10 requires portfolio-level REVIEW
+
 V3.0 Fundamental Scoring
 - PE, EPS, revenue growth, ROE
 - quality and valuation filters
