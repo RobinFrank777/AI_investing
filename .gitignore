@@ -7,4 +7,5 @@ data/*.csv
 results/*.csv
 reports/daily_trading_report_*.txt
 # Runtime logs
-logs/*.logresults/
+logs/
+results/
