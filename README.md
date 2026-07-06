@@ -122,8 +122,17 @@ It includes:
 - backtest score
 - historical return metrics
 - risk metrics
+- risk level
 - target weight
 - portfolio role
+
+Current risk level rules:
+
+- `Low`: MaxDrawdown >= -10% and SharpeRatio >= 2
+- `Medium`: MaxDrawdown >= -25% and SharpeRatio >= 1
+- `High`: all other cases
+- `Unknown`: missing MaxDrawdown or SharpeRatio
+
 The portfolio output is validated by `validate_portfolio_outputs.py`.
 
 Portfolio pipeline log:
