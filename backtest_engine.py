@@ -6,7 +6,17 @@ from watchlist import load_watchlist
 MIN_COMPLETED_TRADES = 10
 MIN_AVERAGE_RETURN = 0
 MIN_WIN_RATE = 0.5
+
+AVERAGE_RETURN_SCORE_MIN = -0.20
+AVERAGE_RETURN_SCORE_MAX = 0.30
+AVERAGE_RETURN_SCORE_WEIGHT = 100
+
+WIN_RATE_SCORE_WEIGHT = 40
+
 TRADE_COUNT_CAP = 30
+TRADE_COUNT_SCORE_WEIGHT = 20
+
+WORST_TRADE_SCORE_WEIGHT = 10
 DRAWDOWN_SCORE_WEIGHT = 20
 
 def generate_historical_trade_signals(df):
@@ -485,27 +495,30 @@ def backtest_watchlist(holding_days=20):
     summary_df["AverageReturnScore"] = (
         summary_df["AverageReturn"]
         .fillna(0)
-        .clip(lower=-0.20, upper=0.30)
-        * 100
+        .clip(
+            lower=AVERAGE_RETURN_SCORE_MIN,
+            upper=AVERAGE_RETURN_SCORE_MAX,
+        )
+        * AVERAGE_RETURN_SCORE_WEIGHT
     )
 
     summary_df["WinRateScore"] = (
         summary_df["WinRate"]
         .fillna(0)
-        * 40
+        * WIN_RATE_SCORE_WEIGHT
     )
 
     summary_df["TradeCountScore"] = (
         summary_df["CompletedTradeCount"]
         .clip(upper=TRADE_COUNT_CAP)
         / TRADE_COUNT_CAP
-        * 20
+        * TRADE_COUNT_SCORE_WEIGHT
     )
 
     summary_df["RiskScore"] = (
         (1 + summary_df["WorstTrade"].fillna(-1))
         .clip(lower=0, upper=1)
-        * 10
+        * WORST_TRADE_SCORE_WEIGHT
     )
 
     summary_df["DrawdownScore"] = (
