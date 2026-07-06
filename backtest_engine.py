@@ -598,25 +598,48 @@ def backtest_watchlist(holding_days=20):
     )
 
     print("\nQualified Top 10 by BacktestScore:")
+
+    qualified_display_df = qualified_df[
+        [
+            "Ticker",
+            "BacktestScore",
+            "CompletedTradeCount",
+            "AverageReturn",
+            "WinRate",
+            "TotalReturn",
+            "MaxDrawdown",
+            "SharpeRatio",
+        ]
+    ].head(10).copy()
+
+    qualified_display_df["BacktestScore"] = qualified_display_df[
+        "BacktestScore"
+    ].round(2)
+
+    qualified_display_df["AverageReturn"] = (
+        qualified_display_df["AverageReturn"] * 100
+    ).round(2).astype(str) + "%"
+
+    qualified_display_df["WinRate"] = (
+        qualified_display_df["WinRate"] * 100
+    ).round(1).astype(str) + "%"
+
+    qualified_display_df["TotalReturn"] = (
+        qualified_display_df["TotalReturn"] * 100
+    ).round(2).astype(str) + "%"
+
+    qualified_display_df["MaxDrawdown"] = (
+        qualified_display_df["MaxDrawdown"] * 100
+    ).round(2).astype(str) + "%"
+
+    qualified_display_df["SharpeRatio"] = qualified_display_df[
+        "SharpeRatio"
+    ].round(2)
+
     print(
-        qualified_df[
-            [
-                "Ticker",
-                "EntrySignalCount",
-                "CompletedTradeCount",
-                "AverageReturn",
-                "WinRate",
-                "BestTrade",
-                "WorstTrade",
-                "TotalReturn",
-                "MaxDrawdown",
-                "CAGR",
-                "SharpeRatio",
-                "DrawdownScore",
-                "BacktestScore",
-                "IsQualified",
-            ]
-        ].head(10)
+        qualified_display_df.to_string(
+            index=False
+        )
     )
 
     return summary_df, all_trades_df
