@@ -123,6 +123,7 @@ It includes:
 - historical return metrics
 - risk metrics
 - risk level
+- risk weight multiplier
 - target weight
 - portfolio role
 
@@ -132,6 +133,21 @@ Current risk level rules:
 - `Medium`: MaxDrawdown >= -25% and SharpeRatio >= 1
 - `High`: all other cases
 - `Unknown`: missing MaxDrawdown or SharpeRatio
+
+Current risk weight multipliers:
+
+- `Low`: 1.00
+- `Medium`: 0.80
+- `High`: 0.50
+- `Unknown`: 0.40
+
+The final target weight is calculated as:
+
+base weight x risk weight multiplier
+
+The current base weight is:
+
+maximum total exposure / selected holdings count
 
 The portfolio output is validated by `validate_portfolio_outputs.py`.
 
