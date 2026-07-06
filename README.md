@@ -85,7 +85,7 @@ The portfolio pipeline will:
 
 Current portfolio risk rules:
 
-- aximum single position weight: 10%
+- maximum single position weight: 10%
 - maximum total exposure: 80%
 - maximum holdings: 10
 - cash reserve: 20%
