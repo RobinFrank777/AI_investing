@@ -212,13 +212,48 @@ A stock is currently marked as qualified if:
 - `WinRate >= 0.5`
 - no backtest error exists
 
-BacktestScore currently combines:
+BacktestScore formula:
 
-- average return
-- win rate
-- completed trade count
-- worst trade risk
-- max drawdown risk
+The current `BacktestScore` is a rule-based research score.
+
+It is calculated from the following components:
+
+- `AverageReturnScore`
+- `WinRateScore`
+- `TradeCountScore`
+- `RiskScore`
+- `DrawdownScore`
+
+Current scoring rules:
+
+```text
+AverageReturnScore =
+    clipped AverageReturn between -20% and +30%
+    × 100
+
+WinRateScore =
+    WinRate
+    × 40
+
+TradeCountScore =
+    min(CompletedTradeCount, 30)
+    / 30
+    × 20
+
+RiskScore =
+    clipped (1 + WorstTrade) between 0 and 1
+    × 10
+
+DrawdownScore =
+    clipped (1 + MaxDrawdown) between 0 and 1
+    × 20
+
+BacktestScore =
+    AverageReturnScore
+    + WinRateScore
+    + TradeCountScore
+    + RiskScore
+    + DrawdownScore
 
 Important limitation:
 
