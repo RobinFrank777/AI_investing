@@ -12,6 +12,7 @@ from order_review import print_order_review
 from validate_order_review_outputs import validate_order_review_outputs
 from portfolio_action_report import print_portfolio_action_report
 from daily_decision_report import print_daily_decision_report
+from validate_daily_decision_report_outputs import validate_daily_decision_report_outputs
 
 LOG_DIR = Path("logs")
 
@@ -95,6 +96,10 @@ def main():
     print_section("Running: Generate daily decision report")
     print_daily_decision_report()
     print_section("Completed: Generate daily decision report")
+
+    print_section("Running: Validate daily decision report outputs")
+    validate_daily_decision_report_outputs()
+    print_section("Completed: Validate daily decision report outputs")
 
     finished_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
