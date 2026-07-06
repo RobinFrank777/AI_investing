@@ -10,6 +10,7 @@ from order_draft import print_order_draft
 from validate_order_draft_outputs import validate_order_draft_outputs
 from order_review import print_order_review
 from validate_order_review_outputs import validate_order_review_outputs
+from portfolio_action_report import print_portfolio_action_report
 
 LOG_DIR = Path("logs")
 
@@ -85,6 +86,10 @@ def main():
     print_section("Running: Validate order review outputs")
     validate_order_review_outputs()
     print_section("Completed: Validate order review outputs")
+
+    print_section("Running: Generate portfolio action report")
+    print_portfolio_action_report()
+    print_section("Completed: Generate portfolio action report")
 
     finished_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
