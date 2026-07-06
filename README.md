@@ -76,21 +76,29 @@ This command will automatically run:
 2. `validate_portfolio_outputs()`
 3. `print_position_sizing()`
 4. `validate_position_sizing_outputs()`
+5. `print_order_draft()`
+6. `validate_order_draft_outputs()`
+7. `print_order_review()`
+8. `validate_order_review_outputs()`
+9. `print_portfolio_action_report()`
+10. `print_daily_decision_report()`
+11. `validate_daily_decision_report_outputs()`
+12. `run_system_health_check()`
 
-The portfolio pipeline will:
+The full portfolio pipeline currently runs:
 
-1. read qualified backtest candidates
-2. sort candidates by BacktestScore
-3. select the top 10 candidates
-4. assign risk levels
-5. assign risk weight multipliers
-6. normalize risk-adjusted portfolio weights
-7. cap single-position weight
-8. generate model portfolio CSV
-9. validate model portfolio output
-10. calculate target dollar amount from account value
-11. generate position sizing CSV
-12. validate position sizing output
+1. build model portfolio
+2. validate portfolio outputs
+3. calculate position sizing
+4. validate position sizing outputs
+5. generate order draft
+6. validate order draft outputs
+7. review order draft
+8. validate order review outputs
+9. generate portfolio action report
+10. generate daily decision report
+11. validate daily decision report outputs
+12. run system health check
 13. write a portfolio pipeline log
 
 Current portfolio risk rules:
@@ -504,6 +512,18 @@ Current order review rules:
 - High risk level requires REVIEW
 - total order value above $80,000 requires portfolio-level REVIEW
 - order count above 10 requires portfolio-level REVIEW
+
+V2.8.0 system health check:
+- checks required source files
+- checks required output directories
+- checks key `.gitignore` rules
+- confirms generated result files are ignored by Git
+- validates the project structure before future development
+
+V2.8.1 system health check integration:
+- integrates `system_health_check.py` into `run_portfolio.py`
+- runs the health check at the end of the full portfolio pipeline
+- confirms source files, output directories, and ignore rules after each full run
 
 V3.0 Fundamental Scoring
 - PE, EPS, revenue growth, ROE
