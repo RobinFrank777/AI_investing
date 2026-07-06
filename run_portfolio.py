@@ -13,6 +13,7 @@ from validate_order_review_outputs import validate_order_review_outputs
 from portfolio_action_report import print_portfolio_action_report
 from daily_decision_report import print_daily_decision_report
 from validate_daily_decision_report_outputs import validate_daily_decision_report_outputs
+from system_health_check import run_system_health_check
 
 LOG_DIR = Path("logs")
 
@@ -100,6 +101,10 @@ def main():
     print_section("Running: Validate daily decision report outputs")
     validate_daily_decision_report_outputs()
     print_section("Completed: Validate daily decision report outputs")
+
+    print_section("Running: System health check")
+    run_system_health_check()
+    print_section("Completed: System health check")
 
     finished_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
