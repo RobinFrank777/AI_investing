@@ -65,7 +65,7 @@ The backtest pipeline will:
 
 ## Portfolio Usage
 
-Run the model portfolio pipeline:
+Run the full portfolio pipeline:
 
 ```bash
 python3 run_portfolio.py
@@ -74,16 +74,24 @@ This command will automatically run:
 
 1. `print_model_portfolio()`
 2. `validate_portfolio_outputs()`
+3. `print_position_sizing()`
+4. `validate_position_sizing_outputs()`
 
 The portfolio pipeline will:
 
 1. read qualified backtest candidates
 2. sort candidates by BacktestScore
 3. select the top 10 candidates
-4. assign equal target weights
-5. cap total exposure at 80%
-6. keep 20% cash reserve
-7. validate model portfolio output quality
+4. assign risk levels
+5. assign risk weight multipliers
+6. normalize risk-adjusted portfolio weights
+7. cap single-position weight
+8. generate model portfolio CSV
+9. validate model portfolio output
+10. calculate target dollar amount from account value
+11. generate position sizing CSV
+12. validate position sizing output
+13. write a portfolio pipeline log
 
 Current portfolio risk rules:
 
@@ -126,6 +134,26 @@ It includes:
 - risk weight multiplier
 - target weight
 - portfolio role
+
+Position sizing:
+
+results/model_portfolio_sizing.csv
+
+This file converts model portfolio target weights into target dollar amounts.
+
+It includes:
+
+- ticker
+- backtest score
+- risk level
+- risk weight multiplier
+- target weight
+- target weight percent
+- account value
+- target dollar amount
+- portfolio role
+
+The position sizing output is validated by `validate_position_sizing_outputs.py`.
 
 Current risk level rules:
 
