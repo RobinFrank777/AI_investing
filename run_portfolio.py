@@ -6,6 +6,8 @@ from portfolio_risk import print_model_portfolio
 from validate_portfolio_outputs import validate_portfolio_outputs
 from position_sizing import print_position_sizing
 from validate_position_sizing_outputs import validate_position_sizing_outputs
+from order_draft import print_order_draft
+from validate_order_draft_outputs import validate_order_draft_outputs
 
 LOG_DIR = Path("logs")
 
@@ -65,6 +67,14 @@ def main():
     print_section("Running: Validate position sizing outputs")
     validate_position_sizing_outputs()
     print_section("Completed: Validate position sizing outputs")
+
+    print_section("Running: Generate order draft")
+    print_order_draft()
+    print_section("Completed: Generate order draft")
+
+    print_section("Running: Validate order draft outputs")
+    validate_order_draft_outputs()
+    print_section("Completed: Validate order draft outputs")
 
     finished_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
