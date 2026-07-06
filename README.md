@@ -42,6 +42,27 @@ The pipeline will:
 7. generate the daily trading report
 8. write a runtime log
 
+## Backtest Usage
+
+Run the full backtest pipeline:
+
+```bash
+python3 run_backtest.py
+```
+This command will automatically run:
+
+1. `backtest_watchlist(holding_days=20)`
+2. `validate_backtest_outputs()`
+
+The backtest pipeline will:
+
+1. generate historical BUY / WATCH / IGNORE signals
+2. detect EntrySignal days
+3. simulate fixed 20-trading-day holding trades
+4. run batch backtests across the full watchlist
+5. save summary, qualified, and trade CSV files
+6. validate that key CSV columns remain numeric
+
 ## Main Output Files
 
 Daily trading report:
