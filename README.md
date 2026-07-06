@@ -72,34 +72,36 @@ python3 run_portfolio.py
 ```
 This command will automatically run:
 
-1. `print_model_portfolio()`
-2. `validate_portfolio_outputs()`
-3. `print_position_sizing()`
-4. `validate_position_sizing_outputs()`
-5. `print_order_draft()`
-6. `validate_order_draft_outputs()`
-7. `print_order_review()`
-8. `validate_order_review_outputs()`
-9. `print_portfolio_action_report()`
-10. `print_daily_decision_report()`
-11. `validate_daily_decision_report_outputs()`
-12. `run_system_health_check()`
+1. `print_system_version()`
+2. `print_model_portfolio()`
+3. `validate_portfolio_outputs()`
+4. `print_position_sizing()`
+5. `validate_position_sizing_outputs()`
+6. `print_order_draft()`
+7. `validate_order_draft_outputs()`
+8. `print_order_review()`
+9. `validate_order_review_outputs()`
+10. `print_portfolio_action_report()`
+11. `print_daily_decision_report()`
+12. `validate_daily_decision_report_outputs()`
+13. `run_system_health_check()`
 
 The full portfolio pipeline currently runs:
 
-1. build model portfolio
-2. validate portfolio outputs
-3. calculate position sizing
-4. validate position sizing outputs
-5. generate order draft
-6. validate order draft outputs
-7. review order draft
-8. validate order review outputs
-9. generate portfolio action report
-10. generate daily decision report
-11. validate daily decision report outputs
-12. run system health check
-13. write a portfolio pipeline log
+1. generate system version report
+2. build model portfolio
+3. validate portfolio outputs
+4. calculate position sizing
+5. validate position sizing outputs
+6. generate order draft
+7. validate order draft outputs
+8. review order draft
+9. validate order review outputs
+10. generate portfolio action report
+11. generate daily decision report
+12. validate daily decision report outputs
+13. run system health check
+14. write a portfolio pipeline log
 
 Current portfolio risk rules:
 
@@ -109,6 +111,12 @@ Current portfolio risk rules:
 - cash reserve: 20%
 
 ## Main Output Files
+
+System version report:
+
+results/system_version.txt
+
+This file records the current system version, Git branch, latest Git tag, current commit, Python version, core modules, and validation modules.
 
 Daily trading report:
 
@@ -524,6 +532,19 @@ V2.8.1 system health check integration:
 - integrates `system_health_check.py` into `run_portfolio.py`
 - runs the health check at the end of the full portfolio pipeline
 - confirms source files, output directories, and ignore rules after each full run
+
+V2.9.0 system version report:
+- creates `system_version.py`
+- records the latest Git tag as the project version
+- records the current Git branch and commit
+- records the current Python version
+- checks core modules and validation modules
+- writes `results/system_version.txt`
+
+V2.9.1 system version report integration:
+- integrates `system_version.py` into `run_portfolio.py`
+- runs the system version report at the beginning of the full portfolio pipeline
+- records version information before portfolio generation, order review, and health checks
 
 V3.0 Fundamental Scoring
 - PE, EPS, revenue growth, ROE
