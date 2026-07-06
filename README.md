@@ -139,7 +139,7 @@ Position sizing:
 
 results/model_portfolio_sizing.csv
 
-This file converts model portfolio target weights into target dollar amounts.
+This file converts model portfolio target weights into actual share sizing.
 
 It includes:
 
@@ -149,8 +149,12 @@ It includes:
 - risk weight multiplier
 - target weight
 - target weight percent
+- latest close price
 - account value
 - target dollar amount
+- target shares
+- estimated position value
+- position cash remainder
 - portfolio role
 
 The position sizing output is validated by `validate_position_sizing_outputs.py`.
@@ -465,6 +469,13 @@ V2.0 Risk and Portfolio Layer
 - position limits
 - sector concentration
 - drawdown control
+
+V2.3.0 actual share sizing:
+- reads latest close price from `data/{Ticker}.csv`
+- converts target dollar amount into target shares
+- calculates estimated position value
+- calculates remaining cash per position
+- validates share sizing formulas
 
 V3.0 Fundamental Scoring
 - PE, EPS, revenue growth, ROE
