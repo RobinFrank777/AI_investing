@@ -576,25 +576,49 @@ def backtest_watchlist(holding_days=20):
     print(f"Saved Trades To    : {trades_output_path}")
 
     print("\nTop 10 by Average Return:")
+
+    average_display_df = summary_df[
+        [
+            "Ticker",
+            "AverageReturn",
+            "WinRate",
+            "CompletedTradeCount",
+            "TotalReturn",
+            "MaxDrawdown",
+            "SharpeRatio",
+            "BacktestScore",
+            "IsQualified",
+        ]
+    ].head(10).copy()
+
+    average_display_df["AverageReturn"] = (
+        average_display_df["AverageReturn"] * 100
+    ).round(2).astype(str) + "%"
+
+    average_display_df["WinRate"] = (
+        average_display_df["WinRate"] * 100
+    ).round(1).astype(str) + "%"
+
+    average_display_df["TotalReturn"] = (
+        average_display_df["TotalReturn"] * 100
+    ).round(2).astype(str) + "%"
+
+    average_display_df["MaxDrawdown"] = (
+        average_display_df["MaxDrawdown"] * 100
+    ).round(2).astype(str) + "%"
+
+    average_display_df["SharpeRatio"] = average_display_df[
+        "SharpeRatio"
+    ].round(2)
+
+    average_display_df["BacktestScore"] = average_display_df[
+        "BacktestScore"
+    ].round(2)
+
     print(
-        summary_df[
-            [
-                "Ticker",
-                "EntrySignalCount",
-                "CompletedTradeCount",
-                "AverageReturn",
-                "WinRate",
-                "BestTrade",
-                "WorstTrade",
-                "TotalReturn",
-                "MaxDrawdown",
-                "CAGR",
-                "SharpeRatio",
-                "IsQualified",
-                "BacktestScore",
-                "Error",
-            ]
-        ].head(10)
+        average_display_df.to_string(
+            index=False
+        )
     )
 
     print("\nQualified Top 10 by BacktestScore:")
