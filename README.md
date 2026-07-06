@@ -162,6 +162,45 @@ Main backtest output files:
 - `results/backtest_entries_<TICKER>.csv`
 - `results/backtest_trades_<TICKER>_20d.csv`
 
+Terminal backtest output:
+
+The batch backtest prints two compact terminal tables:
+
+1. `Top 10 by Average Return`
+
+This table shows the stocks with the highest average fixed-holding trade return, regardless of whether they pass the qualified filter.
+
+It is useful for research discovery, but some stocks in this table may have too few completed trades or may fail the qualified rules.
+
+Displayed fields:
+
+- `Ticker`
+- `AverageReturn`
+- `WinRate`
+- `CompletedTradeCount`
+- `TotalReturn`
+- `MaxDrawdown`
+- `SharpeRatio`
+- `BacktestScore`
+- `IsQualified`
+
+2. `Qualified Top 10 by BacktestScore`
+
+This table only includes stocks that pass the qualified filter.
+
+It is the more important candidate list for further review.
+
+Displayed fields:
+
+- `Ticker`
+- `BacktestScore`
+- `CompletedTradeCount`
+- `AverageReturn`
+- `WinRate`
+- `TotalReturn`
+- `MaxDrawdown`
+- `SharpeRatio`
+
 Current backtest metrics:
 
 - `EntrySignalCount`
