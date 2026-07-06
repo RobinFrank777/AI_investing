@@ -126,6 +126,20 @@ It includes:
 - portfolio role
 The portfolio output is validated by `validate_portfolio_outputs.py`.
 
+Portfolio pipeline log:
+
+logs/portfolio_pipeline_YYYY-MM-DD.log
+
+This file records the full terminal output from the model portfolio pipeline.
+
+It includes:
+
+- pipeline start time
+- model portfolio table
+- portfolio summary
+- portfolio output validation result
+- pipeline finish time
+
 ## Data Quality Rules
 
 Before ranking, the system validates each stock file.
