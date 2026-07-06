@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from portfolio_risk import print_model_portfolio
-
+from validate_portfolio_outputs import validate_portfolio_outputs
 
 def print_section(title):
     print("\n" + "=" * 70)
@@ -18,6 +18,10 @@ def main():
     print_section("Running: Build model portfolio")
     print_model_portfolio()
     print_section("Completed: Build model portfolio")
+
+    print_section("Running: Validate portfolio outputs")
+    validate_portfolio_outputs()
+    print_section("Completed: Validate portfolio outputs")
 
     finished_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
