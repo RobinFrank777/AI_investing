@@ -26,6 +26,129 @@ def format_percent_column(df, column_name, decimals=2):
 
     return df
 
+def build_average_return_display_df(summary_df):
+    average_display_df = summary_df[
+        [
+            "Ticker",
+            "AverageReturn",
+            "WinRate",
+            "CompletedTradeCount",
+            "TotalReturn",
+            "MaxDrawdown",
+            "SharpeRatio",
+            "BacktestScore",
+            "IsQualified",
+        ]
+    ].head(10).copy()
+
+    average_display_df = format_percent_column(
+        average_display_df,
+        "AverageReturn",
+        decimals=2,
+    )
+
+    average_display_df = format_percent_column(
+        average_display_df,
+        "WinRate",
+        decimals=1,
+    )
+
+    average_display_df = format_percent_column(
+        average_display_df,
+        "TotalReturn",
+        decimals=2,
+    )
+
+    average_display_df = format_percent_column(
+        average_display_df,
+        "MaxDrawdown",
+        decimals=2,
+    )
+
+    average_display_df["SharpeRatio"] = average_display_df[
+        "SharpeRatio"
+    ].round(2)
+
+    average_display_df["BacktestScore"] = average_display_df[
+        "BacktestScore"
+    ].round(2)
+
+    return average_display_df
+
+def print_top_average_return(summary_df):
+    print("\nTop 10 by Average Return:")
+
+    average_display_df = build_average_return_display_df(
+        summary_df
+    )
+
+    print(
+        average_display_df.to_string(
+            index=False
+        )
+    )
+
+def build_qualified_backtest_display_df(qualified_df):
+    qualified_display_df = qualified_df[
+        [
+            "Ticker",
+            "BacktestScore",
+            "CompletedTradeCount",
+            "AverageReturn",
+            "WinRate",
+            "TotalReturn",
+            "MaxDrawdown",
+            "SharpeRatio",
+        ]
+    ].head(10).copy()
+
+    qualified_display_df["BacktestScore"] = qualified_display_df[
+        "BacktestScore"
+    ].round(2)
+
+    qualified_display_df = format_percent_column(
+        qualified_display_df,
+        "AverageReturn",
+        decimals=2,
+    )
+
+    qualified_display_df = format_percent_column(
+        qualified_display_df,
+        "WinRate",
+        decimals=1,
+    )
+
+    qualified_display_df = format_percent_column(
+        qualified_display_df,
+        "TotalReturn",
+        decimals=2,
+    )
+
+    qualified_display_df = format_percent_column(
+        qualified_display_df,
+        "MaxDrawdown",
+        decimals=2,
+    )
+
+    qualified_display_df["SharpeRatio"] = qualified_display_df[
+        "SharpeRatio"
+    ].round(2)
+
+    return qualified_display_df
+
+def print_qualified_top_backtest_score(qualified_df):
+    print("\nQualified Top 10 by BacktestScore:")
+
+    qualified_display_df = build_qualified_backtest_display_df(
+        qualified_df
+    )
+
+    print(
+        qualified_display_df.to_string(
+            index=False
+        )
+    )
+
 def generate_historical_trade_signals(df):
     df = df.copy()
 
@@ -582,112 +705,9 @@ def backtest_watchlist(holding_days=20):
     print(f"Saved Qualified To : {qualified_output_path}")
     print(f"Saved Trades To    : {trades_output_path}")
 
-    print("\nTop 10 by Average Return:")
+    print_top_average_return(summary_df)
 
-    average_display_df = summary_df[
-        [
-            "Ticker",
-            "AverageReturn",
-            "WinRate",
-            "CompletedTradeCount",
-            "TotalReturn",
-            "MaxDrawdown",
-            "SharpeRatio",
-            "BacktestScore",
-            "IsQualified",
-        ]
-    ].head(10).copy()
-
-    average_display_df = format_percent_column(
-        average_display_df,
-        "AverageReturn",
-        decimals=2,
-    )
-
-    average_display_df = format_percent_column(
-        average_display_df,
-        "WinRate",
-        decimals=1,
-    )
-
-    average_display_df = format_percent_column(
-        average_display_df,
-        "TotalReturn",
-        decimals=2,
-    )
-
-    average_display_df = format_percent_column(
-        average_display_df,
-        "MaxDrawdown",
-        decimals=2,
-    )
-
-    average_display_df["SharpeRatio"] = average_display_df[
-        "SharpeRatio"
-    ].round(2)
-
-    average_display_df["BacktestScore"] = average_display_df[
-        "BacktestScore"
-    ].round(2)
-
-    print(
-        average_display_df.to_string(
-            index=False
-        )
-    )
-
-    print("\nQualified Top 10 by BacktestScore:")
-
-    qualified_display_df = qualified_df[
-        [
-            "Ticker",
-            "BacktestScore",
-            "CompletedTradeCount",
-            "AverageReturn",
-            "WinRate",
-            "TotalReturn",
-            "MaxDrawdown",
-            "SharpeRatio",
-        ]
-    ].head(10).copy()
-
-    qualified_display_df["BacktestScore"] = qualified_display_df[
-        "BacktestScore"
-    ].round(2)
-
-    qualified_display_df = format_percent_column(
-        qualified_display_df,
-        "AverageReturn",
-        decimals=2,
-    )
-
-    qualified_display_df = format_percent_column(
-        qualified_display_df,
-        "WinRate",
-        decimals=1,
-    )
-
-    qualified_display_df = format_percent_column(
-        qualified_display_df,
-        "TotalReturn",
-        decimals=2,
-    )
-
-    qualified_display_df = format_percent_column(
-        qualified_display_df,
-        "MaxDrawdown",
-        decimals=2,
-    )
-
-    qualified_display_df["SharpeRatio"] = qualified_display_df[
-        "SharpeRatio"
-    ].round(2)
-
-    print(
-        qualified_display_df.to_string(
-            index=False
-        )
-    )
+    print_qualified_top_backtest_score(qualified_df)
 
     return summary_df, all_trades_df
 
