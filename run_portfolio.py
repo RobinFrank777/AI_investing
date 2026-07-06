@@ -4,6 +4,8 @@ from pathlib import Path
 
 from portfolio_risk import print_model_portfolio
 from validate_portfolio_outputs import validate_portfolio_outputs
+from position_sizing import print_position_sizing
+from validate_position_sizing_outputs import validate_position_sizing_outputs
 
 LOG_DIR = Path("logs")
 
@@ -55,6 +57,14 @@ def main():
     print_section("Running: Validate portfolio outputs")
     validate_portfolio_outputs()
     print_section("Completed: Validate portfolio outputs")
+
+    print_section("Running: Position sizing")
+    print_position_sizing()
+    print_section("Completed: Position sizing")
+
+    print_section("Running: Validate position sizing outputs")
+    validate_position_sizing_outputs()
+    print_section("Completed: Validate position sizing outputs")
 
     finished_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
