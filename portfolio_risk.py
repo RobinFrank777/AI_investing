@@ -51,8 +51,6 @@ def build_model_portfolio():
 
     selected_df = candidates_df.head(MAX_HOLDINGS).copy()
 
-    base_weight = MAX_TOTAL_EXPOSURE / len(selected_df)
-
     selected_df["RiskLevel"] = selected_df.apply(
         assign_risk_level,
         axis=1,
@@ -62,8 +60,10 @@ def build_model_portfolio():
         get_risk_weight_multiplier
     )
 
+    multiplier_sum = selected_df["RiskWeightMultiplier"].sum()
+
     selected_df["TargetWeight"] = (
-        base_weight * selected_df["RiskWeightMultiplier"]
+        selected_df["RiskWeightMultiplier"] / multiplier_sum * MAX_TOTAL_EXPOSURE
     ).clip(upper=MAX_POSITION_WEIGHT)
 
     selected_df["TargetWeightPercent"] = (
