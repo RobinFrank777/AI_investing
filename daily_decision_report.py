@@ -1,11 +1,12 @@
 from datetime import datetime
 from pathlib import Path
+from config import (
+    PORTFOLIO_ACTION_REPORT_OUTPUT as CONFIG_PORTFOLIO_ACTION_REPORT_OUTPUT,
+    REPORTS_DIR as CONFIG_REPORTS_DIR,
+)
 
-
-REPORTS_DIR = Path("reports")
-RESULTS_DIR = Path("results")
-
-ACTION_REPORT_INPUT = RESULTS_DIR / "portfolio_action_report.txt"
+REPORTS_DIR = Path(CONFIG_REPORTS_DIR)
+ACTION_REPORT_INPUT = Path(CONFIG_PORTFOLIO_ACTION_REPORT_OUTPUT)
 
 
 def find_latest_daily_report():
