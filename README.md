@@ -526,6 +526,16 @@ V2.5.0 order review pipeline:
 - writes `results/order_review.csv`
 - validates order review output with `validate_order_review_outputs.py`
 
+Current order review rules:
+- only BUY actions are allowed
+- only DRAFT_ONLY orders are allowed
+- TargetShares must be greater than 0
+- EstimatedOrderValue must be greater than 0
+- single order value above $10,000 requires REVIEW
+- High risk level requires REVIEW
+- total order value above $80,000 requires portfolio-level REVIEW
+- order count above 10 requires portfolio-level REVIEW
+
 V2.6.0 portfolio action report:
 - reads `results/order_review.csv`
 - summarizes PASS / REVIEW / BLOCKED order counts
@@ -634,41 +644,6 @@ V2.10.10 system version config integration:
 - reads project version and system version output path from `config.py`
 - writes `results/system_version.txt`
 - records current project version, Git branch, Git commit, Python version, and module status
-
-Current order review rules:
-- only BUY actions are allowed
-- only DRAFT_ONLY orders are allowed
-- TargetShares must be greater than 0
-- EstimatedOrderValue must be greater than 0
-- single order value above $10,000 requires REVIEW
-- High risk level requires REVIEW
-- total order value above $80,000 requires portfolio-level REVIEW
-- order count above 10 requires portfolio-level REVIEW
-
-V2.8.0 system health check:
-- checks required source files
-- checks required output directories
-- checks key `.gitignore` rules
-- confirms generated result files are ignored by Git
-- validates the project structure before future development
-
-V2.8.1 system health check integration:
-- integrates `system_health_check.py` into `run_portfolio.py`
-- runs the health check at the end of the full portfolio pipeline
-- confirms source files, output directories, and ignore rules after each full run
-
-V2.9.0 system version report:
-- creates `system_version.py`
-- records the latest Git tag as the project version
-- records the current Git branch and commit
-- records the current Python version
-- checks core modules and validation modules
-- writes `results/system_version.txt`
-
-V2.9.1 system version report integration:
-- integrates `system_version.py` into `run_portfolio.py`
-- runs the system version report at the beginning of the full portfolio pipeline
-- records version information before portfolio generation, order review, and health checks
 
 V3.0 Fundamental Scoring
 - PE, EPS, revenue growth, ROE
