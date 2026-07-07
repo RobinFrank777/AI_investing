@@ -480,11 +480,26 @@ The terminal display may show percentage strings such as 45.08%, but the CSV fil
 
 This is important because future analysis, scoring, charting, and portfolio simulation require numeric CSV data.
 
-V2.0 Risk and Portfolio Layer
+## V2 Portfolio Pipeline Development
+
+V2.0.0 Risk and Portfolio Layer
 - portfolio exposure
 - position limits
 - sector concentration
 - drawdown control
+
+V2.1.0 risk adjusted portfolio weights:
+- reads qualified backtest candidates
+- assigns risk levels to candidates
+- applies risk weight multipliers
+- normalizes portfolio weights after risk adjustment
+- limits portfolio exposure according to risk rules
+
+V2.2.0 position sizing pipeline:
+- calculates target dollar amount from account value
+- converts portfolio weights into target position sizes
+- prepares model portfolio sizing output
+- creates the foundation for later share-based sizing
 
 V2.3.0 actual share sizing:
 - reads latest close price from `data/{Ticker}.csv`
@@ -510,6 +525,115 @@ V2.5.0 order review pipeline:
 - checks portfolio-level total order value
 - writes `results/order_review.csv`
 - validates order review output with `validate_order_review_outputs.py`
+
+V2.6.0 portfolio action report:
+- reads `results/order_review.csv`
+- summarizes PASS / REVIEW / BLOCKED order counts
+- calculates total estimated order value
+- lists manual review items
+- writes `results/portfolio_action_report.txt`
+
+V2.6.1 portfolio action report integration:
+- integrates `portfolio_action_report.py` into `run_portfolio.py`
+- runs the portfolio action report after order review validation
+- confirms reviewed orders before daily decision reporting
+
+V2.7.0 daily decision report module:
+- creates `daily_decision_report.py`
+- combines the daily technical screening report with the portfolio action report
+- adds final safety reminders
+- writes `reports/daily_decision_report_YYYY-MM-DD.txt`
+
+V2.7.1 daily decision report integration:
+- integrates `daily_decision_report.py` into `run_portfolio.py`
+- runs the daily decision report near the end of the full portfolio pipeline
+- confirms technical screening and portfolio action review are shown together
+
+V2.7.2 daily decision report validation:
+- creates `validate_daily_decision_report_outputs.py`
+- checks required daily decision report sections
+- checks required safety warning text
+- raises validation errors when report output is incomplete
+
+V2.7.3 daily decision report validation integration:
+- integrates daily decision report validation into `run_portfolio.py`
+- validates the daily decision report after it is generated
+- confirms the final decision report is complete before system health check
+
+V2.8.0 system health check:
+- creates `system_health_check.py`
+- checks required source files
+- checks required output directories
+- checks key `.gitignore` rules
+- validates the project structure before future development
+
+V2.8.1 system health check integration:
+- integrates `system_health_check.py` into `run_portfolio.py`
+- runs the health check at the end of the full portfolio pipeline
+- confirms source files, output directories, and ignore rules after each full run
+
+V2.8.2 system health check documentation:
+- documents the system health check in `README.md`
+- records required files, directories, and Git ignore rules
+- clarifies that generated output files should not be committed
+
+V2.9.0 system version report:
+- creates `system_version.py`
+- records project version, Git branch, Git commit, and Python version
+- checks core module and validation module status
+- writes `results/system_version.txt`
+
+V2.9.1 system version report integration:
+- integrates `system_version.py` into `run_portfolio.py`
+- runs the system version report at the beginning of the full portfolio pipeline
+- records version information before pipeline execution
+
+V2.9.2 system version report documentation:
+- documents the system version report in `README.md`
+- records how version tracking supports debugging and release review
+- clarifies that the version report does not place trades
+
+V2.10.0 central configuration module:
+- creates `config.py` as the central configuration file
+- stores account value, portfolio risk settings, order review rules, output directories, and output file paths
+- keeps older variable names for backward compatibility
+
+V2.10.1 portfolio risk config integration:
+- reads portfolio risk parameters from `config.py`
+- uses configured max holdings, max position weight, total exposure, cash reserve, and risk multipliers
+
+V2.10.2 position sizing config integration:
+- reads account value, cash reserve ratio, model portfolio output, and position sizing output from `config.py`
+- reduces hard-coded sizing paths and account assumptions
+
+V2.10.3 order draft config integration:
+- reads position sizing input, order draft output, allowed action, and default order status from `config.py`
+
+V2.10.4 order review config integration:
+- reads order draft input, order review output, order limits, allowed actions, and review status rules from `config.py`
+
+V2.10.5 order review validation config integration:
+- reads order review output, allowed review statuses, order limits, and portfolio review flag rules from `config.py`
+
+V2.10.6 portfolio action report config integration:
+- reads order review input and portfolio action report output from `config.py`
+
+V2.10.7 daily decision report config integration:
+- reads portfolio action report output and report directory from `config.py`
+- combines daily technical report and portfolio action report into a daily decision report
+
+V2.10.8 daily decision validation config integration:
+- reads report directory from `config.py`
+- validates daily decision report sections and safety warnings
+
+V2.10.9 system health check config integration:
+- reads required output directories from `config.py`
+- confirms project folders, source files, and Git ignore rules
+
+V2.10.10 system version config integration:
+- reads project version and system version output path from `config.py`
+- writes `results/system_version.txt`
+- records current project version, Git branch, Git commit, Python version, and module status
 
 Current order review rules:
 - only BUY actions are allowed
