@@ -3,9 +3,13 @@ from pathlib import Path
 import subprocess
 import sys
 
+from config import (
+    PROJECT_VERSION,
+    SYSTEM_VERSION_OUTPUT as CONFIG_SYSTEM_VERSION_OUTPUT,
+)
 
-OUTPUT_DIR = Path("results")
-OUTPUT_FILE = OUTPUT_DIR / "system_version.txt"
+
+OUTPUT_FILE = Path(CONFIG_SYSTEM_VERSION_OUTPUT)
 
 
 CORE_MODULES = [
@@ -68,7 +72,7 @@ def get_git_commit():
 
 def build_system_version_text():
     generated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    project_version = get_project_version()
+    project_version = PROJECT_VERSION
     git_branch = get_git_branch()
     git_commit = get_git_commit()
     python_version = sys.version.split()[0]
@@ -120,7 +124,7 @@ def build_system_version_text():
 def print_system_version():
     version_text = build_system_version_text()
 
-    OUTPUT_DIR.mkdir(exist_ok=True)
+    OUTPUT_FILE.parent.mkdir(exist_ok=True)
     OUTPUT_FILE.write_text(version_text, encoding="utf-8")
 
     print(version_text)
