@@ -2,9 +2,19 @@ from pathlib import Path
 
 import pandas as pd
 
+from config import (
+    POSITION_SIZING_OUTPUT as CONFIG_POSITION_SIZING_OUTPUT,
+    ORDER_DRAFT_OUTPUT as CONFIG_ORDER_DRAFT_OUTPUT,
+    ALLOWED_ACTIONS,
+    ALLOWED_ORDER_STATUS,
+)
 
-POSITION_SIZING_INPUT = Path("results/model_portfolio_sizing.csv")
-ORDER_DRAFT_OUTPUT = Path("results/order_draft.csv")
+
+POSITION_SIZING_INPUT = Path(CONFIG_POSITION_SIZING_OUTPUT)
+ORDER_DRAFT_OUTPUT = Path(CONFIG_ORDER_DRAFT_OUTPUT)
+
+DEFAULT_ACTION = ALLOWED_ACTIONS[0]
+DEFAULT_ORDER_STATUS = ALLOWED_ORDER_STATUS[0]
 
 REQUIRED_COLUMNS = [
     "Ticker",
@@ -62,7 +72,7 @@ def build_order_draft():
 
     order_df = position_df[position_df["TargetShares"] > 0].copy()
 
-    order_df["Action"] = "BUY"
+    order_df["Action"] = DEFAULT_ACTION
 
     order_df["TargetShares"] = order_df["TargetShares"].astype(int)
 
@@ -70,7 +80,7 @@ def build_order_draft():
         order_df["TargetShares"] * order_df["LatestClose"]
     ).round(2)
 
-    order_df["OrderStatus"] = "DRAFT_ONLY"
+    order_df["OrderStatus"] = DEFAULT_ORDER_STATUS
 
     order_df = order_df[ORDER_COLUMNS]
 
