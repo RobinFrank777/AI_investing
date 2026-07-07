@@ -2,10 +2,13 @@ from pathlib import Path
 from datetime import datetime
 
 import pandas as pd
+from config import (
+    ORDER_REVIEW_OUTPUT as CONFIG_ORDER_REVIEW_OUTPUT,
+    PORTFOLIO_ACTION_REPORT_OUTPUT as CONFIG_PORTFOLIO_ACTION_REPORT_OUTPUT,
+)
 
-
-ORDER_REVIEW_OUTPUT = "results/order_review.csv"
-ACTION_REPORT_OUTPUT = "results/portfolio_action_report.txt"
+ORDER_REVIEW_OUTPUT = Path(CONFIG_ORDER_REVIEW_OUTPUT)
+ACTION_REPORT_OUTPUT = Path(CONFIG_PORTFOLIO_ACTION_REPORT_OUTPUT)
 
 DISPLAY_COLUMNS = [
     "Ticker",
