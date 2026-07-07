@@ -1,5 +1,10 @@
 from pathlib import Path
-
+from config import (
+    DATA_DIR as CONFIG_DATA_DIR,
+    RESULTS_DIR as CONFIG_RESULTS_DIR,
+    REPORTS_DIR as CONFIG_REPORTS_DIR,
+    LOGS_DIR as CONFIG_LOGS_DIR,
+)
 
 REQUIRED_SOURCE_FILES = [
     "run_daily.py",
@@ -20,10 +25,10 @@ REQUIRED_SOURCE_FILES = [
 ]
 
 REQUIRED_DIRS = [
-    "data",
-    "results",
-    "reports",
-    "logs",
+    Path(CONFIG_DATA_DIR),
+    Path(CONFIG_RESULTS_DIR),
+    Path(CONFIG_REPORTS_DIR),
+    Path(CONFIG_LOGS_DIR),
 ]
 
 REQUIRED_GITIGNORE_RULES = [
