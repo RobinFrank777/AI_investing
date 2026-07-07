@@ -14,6 +14,7 @@ from portfolio_action_report import print_portfolio_action_report
 from daily_decision_report import print_daily_decision_report
 from validate_daily_decision_report_outputs import validate_daily_decision_report_outputs
 from system_health_check import run_system_health_check
+from validate_config import print_config_validation
 from system_version import print_system_version
 
 LOG_DIR = Path("logs")
@@ -58,6 +59,10 @@ def main():
     print_section("AI INVESTING PORTFOLIO PIPELINE")
     print(f"Started At: {started_at}")
     print(f"Log File: {log_path}")
+
+    print_section("Running: Validate config settings")
+    print_config_validation()
+    print_section("Completed: Validate config settings")
 
     print_section("Running: System version report")
     print_system_version()
