@@ -1,8 +1,8 @@
 from datetime import datetime
 from pathlib import Path
+from config import REPORTS_DIR as CONFIG_REPORTS_DIR
 
-
-REPORTS_DIR = Path("reports")
+REPORTS_DIR = Path(CONFIG_REPORTS_DIR)
 
 REQUIRED_SECTIONS = [
     "AI INVESTING DAILY DECISION REPORT",
