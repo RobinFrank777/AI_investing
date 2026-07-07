@@ -1,11 +1,17 @@
 import pandas as pd
 from pathlib import Path
 
+from config import (
+    ACCOUNT_VALUE,
+    CASH_RESERVE_RATIO,
+    MODEL_PORTFOLIO_OUTPUT as CONFIG_MODEL_PORTFOLIO_OUTPUT,
+    POSITION_SIZING_OUTPUT as CONFIG_POSITION_SIZING_OUTPUT,
+)
 
-MODEL_PORTFOLIO_INPUT = "results/model_portfolio.csv"
-POSITION_SIZING_OUTPUT = "results/model_portfolio_sizing.csv"
+MODEL_PORTFOLIO_INPUT = Path(CONFIG_MODEL_PORTFOLIO_OUTPUT)
+POSITION_SIZING_OUTPUT = Path(CONFIG_POSITION_SIZING_OUTPUT)
 STOCK_DATA_DIR = Path("data")
-ACCOUNT_VALUE = 100000
+
 
 
 def load_model_portfolio():
@@ -120,6 +126,7 @@ def print_position_sizing():
     cash_reserve = ACCOUNT_VALUE - estimated_invested
 
     print(f"Account Value       : ${ACCOUNT_VALUE:,.2f}")
+    print(f"Cash Reserve Ratio  : {CASH_RESERVE_RATIO:.0%}")
     print(f"Target Invested     : ${total_target_amount:,.2f}")
     print(f"Estimated Invested  : ${estimated_invested:,.2f}")
     print(f"Cash Reserve        : ${cash_reserve:,.2f}")
