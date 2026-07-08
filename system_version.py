@@ -23,6 +23,7 @@ CORE_MODULES = [
     "portfolio_action_report.py",
     "daily_decision_report.py",
     "fundamental_scoring.py",
+    "combined_scoring.py",
     "system_health_check.py",
 ]
 
@@ -30,6 +31,7 @@ CORE_MODULES = [
 VALIDATION_MODULES = [
     "validate_config.py",
     "validate_fundamental_outputs.py",
+    "validate_combined_outputs.py",
     "validate_backtest_outputs.py",
     "validate_portfolio_outputs.py",
     "validate_position_sizing_outputs.py",
