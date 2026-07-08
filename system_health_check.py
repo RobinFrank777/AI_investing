@@ -6,7 +6,7 @@ from config import (
     LOGS_DIR as CONFIG_LOGS_DIR,
 )
 
-REQUIRED_SOURCE_FILES = [
+REQUIRED_CORE_FILES = [
     "run_daily.py",
     "run_backtest.py",
     "run_portfolio.py",
@@ -18,15 +18,21 @@ REQUIRED_SOURCE_FILES = [
     "daily_decision_report.py",
     "system_health_check.py",
     "system_version.py",
+]
+
+REQUIRED_VALIDATION_FILES = [
     "validate_config.py",
-    "config_validation_failure_demo.py",
-    "pipeline_smoke_test.py",
     "validate_backtest_outputs.py",
     "validate_portfolio_outputs.py",
     "validate_position_sizing_outputs.py",
     "validate_order_draft_outputs.py",
     "validate_order_review_outputs.py",
     "validate_daily_decision_report_outputs.py",
+]
+
+REQUIRED_TEST_FILES = [
+    "config_validation_failure_demo.py",
+    "pipeline_smoke_test.py",
 ]
 
 REQUIRED_DIRS = [
@@ -44,11 +50,12 @@ REQUIRED_GITIGNORE_RULES = [
 ]
 
 
-def check_files():
+def check_files(file_names):
     missing = []
 
-    for file_name in REQUIRED_SOURCE_FILES:
+    for file_name in file_names:
         file_path = Path(file_name)
+
         if not file_path.exists():
             missing.append(file_name)
 
@@ -83,7 +90,9 @@ def check_gitignore():
 
 
 def run_system_health_check():
-    file_errors = check_files()
+    core_file_errors = check_files(REQUIRED_CORE_FILES)
+    validation_file_errors = check_files(REQUIRED_VALIDATION_FILES)
+    test_file_errors = check_files(REQUIRED_TEST_FILES)
     dir_errors = check_dirs()
     gitignore_errors = check_gitignore()
 
@@ -91,8 +100,16 @@ def run_system_health_check():
     print("AI INVESTING SYSTEM HEALTH CHECK")
     print("=" * 80)
 
-    print("\nSource files checked:")
-    for file_name in REQUIRED_SOURCE_FILES:
+    print("\nCore source files checked:")
+    for file_name in REQUIRED_CORE_FILES:
+        print(f"- {file_name}")
+
+    print("\nValidation files checked:")
+    for file_name in REQUIRED_VALIDATION_FILES:
+        print(f"- {file_name}")
+
+    print("\nTest files checked:")
+    for file_name in REQUIRED_TEST_FILES:
         print(f"- {file_name}")
 
     print("\nDirectories checked:")
@@ -105,8 +122,14 @@ def run_system_health_check():
 
     errors = []
 
-    for item in file_errors:
-        errors.append(f"Missing source file: {item}")
+    for item in core_file_errors:
+        errors.append(f"Missing core source file: {item}")
+
+    for item in validation_file_errors:
+        errors.append(f"Missing validation file: {item}")
+
+    for item in test_file_errors:
+        errors.append(f"Missing test file: {item}")
 
     for item in dir_errors:
         errors.append(f"Missing directory: {item}")
