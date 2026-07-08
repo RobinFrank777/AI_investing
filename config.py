@@ -72,7 +72,7 @@ LOGS_DIR = "logs"
 # ============================================================
 # Output files
 # ============================================================
-PROJECT_VERSION = "v3.0.0"
+PROJECT_VERSION = "v3.0.1"
 STOCK_RANK_OUTPUT = "results/stock_rank.csv"
 TOP10_OUTPUT = "results/top10.csv"
 
