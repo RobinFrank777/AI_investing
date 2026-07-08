@@ -29,6 +29,7 @@ CORE_MODULES = [
 VALIDATION_MODULES = [
     "validate_config.py",
     "config_validation_failure_demo.py",
+    "pipeline_smoke_test.py",
     "validate_backtest_outputs.py",
     "validate_portfolio_outputs.py",
     "validate_position_sizing_outputs.py",
