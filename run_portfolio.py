@@ -4,6 +4,8 @@ from pathlib import Path
 
 from portfolio_risk import print_model_portfolio
 from validate_portfolio_outputs import validate_portfolio_outputs
+from fundamental_scoring import print_fundamental_score
+from validate_fundamental_outputs import validate_fundamental_outputs
 from position_sizing import print_position_sizing
 from validate_position_sizing_outputs import validate_position_sizing_outputs
 from order_draft import print_order_draft
@@ -75,6 +77,14 @@ def main():
     print_section("Running: Validate portfolio outputs")
     validate_portfolio_outputs()
     print_section("Completed: Validate portfolio outputs")
+
+    print_section("Running: Fundamental scoring")
+    print_fundamental_score()
+    print_section("Completed: Fundamental scoring")
+
+    print_section("Running: Validate fundamental outputs")
+    validate_fundamental_outputs()
+    print_section("Completed: Validate fundamental outputs")
 
     print_section("Running: Position sizing")
     print_position_sizing()
