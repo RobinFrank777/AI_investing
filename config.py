@@ -34,6 +34,12 @@ MAX_SINGLE_POSITION_WEIGHT = 0.10
 MAX_TOTAL_EXPOSURE = 0.80
 CASH_RESERVE_RATIO = 0.20
 
+# ============================================================
+# Scoring settings
+# ============================================================
+
+BACKTEST_SCORE_WEIGHT = 0.7
+FUNDAMENTAL_SCORE_WEIGHT = 0.3
 
 # ============================================================
 # Risk weight multipliers
@@ -43,7 +49,6 @@ LOW_RISK_WEIGHT_MULTIPLIER = 1.00
 MEDIUM_RISK_WEIGHT_MULTIPLIER = 0.80
 HIGH_RISK_WEIGHT_MULTIPLIER = 0.50
 UNKNOWN_RISK_WEIGHT_MULTIPLIER = 0.00
-
 
 # ============================================================
 # Order review settings
@@ -58,7 +63,6 @@ ALLOWED_ORDER_STATUS = ["DRAFT_ONLY"]
 ALLOWED_REVIEW_STATUS = ["PASS", "REVIEW", "BLOCKED"]
 ALLOWED_PORTFOLIO_REVIEW_FLAG = ["PASS", "REVIEW"]
 
-
 # ============================================================
 # Output directories
 # ============================================================
@@ -72,7 +76,7 @@ LOGS_DIR = "logs"
 # ============================================================
 # Output files
 # ============================================================
-PROJECT_VERSION = "v3.0.4"
+PROJECT_VERSION = "v3.1.0"
 STOCK_RANK_OUTPUT = "results/stock_rank.csv"
 TOP10_OUTPUT = "results/top10.csv"
 
@@ -87,3 +91,4 @@ DAILY_DECISION_REPORT_PREFIX = "reports/daily_decision_report"
 
 FUNDAMENTAL_INPUT = "data/fundamentals.csv"
 FUNDAMENTAL_SCORE_OUTPUT = "results/fundamental_score.csv"
+COMBINED_SCORE_OUTPUT = "results/combined_score.csv"
