@@ -19,6 +19,7 @@ REQUIRED_SOURCE_FILES = [
     "system_health_check.py",
     "system_version.py",
     "validate_config.py",
+    "config_validation_failure_demo.py",
     "validate_backtest_outputs.py",
     "validate_portfolio_outputs.py",
     "validate_position_sizing_outputs.py",
