@@ -110,6 +110,32 @@ Current portfolio risk rules:
 - maximum holdings: 10
 - cash reserve: 20%
 
+## Config Validation Failure Demo
+
+Run the config validation failure demo manually:
+
+```bash
+python3 config_validation_failure_demo.py
+```
+This script intentionally injects invalid config values into the validation module during runtime.
+
+It is used to confirm that validate_config.py can detect unsafe or invalid settings, including:
+
+1. negative account value
+2. total exposure above 100%
+3. cash reserve plus exposure above 100%
+4. zero max order count
+5. missing BUY action
+6. project version missing the v prefix
+
+Important safety notes:
+
+- this script does not modify config.py on disk
+- this script restores temporary values after each test case
+- this script is for manual testing only
+- this script must not be integrated into run_portfolio.py
+- this script does not place trades
+
 ## Main Output Files
 
 System version report:
@@ -660,6 +686,20 @@ V2.11.2 config validation system registration:
 - registers `validate_config.py` in `system_health_check.py`
 - registers `validate_config.py` in `system_version.py`
 - confirms the config validation module is tracked by health checks and version reports
+
+V2.12.0 config validation failure demo:
+- creates `config_validation_failure_demo.py`
+- intentionally injects invalid configuration values for testing
+- confirms that `validate_config.py` detects unsafe or invalid settings
+- restores temporary values after each failure case
+- does not modify `config.py` on disk
+- is a manual test script and is not part of the live portfolio pipeline
+
+V2.12.1 config validation failure demo registration:
+- registers `config_validation_failure_demo.py` in `system_health_check.py`
+- registers `config_validation_failure_demo.py` in `system_version.py`
+- confirms the failure demo script is tracked by system health checks and version reports
+- keeps the failure demo outside `run_portfolio.py`
 
 V3.0 Fundamental Scoring
 - PE, EPS, revenue growth, ROE
