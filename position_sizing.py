@@ -6,19 +6,69 @@ from config import (
     CASH_RESERVE_RATIO,
     MODEL_PORTFOLIO_OUTPUT as CONFIG_MODEL_PORTFOLIO_OUTPUT,
     POSITION_SIZING_OUTPUT as CONFIG_POSITION_SIZING_OUTPUT,
+    COMBINED_SCORE_OUTPUT as CONFIG_COMBINED_SCORE_OUTPUT,
 )
 
 MODEL_PORTFOLIO_INPUT = Path(CONFIG_MODEL_PORTFOLIO_OUTPUT)
 POSITION_SIZING_OUTPUT = Path(CONFIG_POSITION_SIZING_OUTPUT)
+COMBINED_SCORE_INPUT = Path(CONFIG_COMBINED_SCORE_OUTPUT)
 STOCK_DATA_DIR = Path("data")
 
+def add_combined_scores(portfolio_df):
+    combined_df = pd.read_csv(COMBINED_SCORE_INPUT)
 
+    required_columns = [
+        "Ticker",
+        "FundamentalScore",
+        "CombinedScore",
+        "FundamentalRating",
+    ]
+
+    missing_columns = [
+        col for col in required_columns
+        if col not in combined_df.columns
+    ]
+
+    if missing_columns:
+        raise ValueError(
+            f"Combined score output missing columns: {missing_columns}"
+        )
+
+    merged_df = portfolio_df.merge(
+        combined_df[required_columns],
+        on="Ticker",
+        how="left",
+    )
+
+    merged_df["BacktestScore"] = pd.to_numeric(
+        merged_df["BacktestScore"],
+        errors="coerce",
+    )
+
+    merged_df["FundamentalScore"] = pd.to_numeric(
+        merged_df["FundamentalScore"],
+        errors="coerce",
+    )
+
+    merged_df["CombinedScore"] = pd.to_numeric(
+        merged_df["CombinedScore"],
+        errors="coerce",
+    )
+
+    merged_df["FundamentalScore"] = merged_df["FundamentalScore"].fillna(0)
+    merged_df["CombinedScore"] = merged_df["CombinedScore"].fillna(
+        merged_df["BacktestScore"]
+    )
+    merged_df["FundamentalRating"] = merged_df["FundamentalRating"].fillna("MISSING")
+
+    return merged_df
 
 def load_model_portfolio():
     portfolio_df = pd.read_csv(MODEL_PORTFOLIO_INPUT)
+    portfolio_df = add_combined_scores(portfolio_df)
 
     portfolio_df = portfolio_df.sort_values(
-        by="BacktestScore",
+        by="CombinedScore",
         ascending=False,
     )
 
@@ -108,6 +158,9 @@ def print_position_sizing():
             [
                 "Ticker",
                 "BacktestScore",
+                "FundamentalScore",
+                "CombinedScore",
+                "FundamentalRating",
                 "RiskLevel",
                 "RiskWeightMultiplier",
                 "TargetWeightPercent",
