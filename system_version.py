@@ -28,14 +28,17 @@ CORE_MODULES = [
 
 VALIDATION_MODULES = [
     "validate_config.py",
-    "config_validation_failure_demo.py",
-    "pipeline_smoke_test.py",
     "validate_backtest_outputs.py",
     "validate_portfolio_outputs.py",
     "validate_position_sizing_outputs.py",
     "validate_order_draft_outputs.py",
     "validate_order_review_outputs.py",
     "validate_daily_decision_report_outputs.py",
+]
+
+TEST_MODULES = [
+    "config_validation_failure_demo.py",
+    "pipeline_smoke_test.py",
 ]
 
 
@@ -109,6 +112,16 @@ def build_system_version_text():
     lines.append("=" * 80)
 
     for module_name in VALIDATION_MODULES:
+        module_path = Path(module_name)
+        status = "FOUND" if module_path.exists() else "MISSING"
+        lines.append(f"- {module_name}: {status}")
+
+    lines.append("")
+    lines.append("=" * 80)
+    lines.append("TEST MODULES")
+    lines.append("=" * 80)
+
+    for module_name in TEST_MODULES:
         module_path = Path(module_name)
         status = "FOUND" if module_path.exists() else "MISSING"
         lines.append(f"- {module_name}: {status}")
