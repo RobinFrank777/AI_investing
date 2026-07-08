@@ -71,37 +71,44 @@ Run the full portfolio pipeline:
 python3 run_portfolio.py
 ```
 This command will automatically run:
+
 1. `print_config_validation()`
 2. `print_system_version()`
 3. `print_model_portfolio()`
 4. `validate_portfolio_outputs()`
-5. `print_position_sizing()`
-6. `validate_position_sizing_outputs()`
-7. `print_order_draft()`
-8. `validate_order_draft_outputs()`
-9. `print_order_review()`
-10. `validate_order_review_outputs()`
-11. `print_portfolio_action_report()`
-12. `print_daily_decision_report()`
-13. `validate_daily_decision_report_outputs()`
-14. `run_system_health_check()`
+5. `print_fundamental_score()`
+6. `validate_fundamental_outputs()`
+7. `print_position_sizing()`
+8. `validate_position_sizing_outputs()`
+9. `print_order_draft()`
+10. `validate_order_draft_outputs()`
+11. `print_order_review()`
+12. `validate_order_review_outputs()`
+13. `print_portfolio_action_report()`
+14. `print_daily_decision_report()`
+15. `validate_daily_decision_report_outputs()`
+16. `run_system_health_check()`
+17. write a portfolio pipeline log
 
 The full portfolio pipeline currently runs:
+
 1. validate config settings
 2. generate system version report
 3. build model portfolio
 4. validate portfolio outputs
-5. calculate position sizing
-6. validate position sizing outputs
-7. generate order draft
-8. validate order draft outputs
-9. review order draft
-10. validate order review outputs
-11. generate portfolio action report
-12. generate daily decision report
-13. validate daily decision report outputs
-14. run system health check
-15. write a portfolio pipeline log
+5. generate fundamental scoring
+6. validate fundamental outputs
+7. calculate position sizing
+8. validate position sizing outputs
+9. generate order draft
+10. validate order draft outputs
+11. review order draft
+12. validate order review outputs
+13. generate portfolio action report
+14. generate daily decision report
+15. validate daily decision report outputs
+16. run system health check
+17. write a portfolio pipeline log
 
 Current portfolio risk rules:
 
@@ -212,6 +219,49 @@ Important notes:
 - test modules should not be integrated into `run_portfolio.py`
 - test modules are used to verify system safety and pipeline reliability
 
+## Fundamental Scoring
+
+The fundamental scoring module reads manual fundamental data from:
+
+```bash
+data/fundamentals.csv
+```
+It writes the scoring result to:
+results/fundamental_score.csv
+The required input columns are:
+
+- Ticker
+- RevenueGrowth
+- EPSGrowth
+- GrossMargin
+- OperatingMargin
+- ROE
+- FreeCashFlowMargin
+- DebtToEquity
+- PE
+- PS
+
+The module calculates:
+
+- FundamentalScore
+- FundamentalRating
+
+Current rating rules:
+
+- STRONG: score >= 75
+- GOOD: score >= 60
+- NEUTRAL: score >= 45
+- WEAK: score < 45
+
+The fundamental scoring output is validated by:
+`python3 validate_fundamental_outputs.py`
+
+The module is now integrated into the full portfolio pipeline:
+`python3 run_portfolio.py`
+
+This module does not place trades and does not connect to a brokerage account.
+
+
 ## Main Output Files
 
 System version report:
@@ -239,6 +289,12 @@ logs/daily_pipeline_YYYY-MM-DD.log
 Model portfolio:
 
 results/model_portfolio.csv
+
+Fundamental score:
+
+```bash
+results/fundamental_score.csv
+```
 
 This file contains the current model portfolio generated from qualified backtest candidates.
 
@@ -383,208 +439,36 @@ It does not yet include:
 
 ## Development Roadmap
 
-Next development stages:
+Version history:
 
-V1.0.1 System Hardening
-- improve validation
-- improve logging
-- improve report reliability
-- clean project structure
+## V1 Technical Screening and Backtesting Development
 
-## V1.1 Backtesting Foundation
+V1.0.0 technical screener and daily report:
+- creates the initial technical screening workflow
+- generates the daily technical screening report
+- records BUY / WATCH / IGNORE style screening outputs
+- establishes the first AI_investing daily report structure
 
-The system now includes a basic backtesting foundation.
+V1.0.1 system hardening:
+- improves validation
+- improves logging
+- improves report reliability
+- cleans project structure
 
-Current backtest capabilities:
-
-- generate historical BUY / WATCH / IGNORE signals
-- detect EntrySignal to avoid counting repeated BUY days as separate entries
-- simulate fixed 20-trading-day holding trades
-- run batch backtests across the full watchlist
-- save all historical simulated trades
-- save per-stock backtest summaries
-- filter qualified stocks using basic performance rules
-- calculate BacktestScore for ranking qualified candidates
-
-Main backtest output files:
-
-- `results/backtest_summary_20d.csv`
-- `results/backtest_qualified_20d.csv`
-- `results/backtest_all_trades_20d.csv`
-- `results/backtest_signals_<TICKER>.csv`
-- `results/backtest_entries_<TICKER>.csv`
-- `results/backtest_trades_<TICKER>_20d.csv`
-
-Terminal backtest output:
-
-The batch backtest prints two compact terminal tables:
-
-1. `Top 10 by Average Return`
-
-This table shows the stocks with the highest average fixed-holding trade return, regardless of whether they pass the qualified filter.
-
-It is useful for research discovery, but some stocks in this table may have too few completed trades or may fail the qualified rules.
-
-Displayed fields:
-
-- `Ticker`
-- `AverageReturn`
-- `WinRate`
-- `CompletedTradeCount`
-- `TotalReturn`
-- `MaxDrawdown`
-- `SharpeRatio`
-- `BacktestScore`
-- `IsQualified`
-
-2. `Qualified Top 10 by BacktestScore`
-
-This table only includes stocks that pass the qualified filter.
-
-It is the more important candidate list for further review.
-
-Displayed fields:
-
-- `Ticker`
-- `BacktestScore`
-- `CompletedTradeCount`
-- `AverageReturn`
-- `WinRate`
-- `TotalReturn`
-- `MaxDrawdown`
-- `SharpeRatio`
-
-Current backtest metrics:
-
-- `EntrySignalCount`
-- `CompletedTradeCount`
-- `AverageReturn`
-- `WinRate`
-- `BestTrade`
-- `WorstTrade`
-- `TotalReturn`
-- `MaxDrawdown`
-- `CAGR`
-- `SharpeRatio`
-- `BacktestScore`
-
-Backtest metric notes:
-
-- `AverageReturn` is the average return of completed fixed-holding trades.
-- `WinRate` is the percentage of completed trades with positive return.
-- `TotalReturn` is calculated from the compounded sequence of simulated trades for one stock.
-- `MaxDrawdown` is calculated from the simulated trade equity curve.
-- `CAGR` is a simplified research metric based on the simulated trade sequence.
-- `SharpeRatio` is a simplified trade-return-based Sharpe ratio.
-- `BacktestScore` is used only for ranking research candidates.
-
-Important warning:
-
-`CAGR` and `TotalReturn` are not real portfolio-level returns.
-
-They do not yet account for:
-
-- position sizing
-- overlapping trades
-- cash availability
-- transaction costs
-- slippage
-- portfolio allocation
-- benchmark comparison
-- real execution constraints
-
-Therefore, a high `CAGR` should not be interpreted as a real achievable annual return.
-
-Qualified stock rule:
-
-A stock is currently marked as qualified if:
-
-- `CompletedTradeCount >= 10`
-- `AverageReturn > 0`
-- `WinRate >= 0.5`
-- no backtest error exists
-
-BacktestScore formula:
-
-The current `BacktestScore` is a rule-based research score.
-
-It is calculated from the following components:
-
-- `AverageReturnScore`
-- `WinRateScore`
-- `TradeCountScore`
-- `RiskScore`
-- `DrawdownScore`
-
-Current scoring rules:
-
-```text
-AverageReturnScore =
-    clipped AverageReturn between -20% and +30%
-    × 100
-
-WinRateScore =
-    WinRate
-    × 40
-
-TradeCountScore =
-    min(CompletedTradeCount, 30)
-    / 30
-    × 20
-
-RiskScore =
-    clipped (1 + WorstTrade) between 0 and 1
-    × 10
-
-DrawdownScore =
-    clipped (1 + MaxDrawdown) between 0 and 1
-    × 20
-
-BacktestScore =
-    AverageReturnScore
-    + WinRateScore
-    + TradeCountScore
-    + RiskScore
-    + DrawdownScore
-
-```
-Important limitation:
-
-The current backtest is still a simplified research backtest. It does not yet include:
-
-- transaction costs
-- slippage
-- position sizing
-- overlapping portfolio positions
-- benchmark comparison
-- CAGR
-- Sharpe ratio
-- real order execution
-
-Backtest output validation:
-
-The system includes a validation script for backtest output CSV files:
-
-```bash
-python3 validate_backtest_outputs.py
-```
-
-This script checks that the following columns remain numeric in both summary and qualified output files:
-
-AverageReturn
-WinRate
-TotalReturn
-MaxDrawdown
-SharpeRatio
-BacktestScore
-
-The terminal display may show percentage strings such as 45.08%, but the CSV files must keep raw numeric values such as 0.450785.
-
-This is important because future analysis, scoring, charting, and portfolio simulation require numeric CSV data.
+V1.1.0 backtesting foundation:
+- creates the basic backtesting workflow
+- simulates fixed holding-period trades
+- calculates historical return metrics
+- calculates BacktestScore
+- creates the foundation for later portfolio ranking
 
 ## V2 Portfolio Pipeline Development
 
-V2.0.0 Risk and Portfolio Layer
+V2 builds the portfolio pipeline on top of the V1 technical screening and backtesting foundation.
+
+It adds risk controls, portfolio sizing, order draft generation, order review, daily decision reports, system health checks, system version tracking, and centralized configuration.
+
+V2.0.0 risk and portfolio layer:
 - portfolio exposure
 - position limits
 - sector concentration
@@ -843,18 +727,40 @@ V2.14.2 system module classification documentation:
 - keeps V2 version history aligned with Git tags
 - closes the V2 system-hardening documentation phase
 
-V3.0 Fundamental Scoring
-- PE, EPS, revenue growth, ROE
-- quality and valuation filters
+## V3 Fundamental Scoring Development
 
-V4.0 AI Analyst Summary
-- English stock commentary
-- daily candidate explanation
-- risk notes
+V3.0.0 fundamental scoring module:
+- creates `fundamental_scoring.py`
+- reads manual data from `data/fundamentals.csv`
+- calculates `FundamentalScore`
+- assigns `FundamentalRating`
+- writes `results/fundamental_score.csv`
 
-V5.1 Paper Trading
-- simulated order generation
-- daily paper trade log
-- performance tracking
+V3.0.1 fundamental output validation:
+- creates `validate_fundamental_outputs.py`
+- validates required columns
+- validates numeric fields
+- validates `FundamentalScore` range
+- validates allowed `FundamentalRating` values
+- checks duplicated tickers
+
+V3.0.2 fundamental scoring module registration:
+- registers `fundamental_scoring.py` in `system_health_check.py`
+- registers `validate_fundamental_outputs.py` in `system_health_check.py`
+- registers both modules in `system_version.py`
+- confirms both modules are tracked by system checks and version reports
+
+V3.0.3 fundamental scoring pipeline integration:
+- integrates `print_fundamental_score()` into `run_portfolio.py`
+- integrates `validate_fundamental_outputs()` into `run_portfolio.py`
+- runs fundamental scoring after portfolio output validation
+- runs fundamental output validation before position sizing
+
+V3.0.4 fundamental scoring documentation:
+- documents the fundamental scoring workflow in `README.md`
+- updates portfolio pipeline usage
+- lists fundamental input and output files
+- records V3.0.0 to V3.0.4 version history
+
 
 ---Robin
