@@ -171,6 +171,47 @@ Important safety notes:
 - this script does not connect to a brokerage account
 - this script confirms that the full portfolio pipeline can run successfully
 
+## System Module Classification
+
+The AI_investing system separates project files into three groups.
+
+### Core Modules
+
+Core modules are the main system execution files.
+
+They include the daily runner, backtest runner, portfolio pipeline, risk model, position sizing, order draft, order review, action report, daily decision report, system health check, and system version report.
+
+### Validation Modules
+
+Validation modules check whether generated outputs are structurally valid.
+
+They include:
+
+- `validate_config.py`
+- `validate_backtest_outputs.py`
+- `validate_portfolio_outputs.py`
+- `validate_position_sizing_outputs.py`
+- `validate_order_draft_outputs.py`
+- `validate_order_review_outputs.py`
+- `validate_daily_decision_report_outputs.py`
+
+### Test Modules
+
+Test modules are manual system testing tools.
+
+They include:
+
+- `config_validation_failure_demo.py`
+- `pipeline_smoke_test.py`
+
+Important notes:
+
+- test modules are not trading modules
+- test modules do not place trades
+- test modules do not connect to a brokerage account
+- test modules should not be integrated into `run_portfolio.py`
+- test modules are used to verify system safety and pipeline reliability
+
 ## Main Output Files
 
 System version report:
@@ -706,6 +747,18 @@ V2.10.10 system version config integration:
 - writes `results/system_version.txt`
 - records current project version, Git branch, Git commit, Python version, and module status
 
+V2.10.11 central configuration documentation:
+- documents the central `config.py` module in `README.md`
+- explains that account value, risk settings, order review rules, output directories, and output files are managed from `config.py`
+- clarifies that older variable names are kept for backward compatibility
+- keeps configuration documentation aligned with the V2.10 central configuration refactor
+
+V2.10.12 README version notes cleanup:
+- cleans up duplicated README version notes
+- keeps V2 portfolio pipeline development notes in chronological order
+- removes confusing repeated health check and system version sections
+- keeps the README version history easier to read before the next module group
+
 V2.11.0 config validation module:
 - creates `validate_config.py`
 - validates account settings, portfolio risk settings, order review settings, output paths, and project version
@@ -722,6 +775,13 @@ V2.11.2 config validation system registration:
 - registers `validate_config.py` in `system_version.py`
 - confirms the config validation module is tracked by health checks and version reports
 
+V2.11.3 config validation documentation:
+- documents `validate_config.py` in `README.md`
+- explains that config validation runs before the full portfolio pipeline
+- lists the configuration groups checked before execution
+- clarifies that invalid config values stop the pipeline before report or order generation
+- confirms that config validation is a safety gate and does not place trades
+
 V2.12.0 config validation failure demo:
 - creates `config_validation_failure_demo.py`
 - intentionally injects invalid configuration values for testing
@@ -736,6 +796,13 @@ V2.12.1 config validation failure demo registration:
 - confirms the failure demo script is tracked by system health checks and version reports
 - keeps the failure demo outside `run_portfolio.py`
 
+V2.12.2 config validation failure demo documentation:
+- documents how to run `config_validation_failure_demo.py` manually
+- explains that the script intentionally injects invalid config values during runtime
+- lists the invalid config cases checked by the failure demo
+- clarifies that the script does not modify `config.py` on disk
+- confirms the failure demo is a manual safety test and does not place trades
+
 V2.13.0 pipeline smoke test:
 - creates `pipeline_smoke_test.py`
 - runs config validation, config failure demo, and the full portfolio pipeline
@@ -748,6 +815,33 @@ V2.13.1 pipeline smoke test registration:
 - registers `pipeline_smoke_test.py` in `system_version.py`
 - confirms the smoke test script is tracked by system health checks and version reports
 - keeps the smoke test outside `run_portfolio.py`
+
+V2.13.2 pipeline smoke test documentation:
+- documents how to run `pipeline_smoke_test.py` manually
+- explains that the smoke test runs config validation, the failure demo, and the full portfolio pipeline
+- lists the required output files checked by the smoke test
+- clarifies that the smoke test does not place trades or connect to a brokerage account
+- confirms that the smoke test is a manual safety and reliability check
+
+V2.14.0 test module classification:
+- adds a separate `TEST_MODULES` section in `system_version.py`
+- moves `config_validation_failure_demo.py` out of validation modules
+- moves `pipeline_smoke_test.py` out of validation modules
+- keeps formal validation scripts and manual test scripts clearly separated
+
+V2.14.1 health check test module classification:
+- updates `system_health_check.py` to separate required files into core files, validation files, and test files
+- reports core source files separately
+- reports validation files separately
+- reports test files separately
+- keeps system structure checks easier to read and maintain
+
+V2.14.2 system module classification documentation:
+- documents the system module classification in `README.md`
+- explains the difference between core modules, validation modules, and test modules
+- completes missing README version notes for earlier documentation releases
+- keeps V2 version history aligned with Git tags
+- closes the V2 system-hardening documentation phase
 
 V3.0 Fundamental Scoring
 - PE, EPS, revenue growth, ROE
