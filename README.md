@@ -136,6 +136,41 @@ Important safety notes:
 - this script must not be integrated into run_portfolio.py
 - this script does not place trades
 
+## Pipeline Smoke Test
+
+Run the pipeline smoke test manually:
+
+```bash
+python3 pipeline_smoke_test.py
+```
+This script runs a basic end-to-end system check.
+
+It executes:
+
+1. validate_config.py
+2. config_validation_failure_demo.py
+3. run_portfolio.py
+
+It then checks that the required output files exist, including:
+
+- results/stock_rank.csv
+- results/top10.csv
+- results/model_portfolio.csv
+- results/model_portfolio_sizing.csv
+- results/order_draft.csv
+- results/order_review.csv
+- results/portfolio_action_report.txt
+- results/system_version.txt
+- reports/daily_decision_report_YYYY-MM-DD.txt
+
+Important safety notes:
+
+- this script is for manual testing only
+- this script must not be integrated into run_portfolio.py
+- this script does not place trades
+- this script does not connect to a brokerage account
+- this script confirms that the full portfolio pipeline can run successfully
+
 ## Main Output Files
 
 System version report:
@@ -700,6 +735,19 @@ V2.12.1 config validation failure demo registration:
 - registers `config_validation_failure_demo.py` in `system_version.py`
 - confirms the failure demo script is tracked by system health checks and version reports
 - keeps the failure demo outside `run_portfolio.py`
+
+V2.13.0 pipeline smoke test:
+- creates `pipeline_smoke_test.py`
+- runs config validation, config failure demo, and the full portfolio pipeline
+- checks that required output files are generated
+- confirms the system can complete an end-to-end smoke test
+- does not place trades or connect to a brokerage account
+
+V2.13.1 pipeline smoke test registration:
+- registers `pipeline_smoke_test.py` in `system_health_check.py`
+- registers `pipeline_smoke_test.py` in `system_version.py`
+- confirms the smoke test script is tracked by system health checks and version reports
+- keeps the smoke test outside `run_portfolio.py`
 
 V3.0 Fundamental Scoring
 - PE, EPS, revenue growth, ROE
