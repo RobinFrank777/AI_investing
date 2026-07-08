@@ -71,37 +71,37 @@ Run the full portfolio pipeline:
 python3 run_portfolio.py
 ```
 This command will automatically run:
-
-1. `print_system_version()`
-2. `print_model_portfolio()`
-3. `validate_portfolio_outputs()`
-4. `print_position_sizing()`
-5. `validate_position_sizing_outputs()`
-6. `print_order_draft()`
-7. `validate_order_draft_outputs()`
-8. `print_order_review()`
-9. `validate_order_review_outputs()`
-10. `print_portfolio_action_report()`
-11. `print_daily_decision_report()`
-12. `validate_daily_decision_report_outputs()`
-13. `run_system_health_check()`
+1. `print_config_validation()`
+2. `print_system_version()`
+3. `print_model_portfolio()`
+4. `validate_portfolio_outputs()`
+5. `print_position_sizing()`
+6. `validate_position_sizing_outputs()`
+7. `print_order_draft()`
+8. `validate_order_draft_outputs()`
+9. `print_order_review()`
+10. `validate_order_review_outputs()`
+11. `print_portfolio_action_report()`
+12. `print_daily_decision_report()`
+13. `validate_daily_decision_report_outputs()`
+14. `run_system_health_check()`
 
 The full portfolio pipeline currently runs:
-
-1. generate system version report
-2. build model portfolio
-3. validate portfolio outputs
-4. calculate position sizing
-5. validate position sizing outputs
-6. generate order draft
-7. validate order draft outputs
-8. review order draft
-9. validate order review outputs
-10. generate portfolio action report
-11. generate daily decision report
-12. validate daily decision report outputs
-13. run system health check
-14. write a portfolio pipeline log
+1. validate config settings
+2. generate system version report
+3. build model portfolio
+4. validate portfolio outputs
+5. calculate position sizing
+6. validate position sizing outputs
+7. generate order draft
+8. validate order draft outputs
+9. review order draft
+10. validate order review outputs
+11. generate portfolio action report
+12. generate daily decision report
+13. validate daily decision report outputs
+14. run system health check
+15. write a portfolio pipeline log
 
 Current portfolio risk rules:
 
@@ -644,6 +644,22 @@ V2.10.10 system version config integration:
 - reads project version and system version output path from `config.py`
 - writes `results/system_version.txt`
 - records current project version, Git branch, Git commit, Python version, and module status
+
+V2.11.0 config validation module:
+- creates `validate_config.py`
+- validates account settings, portfolio risk settings, order review settings, output paths, and project version
+- fails fast when unsafe or invalid configuration values are detected
+- confirms that `config.py` is safe before pipeline execution
+
+V2.11.1 config validation integration:
+- integrates `validate_config.py` into `run_portfolio.py`
+- runs config validation at the beginning of the full portfolio pipeline
+- stops the pipeline before report or order generation if configuration is invalid
+
+V2.11.2 config validation system registration:
+- registers `validate_config.py` in `system_health_check.py`
+- registers `validate_config.py` in `system_version.py`
+- confirms the config validation module is tracked by health checks and version reports
 
 V3.0 Fundamental Scoring
 - PE, EPS, revenue growth, ROE
