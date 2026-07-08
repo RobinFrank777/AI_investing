@@ -72,7 +72,7 @@ LOGS_DIR = "logs"
 # ============================================================
 # Output files
 # ============================================================
-PROJECT_VERSION = "v2.14.1"
+PROJECT_VERSION = "v3.0.0"
 STOCK_RANK_OUTPUT = "results/stock_rank.csv"
 TOP10_OUTPUT = "results/top10.csv"
 
@@ -84,3 +84,6 @@ ORDER_REVIEW_OUTPUT = "results/order_review.csv"
 PORTFOLIO_ACTION_REPORT_OUTPUT = "results/portfolio_action_report.txt"
 SYSTEM_VERSION_OUTPUT = "results/system_version.txt"
 DAILY_DECISION_REPORT_PREFIX = "reports/daily_decision_report"
+
+FUNDAMENTAL_INPUT = "data/fundamentals.csv"
+FUNDAMENTAL_SCORE_OUTPUT = "results/fundamental_score.csv"
