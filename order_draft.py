@@ -19,6 +19,9 @@ DEFAULT_ORDER_STATUS = ALLOWED_ORDER_STATUS[0]
 REQUIRED_COLUMNS = [
     "Ticker",
     "BacktestScore",
+    "FundamentalScore",
+    "CombinedScore",
+    "FundamentalRating",
     "RiskLevel",
     "RiskWeightMultiplier",
     "TargetWeightPercent",
@@ -32,6 +35,10 @@ REQUIRED_COLUMNS = [
 
 ORDER_COLUMNS = [
     "Ticker",
+    "BacktestScore",
+    "FundamentalScore",
+    "CombinedScore",
+    "FundamentalRating",
     "Action",
     "TargetShares",
     "LatestClose",
@@ -40,7 +47,6 @@ ORDER_COLUMNS = [
     "PositionCashRemainder",
     "RiskLevel",
     "RiskWeightMultiplier",
-    "BacktestScore",
     "PortfolioRole",
     "OrderStatus",
 ]
@@ -112,6 +118,10 @@ def print_order_draft():
         order_df[
             [
                 "Ticker",
+                "BacktestScore",
+                "FundamentalScore",
+                "CombinedScore",
+                "FundamentalRating",
                 "Action",
                 "TargetShares",
                 "LatestClose",
