@@ -21,6 +21,10 @@ ORDER_REVIEW_OUTPUT = Path(CONFIG_ORDER_REVIEW_OUTPUT)
 
 REQUIRED_COLUMNS = [
     "Ticker",
+    "BacktestScore",
+    "FundamentalScore",
+    "CombinedScore",
+    "FundamentalRating",
     "Action",
     "TargetShares",
     "LatestClose",
@@ -29,7 +33,6 @@ REQUIRED_COLUMNS = [
     "PositionCashRemainder",
     "RiskLevel",
     "RiskWeightMultiplier",
-    "BacktestScore",
     "PortfolioRole",
     "OrderStatus",
 ]
