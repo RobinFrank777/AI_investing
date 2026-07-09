@@ -762,5 +762,57 @@ V3.0.4 fundamental scoring documentation:
 - lists fundamental input and output files
 - records V3.0.0 to V3.0.4 version history
 
+## V3.1 Combined Scoring Development
+
+V3.1.0 combined scoring module:
+- creates `combined_scoring.py`
+- reads backtest score from `results/model_portfolio.csv`
+- reads fundamental score from `results/fundamental_score.csv`
+- calculates `CombinedScore`
+- writes `results/combined_score.csv`
+
+V3.1.1 combined score output validation:
+- creates `validate_combined_outputs.py`
+- validates required combined score columns
+- validates numeric score fields
+- validates score ranges
+- validates duplicated tickers
+
+V3.1.2 combined scoring module registration:
+- registers `combined_scoring.py` in `system_health_check.py`
+- registers `validate_combined_outputs.py` in `system_health_check.py`
+- confirms both modules are tracked by system checks and version reports
+
+V3.1.3 combined scoring pipeline integration:
+- integrates `print_combined_score()` into `run_portfolio.py`
+- integrates `validate_combined_outputs()` into `run_portfolio.py`
+- runs combined scoring after fundamental output validation
+- runs combined score validation before position sizing
+
+V3.1.4 combined score position sizing:
+- integrates `CombinedScore` into `position_sizing.py`
+- sorts position sizing by `CombinedScore`
+- carries `FundamentalScore`, `CombinedScore`, and `FundamentalRating` into position sizing output
+
+V3.1.5 combined score order draft integration:
+- carries combined score fields into `order_draft.py`
+- includes `BacktestScore`, `FundamentalScore`, `CombinedScore`, and `FundamentalRating` in order draft output
+
+V3.1.6 combined score order review integration:
+- carries combined score fields into `order_review.py`
+- includes combined score fields in order review output
+- keeps all orders in manual review / draft-only workflow
+
+V3.1.7 combined score portfolio action report integration:
+- carries combined score fields into `portfolio_action_report.py`
+- includes combined score fields in portfolio action report
+- includes combined score and fundamental rating in review items
+- confirms portfolio action report remains manual-review only
+
+V3.1.8 combined scoring documentation:
+- documents the combined scoring workflow in `README.md`
+- documents input and output files
+- records V3.1.0 to V3.1.8 version history
+- confirms combined score is for research ranking and manual review only
 
 ---Robin
