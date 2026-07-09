@@ -12,6 +12,10 @@ ACTION_REPORT_OUTPUT = Path(CONFIG_PORTFOLIO_ACTION_REPORT_OUTPUT)
 
 DISPLAY_COLUMNS = [
     "Ticker",
+    "BacktestScore",
+    "FundamentalScore",
+    "CombinedScore",
+    "FundamentalRating",
     "Action",
     "TargetShares",
     "LatestClose",
@@ -69,6 +73,9 @@ def build_action_report_text(order_df):
         display_df.to_string(
             index=False,
             formatters={
+                "BacktestScore": lambda x: f"{x:.2f}",
+                "FundamentalScore": lambda x: f"{x:.2f}",
+                "CombinedScore": lambda x: f"{x:.2f}",
                 "LatestClose": lambda x: f"{x:,.2f}",
                 "EstimatedOrderValue": lambda x: f"${x:,.2f}",
             },
@@ -88,6 +95,8 @@ def build_action_report_text(order_df):
         for _, row in review_df.iterrows():
             lines.append(
                 f"- {row['Ticker']}: {row['ReviewStatus']} | "
+                f"CombinedScore {row['CombinedScore']:.2f} | "
+                f"FundamentalRating {row['FundamentalRating']} | "
                 f"{row['ReviewReason']} | "
                 f"Estimated value ${row['EstimatedOrderValue']:,.2f}"
             )
