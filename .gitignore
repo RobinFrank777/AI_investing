@@ -1,12 +1,4 @@
-.DS_Store
-.vscode/
+.venv/
 __pycache__/
 *.pyc
-# Generated market data and reports
-data/*.csv
-results/*.csv
-reports/daily_trading_report_*.txt
-reports/daily_decision_report_*.txt
-# Runtime logs
-logs/
-results/
+.DS_Store
