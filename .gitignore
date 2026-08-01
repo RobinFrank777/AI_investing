@@ -2,3 +2,9 @@
 __pycache__/
 *.pyc
 .DS_Store
+
+# Runtime data and generated outputs
+data/*.csv
+results/
+reports/daily_trading_report_*.txt
+logs/

@@ -1,8 +1,8 @@
 import pandas as pd
 
-
 SUMMARY_OUTPUT = "results/backtest_summary_20d.csv"
 QUALIFIED_OUTPUT = "results/backtest_qualified_20d.csv"
+ALL_TRADES_OUTPUT = "results/backtest_all_trades_20d.csv"
 
 NUMERIC_COLUMNS = [
     "AverageReturn",
@@ -34,8 +34,18 @@ def check_numeric_columns(df, file_name):
 def validate_backtest_outputs():
     summary_df = pd.read_csv(SUMMARY_OUTPUT)
     qualified_df = pd.read_csv(QUALIFIED_OUTPUT)
+    all_trades_df = pd.read_csv(ALL_TRADES_OUTPUT)
 
     errors = []
+
+    if summary_df.empty:
+        errors.append(f"{SUMMARY_OUTPUT}: output is empty")
+
+    if qualified_df.empty:
+        errors.append(f"{QUALIFIED_OUTPUT}: output is empty")
+
+    if all_trades_df.empty:
+        errors.append(f"{ALL_TRADES_OUTPUT}: output is empty")
 
     errors.extend(
         check_numeric_columns(
@@ -54,12 +64,13 @@ def validate_backtest_outputs():
     print("=" * 70)
     print("BACKTEST OUTPUT VALIDATION")
     print("=" * 70)
+    print(f"Summary file    : {SUMMARY_OUTPUT}")
+    print(f"Qualified file  : {QUALIFIED_OUTPUT}")
+    print(f"All trades file : {ALL_TRADES_OUTPUT}")
 
-    print(f"Summary file   : {SUMMARY_OUTPUT}")
-    print(f"Qualified file : {QUALIFIED_OUTPUT}")
-
-    print("\nSummary rows   :", len(summary_df))
-    print("Qualified rows :", len(qualified_df))
+    print("\nSummary rows    :", len(summary_df))
+    print("Qualified rows  :", len(qualified_df))
+    print("All trade rows  :", len(all_trades_df))
 
     print("\nNumeric columns checked:")
     for column in NUMERIC_COLUMNS:
