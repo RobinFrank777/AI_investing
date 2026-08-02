@@ -2,7 +2,7 @@
 
 ## Document status
 
-This document describes the architecture observed in AI_investing V3.1.8. It is a documentation proposal, not a specification for automatic trading and not evidence that every planned capability has been implemented.
+This document describes the architecture observed in AI_investing V3.2.1. It is a documentation proposal, not a specification for automatic trading and not evidence that every planned capability has been implemented.
 
 AI_investing is a personal, AI-assisted investing research system. It produces screening results, backtest summaries, model-portfolio research, draft-only order reviews, and human-readable reports. It does not connect to a brokerage account or place trades. Any result intended to inform a real trade requires manual review.
 
@@ -31,28 +31,34 @@ The project does not currently use a database, service layer, package hierarchy,
 ## System context
 
 ```text
-Market data provider (yfinance)
+data/watchlist.csv
+data/<ticker>.csv
         |
-        v
-Daily data and ranking pipeline
+        +--> Daily screening pipeline
+        |       -> update_data.py
+        |       -> rank_stocks_v2.py
+        |       -> results/stock_rank.csv
+        |       -> results/top10.csv
+        |       -> report.py
+        |       -> reports/daily_trading_report_<date>.txt
         |
-        +--------------------> Daily trading report
+        +--> Backtest pipeline
+        |       -> backtest_engine.py
+        |       -> results/backtest_summary_20d.csv
+        |       -> results/backtest_qualified_20d.csv
+        |       -> results/backtest_all_trades_20d.csv
         |
-        v
-Historical backtest pipeline
-        |
-        v
-Qualified backtest candidates ----+
-                                   |
-Manual fundamental data -----------+--> Portfolio research pipeline
-                                   |          |
-Per-ticker market data ------------+          v
-                                         Draft-only outputs
-                                              |
-                                              v
-                                        Manual human review
+        +--> Portfolio research pipeline
+                -> uses qualified backtest candidates
+                -> uses manual fundamental data
+                -> uses per-ticker market data
+                -> produces draft-only outputs
+                -> requires manual human review
 ```
+The daily screening pipeline and the backtest pipeline both depend on market data, but they do not depend on each other.
 
+The backtest pipeline reads `data/watchlist.csv` and `data/<ticker>.csv` directly. It does not consume `results/stock_rank.csv`, `results/top10.csv`, or `reports/daily_trading_report_<date>.txt`.
+```
 No component after the manual-review boundary submits, routes, or executes an order.
 
 ## Repository organization

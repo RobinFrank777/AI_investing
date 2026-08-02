@@ -27,7 +27,7 @@ AI_investing is a personal, AI-assisted investing research system. It produces s
 
 | Module | Pipeline | Purpose | Main inputs | Main outputs | Status |
 |---|---|---|---|---|---|
-| `run_daily.py` | Daily screening | Runs the daily data, ranking, and report pipeline. | `data/watchlist.csv`, downloaded price data | `results/stock_rank.csv`, `reports/daily_trading_report_<date>.txt` | Active |
+| `run_daily.py` | Daily screening | Runs the daily data, ranking, and report pipeline. | `data/watchlist.csv`, downloaded price data | `results/stock_rank.csv`, `results/top10.csv`,`reports/daily_trading_report_<date>.txt` | Active |
 | `run_backtest.py` | Backtest | Runs the 20-day backtest pipeline and validates outputs. | `data/watchlist.csv`, `data/<ticker>.csv` | `results/backtest_summary_20d.csv`, `results/backtest_qualified_20d.csv`, `results/backtest_all_trades_20d.csv` | Active |
 | `run_portfolio.py` | Portfolio research | Runs the portfolio research, scoring, sizing, order review, and decision-report pipeline. | Backtest outputs, fundamentals, price data, daily report | Portfolio research CSVs and reports | Active |
 
@@ -57,7 +57,7 @@ AI_investing is a personal, AI-assisted investing research system. It produces s
 | `position.py` | Calculates risk-based position information for screening. | Score and risk inputs | Position-related fields | Active |
 | `reason.py` | Produces plain-language signal reasons. | Signals and indicators | Human-readable reasons | Active |
 | `report.py` | Generates daily technical reports. | Ranking output | Daily trading report text | Active |
-| `rank_stocks_v2.py` | Current stock-ranking orchestrator. | Market data and scoring modules | `results/stock_rank.csv`, `results/top10.csv` when enabled | Active |
+| `rank_stocks_v2.py` | Current stock-ranking orchestrator. | Market data and scoring modules | `results/stock_rank.csv`, `results/top10.csv` | Active |
 | `rank_stocks.py` | Earlier ranking implementation. | Market data | Ranking output | Legacy / Experimental |
 
 ---
@@ -116,25 +116,25 @@ The following modules exist in the project but are not currently documented as p
 
 They should not be deleted or moved until their status and unique functionality are reviewed.
 
-Examples include:
-
-- `analyze_stock.py`
-- `compare_stocks.py`
-- `fetch_stock.py`
-- `generate_report.py`
-- `heatmap.py`
-- `holding_chart.py`
-- `holding_period.py`
-- `plot_top10.py`
-- `portfolio_metrics.py`
-- `portfolio_report.py`
-- `portfolio_v3.py`
-- `risk_analysis.py`
-- `risk_return_chart.py`
-- `sharpe_analysis.py`
-- `stock_personality.py`
-- `stock_personality_chart.py`
-- `stock_score.py`
+| Module | Status | Current handling |
+|---|---|---|
+| `analyze_stock.py` | Legacy / Experimental | Keep for review; not part of V3.2 active pipeline. |
+| `compare_stocks.py` | Legacy / Experimental | Keep for review; not part of V3.2 active pipeline. |
+| `fetch_stock.py` | Utility / Legacy | Keep for review; not part of V3.2 active pipeline. |
+| `generate_report.py` | Legacy / Experimental | Keep for review; not part of V3.2 active pipeline. |
+| `heatmap.py` | Legacy / Experimental | Keep for review; not part of V3.2 active pipeline. |
+| `holding_chart.py` | Legacy / Experimental | Keep for review; not part of V3.2 active pipeline. |
+| `holding_period.py` | Legacy / Experimental | Keep for review; not part of V3.2 active pipeline. |
+| `plot_top10.py` | Utility / Legacy | Keep for review; not part of V3.2 active pipeline. |
+| `portfolio_metrics.py` | Legacy / Experimental | Keep for review; not part of V3.2 active pipeline. |
+| `portfolio_report.py` | Legacy / Experimental | Keep for review; not part of V3.2 active pipeline. |
+| `portfolio_v3.py` | Legacy / Experimental | Keep for review; not part of V3.2 active pipeline. |
+| `risk_analysis.py` | Legacy / Experimental | Keep for review; not part of V3.2 active pipeline. |
+| `risk_return_chart.py` | Legacy / Experimental | Keep for review; not part of V3.2 active pipeline. |
+| `sharpe_analysis.py` | Legacy / Experimental | Keep for review; not part of V3.2 active pipeline. |
+| `stock_personality.py` | Legacy / Experimental | Keep for review; not part of V3.2 active pipeline. |
+| `stock_personality_chart.py` | Legacy / Experimental | Keep for review; not part of V3.2 active pipeline. |
+| `stock_score.py` | Legacy / Experimental | Keep for review; not part of V3.2 active pipeline. |
 
 Current status:
 
@@ -162,8 +162,9 @@ It is not part of the production AI_investing pipeline and should not be used as
 run_daily.py
     -> update_data.py
     -> rank_stocks_v2.py
+        -> results/stock_rank.csv
+        -> results/top10.csv
     -> report.py
-    -> results/stock_rank.csv
     -> reports/daily_trading_report_<date>.txt
 
 run_backtest.py
