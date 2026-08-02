@@ -2,7 +2,7 @@
 
 ## Document status
 
-This document describes the architecture observed in AI_investing V3.2.1. It is a documentation proposal, not a specification for automatic trading and not evidence that every planned capability has been implemented.
+This document describes the architecture observed in AI_investing V3.2.3. It is a documentation proposal, not a specification for automatic trading and not evidence that every planned capability has been implemented.
 
 AI_investing is a personal, AI-assisted investing research system. It produces screening results, backtest summaries, model-portfolio research, draft-only order reviews, and human-readable reports. It does not connect to a brokerage account or place trades. Any result intended to inform a real trade requires manual review.
 

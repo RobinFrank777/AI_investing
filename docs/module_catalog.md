@@ -2,7 +2,7 @@
 
 ## Document status
 
-This document describes the current module structure observed in AI_investing V3.2.1.
+This document describes the current module structure observed in AI_investing V3.2.3.
 
 It is a documentation catalog only. It does not change trading logic, portfolio rules, scoring formulas, or execution behavior.
 
