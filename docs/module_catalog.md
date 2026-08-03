@@ -2,7 +2,7 @@
 
 ## Document status
 
-This document describes the current module structure observed in AI_investing V3.2.3.
+This document describes the current module structure in the AI_investing V3.2.x baseline.
 
 It is a documentation catalog only. It does not change trading logic, portfolio rules, scoring formulas, or execution behavior.
 
@@ -23,6 +23,22 @@ AI_investing is a personal, AI-assisted investing research system. It produces s
 
 ---
 
+## Input contract recovery files
+
+These tracked CSV files are recovery files, not Python modules and not active
+pipeline inputs.
+
+| File | Purpose | Active counterpart |
+|---|---|---|
+| `data/watchlist.example.csv` | Preserves the existing watchlist header for clean-clone recovery. | `data/watchlist.csv` |
+| `data/fundamentals.example.csv` | Preserves the existing fundamental-input headers for clean-clone recovery. | `data/fundamentals.csv` |
+
+The active counterparts are manually maintained local inputs. The recovery
+files define headers only and do not preserve user data or provide investment
+recommendations.
+
+---
+
 ## Primary entry points
 
 | Module | Pipeline | Purpose | Main inputs | Main outputs | Status |
@@ -39,7 +55,7 @@ AI_investing is a personal, AI-assisted investing research system. It produces s
 |---|---|---|---|---|
 | `config.py` | Central configuration for account, risk, output paths, order rules, and project version. | Manual configuration constants | Shared constants used by pipeline modules | Active |
 | `system_version.py` | Generates system version and module inventory report. | `config.py`, Git metadata | `results/system_version.txt` | Active |
-| `system_health_check.py` | Checks required source files, validators, test modules, directories, and `.gitignore` rules. | Project structure | Health-check output in terminal | Active |
+| `system_health_check.py` | Checks required files, recovery templates and template headers, then reports runtime and manual-input readiness. | Project structure and input-contract recovery files | Health-check output in terminal | Active |
 
 ---
 

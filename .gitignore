@@ -2,9 +2,19 @@
 __pycache__/
 *.pyc
 .DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 
 # Runtime data and generated outputs
 data/*.csv
+!data/watchlist.example.csv
+!data/fundamentals.example.csv
 results/
 reports/daily_trading_report_*.txt
+reports/daily_decision_report_*.txt
+reports/*.html
 logs/

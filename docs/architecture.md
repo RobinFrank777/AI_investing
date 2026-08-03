@@ -2,7 +2,7 @@
 
 ## Document status
 
-This document describes the architecture observed in AI_investing V3.2.3. It is a documentation proposal, not a specification for automatic trading and not evidence that every planned capability has been implemented.
+This document describes the AI_investing V3.2.x architecture baseline. It is a documentation proposal, not a specification for automatic trading and not evidence that every planned capability has been implemented.
 
 AI_investing is a personal, AI-assisted investing research system. It produces screening results, backtest summaries, model-portfolio research, draft-only order reviews, and human-readable reports. It does not connect to a brokerage account or place trades. Any result intended to inform a real trade requires manual review.
 
@@ -106,7 +106,7 @@ The current repository has several categories of files at its root.
 - `config.py`: central source for account, risk, scoring, review, directory, and output-path settings.
 - `validate_config.py`: validates configuration types, ranges, relationships, allowed values, and paths.
 - `system_version.py`: writes a version and module inventory report.
-- `system_health_check.py`: checks required files, directories, and selected `.gitignore` rules.
+- `system_health_check.py`: checks required files, input-contract recovery templates and their headers, runtime-directory readiness, and manual-input readiness.
 
 ### Output validators
 
@@ -306,7 +306,12 @@ Each major portfolio artifact is normally validated immediately after generation
 
 ### Structural health validation
 
-`system_health_check.py` checks that selected source files, validators, manual test scripts, directories, and `.gitignore` rules exist.
+`system_health_check.py` checks selected source files, validators, manual test
+scripts, input-contract recovery templates, and the exact headers of those
+templates. It reports runtime-directory and required-manual-input readiness
+separately from repository health. It does not validate investment data quality,
+numeric values, or investment-input correctness; the existing input and output
+validators retain those responsibilities.
 
 Structural presence is not the same as behavioral correctness. A present module may still be broken, and an existing artifact may be stale.
 
@@ -316,10 +321,17 @@ The current interfaces are implicit contracts defined by filenames and DataFrame
 
 Important inputs include:
 
+- `data/watchlist.csv`: manually maintained ticker universe.
 - `data/<ticker>.csv`: downloaded per-ticker price history.
 - `data/fundamentals.csv`: manually maintained fundamental inputs.
 - `results/backtest_qualified_20d.csv`: qualified historical candidates.
 - `reports/daily_trading_report_<date>.txt`: daily screening report used by the decision report.
+
+The repository tracks `data/watchlist.example.csv` and
+`data/fundamentals.example.csv` as input-contract recovery files. They preserve
+the existing required headers for a clean clone but do not preserve a user's
+manually maintained values. The corresponding real input files remain local and
+must be restored and reviewed before the dependent pipelines are ready.
 
 Important runtime outputs include:
 
@@ -397,6 +409,12 @@ The following directories are runtime or input/output directories. They may be a
   - Pipeline execution logs.
 
 The current artifacts do not carry an explicit run identifier, source-data timestamp, configuration fingerprint, schema version, or upstream provenance record. Consequently, file existence alone does not guarantee that inputs belong to the same research run.
+
+Repository health and runtime readiness are distinct. A clean clone can be
+structurally healthy while generated runtime directories or real manual inputs
+are absent. Missing manual inputs make the dependent pipelines not ready; they
+do not make the tracked repository unrecoverable when the recovery files are
+present and valid.
 
 ## Manual-review and safety boundary
 
@@ -536,4 +554,3 @@ For a fully refreshed research cycle, the intended high-level order is:
 ```
 
 This sequence is a research workflow. It is not an instruction to place a trade.
-

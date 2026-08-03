@@ -11,7 +11,7 @@ The project documentation is organized as follows:
 - **[module_catalog.md](docs/module_catalog.md)** — Module classification, module status, and system inventory.
 - **[development_rules.md](docs/development_rules.md)** — Development workflow, validation requirements, Git workflow, release process, and project governance.
 
-Current release: `v3.2.5`
+Current release: `v3.2.6`
 
 These documents should be read together.
 When documentation conflicts, the precedence defined in
@@ -46,6 +46,54 @@ All generated outputs require independent human review.
 BUY is a screening classification produced by the research pipeline.
 
 It is not an automatic trading instruction.
+
+## Installation and clean-clone recovery
+
+Run supported commands from the repository root. The current modules use
+repository-relative paths and are not designed to be launched from another
+working directory.
+
+Create a virtual environment and install the tracked dependencies:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install -r requirements.txt
+```
+
+Restore the two required, manually maintained inputs from their tracked input
+contract recovery files:
+
+```bash
+cp data/watchlist.example.csv data/watchlist.csv
+cp data/fundamentals.example.csv data/fundamentals.csv
+```
+
+Then populate and independently review both local files before running a
+pipeline. The example files define the existing headers only; they do not
+contain investment recommendations or recover user-maintained values.
+
+- `data/watchlist.csv` is maintained by the user and supplies the ticker
+  universe to the daily and backtest pipelines. Its required header is
+  `Ticker`.
+- `data/fundamentals.csv` is maintained by the user and supplies fundamental
+  inputs to the portfolio pipeline. Its required headers are listed in the
+  Fundamental scoring section below.
+
+The real input files and downloaded market data are local runtime data and are
+not tracked. Create the runtime output directories when preparing a clean
+clone:
+
+```bash
+mkdir -p results reports logs
+```
+
+Check repository health and local readiness without running a production
+pipeline:
+
+```bash
+python3 system_health_check.py
+```
 
 ## Daily usage
 
@@ -305,7 +353,8 @@ This module does not place trades and does not connect to a brokerage account.
 
 `results/system_version.txt`
 
-This file records the current system version, Git branch, latest Git tag, current commit, Python version, core modules, and validation modules.
+This file records the configured project version, Git branch, current commit,
+Python version, core modules, and validation modules.
 
 ### Daily screening outputs
 

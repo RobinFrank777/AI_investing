@@ -1,10 +1,13 @@
+import csv
 from pathlib import Path
+
 from config import (
     DATA_DIR as CONFIG_DATA_DIR,
     RESULTS_DIR as CONFIG_RESULTS_DIR,
     REPORTS_DIR as CONFIG_REPORTS_DIR,
     LOGS_DIR as CONFIG_LOGS_DIR,
 )
+
 
 REQUIRED_CORE_FILES = [
     "run_daily.py",
@@ -39,116 +42,144 @@ REQUIRED_TEST_FILES = [
     "pipeline_smoke_test.py",
 ]
 
-REQUIRED_DIRS = [
+RECOVERY_TEMPLATE_HEADERS = {
+    Path("data/watchlist.example.csv"): ["Ticker"],
+    Path("data/fundamentals.example.csv"): [
+        "Ticker",
+        "RevenueGrowth",
+        "EPSGrowth",
+        "GrossMargin",
+        "OperatingMargin",
+        "ROE",
+        "FreeCashFlowMargin",
+        "DebtToEquity",
+        "PE",
+        "PS",
+    ],
+}
+
+RUNTIME_DIRS = [
     Path(CONFIG_DATA_DIR),
     Path(CONFIG_RESULTS_DIR),
     Path(CONFIG_REPORTS_DIR),
     Path(CONFIG_LOGS_DIR),
 ]
 
-REQUIRED_GITIGNORE_RULES = [
-    "data/*.csv",
-    "results/",
-    "reports/daily_trading_report_*.txt",
-    "logs/",
-]
+MANUAL_INPUTS = {
+    Path("data/watchlist.csv"): Path("data/watchlist.example.csv"),
+    Path("data/fundamentals.csv"): Path("data/fundamentals.example.csv"),
+}
 
 
 def check_files(file_names):
-    missing = []
-
-    for file_name in file_names:
-        file_path = Path(file_name)
-
-        if not file_path.exists():
-            missing.append(file_name)
-
-    return missing
+    return [file_name for file_name in file_names if not Path(file_name).is_file()]
 
 
-def check_dirs():
-    missing = []
-
-    for dir_name in REQUIRED_DIRS:
-        dir_path = Path(dir_name)
-        if not dir_path.exists():
-            missing.append(dir_name)
-
-    return missing
+def read_csv_header(file_path):
+    try:
+        with file_path.open("r", encoding="utf-8", newline="") as file:
+            return next(csv.reader(file), None)
+    except (OSError, UnicodeError, csv.Error):
+        return None
 
 
-def check_gitignore():
-    gitignore_path = Path(".gitignore")
-    missing = []
+def check_recovery_templates():
+    errors = []
 
-    if not gitignore_path.exists():
-        return REQUIRED_GITIGNORE_RULES
+    for template_path, expected_header in RECOVERY_TEMPLATE_HEADERS.items():
+        if not template_path.is_file():
+            errors.append(f"Missing recovery template: {template_path}")
+            continue
 
-    gitignore_text = gitignore_path.read_text(encoding="utf-8")
+        actual_header = read_csv_header(template_path)
+        if actual_header != expected_header:
+            errors.append(
+                f"Recovery template header mismatch: {template_path} | "
+                f"expected {expected_header} | found {actual_header}"
+            )
 
-    for rule in REQUIRED_GITIGNORE_RULES:
-        if rule not in gitignore_text:
-            missing.append(rule)
+    return errors
 
-    return missing
+
+def get_runtime_readiness():
+    return {directory: directory.is_dir() for directory in RUNTIME_DIRS}
+
+
+def get_manual_input_readiness():
+    return {
+        input_path: {
+            "ready": input_path.is_file(),
+            "template": template_path,
+        }
+        for input_path, template_path in MANUAL_INPUTS.items()
+    }
 
 
 def run_system_health_check():
     core_file_errors = check_files(REQUIRED_CORE_FILES)
     validation_file_errors = check_files(REQUIRED_VALIDATION_FILES)
     test_file_errors = check_files(REQUIRED_TEST_FILES)
-    dir_errors = check_dirs()
-    gitignore_errors = check_gitignore()
+    template_errors = check_recovery_templates()
+    runtime_readiness = get_runtime_readiness()
+    manual_input_readiness = get_manual_input_readiness()
 
     print("=" * 80)
     print("AI INVESTING SYSTEM HEALTH CHECK")
     print("=" * 80)
 
-    print("\nCore source files checked:")
+    print("\nRequired files checked:")
     for file_name in REQUIRED_CORE_FILES:
-        print(f"- {file_name}")
-
-    print("\nValidation files checked:")
+        print(f"- Core: {file_name}")
     for file_name in REQUIRED_VALIDATION_FILES:
-        print(f"- {file_name}")
-
-    print("\nTest files checked:")
+        print(f"- Validation: {file_name}")
     for file_name in REQUIRED_TEST_FILES:
-        print(f"- {file_name}")
+        print(f"- Test: {file_name}")
 
-    print("\nDirectories checked:")
-    for dir_name in REQUIRED_DIRS:
-        print(f"- {dir_name}")
+    print("\nRecovery templates checked:")
+    for template_path in RECOVERY_TEMPLATE_HEADERS:
+        print(f"- {template_path}")
 
-    print("\n.gitignore rules checked:")
-    for rule in REQUIRED_GITIGNORE_RULES:
-        print(f"- {rule}")
+    print("\nRuntime directory readiness:")
+    for directory, ready in runtime_readiness.items():
+        status = "READY" if ready else "NOT PRESENT"
+        print(f"- {directory}: {status}")
+
+    print("\nManual input readiness:")
+    for input_path, readiness in manual_input_readiness.items():
+        status = "READY" if readiness["ready"] else "NOT READY"
+        print(f"- {input_path}: {status} | recovery: {readiness['template']}")
 
     errors = []
-
-    for item in core_file_errors:
-        errors.append(f"Missing core source file: {item}")
-
-    for item in validation_file_errors:
-        errors.append(f"Missing validation file: {item}")
-
-    for item in test_file_errors:
-        errors.append(f"Missing test file: {item}")
-
-    for item in dir_errors:
-        errors.append(f"Missing directory: {item}")
-
-    for item in gitignore_errors:
-        errors.append(f"Missing .gitignore rule: {item}")
+    errors.extend(f"Missing core source file: {item}" for item in core_file_errors)
+    errors.extend(
+        f"Missing validation file: {item}" for item in validation_file_errors
+    )
+    errors.extend(f"Missing test file: {item}" for item in test_file_errors)
+    errors.extend(template_errors)
 
     if errors:
-        print("\nHEALTH CHECK FAILED")
+        print("\nREPOSITORY HEALTH: FAILED")
         for error in errors:
             print(f"- {error}")
         raise ValueError("System health check failed")
 
-    print("\nHEALTH CHECK PASSED")
-    print("AI_investing system structure is valid.")
+    runtime_dirs_ready = all(runtime_readiness.values())
+    manual_inputs_ready = all(
+        readiness["ready"] for readiness in manual_input_readiness.values()
+    )
+
+    print("\nREPOSITORY HEALTH: PASSED")
+    if runtime_dirs_ready and manual_inputs_ready:
+        print("RUNTIME READINESS: READY")
+    else:
+        print("RUNTIME READINESS: NOT READY")
+        if not runtime_dirs_ready:
+            print("Create the missing runtime directories before running pipelines.")
+        if not manual_inputs_ready:
+            print(
+                "Restore and maintain the missing manual inputs before running "
+                "pipelines."
+            )
 
 
 if __name__ == "__main__":
