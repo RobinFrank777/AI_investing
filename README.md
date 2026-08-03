@@ -2,7 +2,20 @@
 
 AI_investing is a personal AI-assisted investing research system.
 
-Current version: `v3.2.4`
+## Documentation
+
+The project documentation is organized as follows:
+
+- **[README.md](README.md)** — Project overview and quick start.
+- **[architecture.md](docs/architecture.md)** — System architecture, pipeline design, safety boundary, and output contracts.
+- **[module_catalog.md](docs/module_catalog.md)** — Module classification, module status, and system inventory.
+- **[development_rules.md](docs/development_rules.md)** — Development workflow, validation requirements, Git workflow, release process, and project governance.
+
+Current release: `v3.2.5`
+
+These documents should be read together.
+When documentation conflicts, the precedence defined in
+docs/development_rules.md applies.
 
 ## Project purpose
 
