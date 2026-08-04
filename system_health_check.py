@@ -2,10 +2,15 @@ import csv
 from pathlib import Path
 
 from config import (
-    DATA_DIR as CONFIG_DATA_DIR,
-    RESULTS_DIR as CONFIG_RESULTS_DIR,
-    REPORTS_DIR as CONFIG_REPORTS_DIR,
-    LOGS_DIR as CONFIG_LOGS_DIR,
+    DATA_DIR_PATH,
+    RESULTS_DIR_PATH,
+    REPORTS_DIR_PATH,
+    LOGS_DIR_PATH,
+    FUNDAMENTALS_EXAMPLE_PATH,
+    FUNDAMENTAL_INPUT_PATH,
+    REPO_ROOT,
+    WATCHLIST_EXAMPLE_PATH,
+    WATCHLIST_INPUT_PATH,
 )
 
 
@@ -43,8 +48,8 @@ REQUIRED_TEST_FILES = [
 ]
 
 RECOVERY_TEMPLATE_HEADERS = {
-    Path("data/watchlist.example.csv"): ["Ticker"],
-    Path("data/fundamentals.example.csv"): [
+    WATCHLIST_EXAMPLE_PATH: ["Ticker"],
+    FUNDAMENTALS_EXAMPLE_PATH: [
         "Ticker",
         "RevenueGrowth",
         "EPSGrowth",
@@ -59,20 +64,20 @@ RECOVERY_TEMPLATE_HEADERS = {
 }
 
 RUNTIME_DIRS = [
-    Path(CONFIG_DATA_DIR),
-    Path(CONFIG_RESULTS_DIR),
-    Path(CONFIG_REPORTS_DIR),
-    Path(CONFIG_LOGS_DIR),
+    DATA_DIR_PATH,
+    RESULTS_DIR_PATH,
+    REPORTS_DIR_PATH,
+    LOGS_DIR_PATH,
 ]
 
 MANUAL_INPUTS = {
-    Path("data/watchlist.csv"): Path("data/watchlist.example.csv"),
-    Path("data/fundamentals.csv"): Path("data/fundamentals.example.csv"),
+    WATCHLIST_INPUT_PATH: WATCHLIST_EXAMPLE_PATH,
+    FUNDAMENTAL_INPUT_PATH: FUNDAMENTALS_EXAMPLE_PATH,
 }
 
 
 def check_files(file_names):
-    return [file_name for file_name in file_names if not Path(file_name).is_file()]
+    return [file_name for file_name in file_names if not (REPO_ROOT / file_name).is_file()]
 
 
 def read_csv_header(file_path):

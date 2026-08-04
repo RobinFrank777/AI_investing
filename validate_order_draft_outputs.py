@@ -2,8 +2,10 @@ from pathlib import Path
 
 import pandas as pd
 
+from config import ORDER_DRAFT_OUTPUT_PATH
 
-ORDER_DRAFT_OUTPUT = Path("results/order_draft.csv")
+
+ORDER_DRAFT_OUTPUT = ORDER_DRAFT_OUTPUT_PATH
 
 REQUIRED_COLUMNS = [
     "Ticker",

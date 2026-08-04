@@ -2,8 +2,10 @@ from pathlib import Path
 
 import pandas as pd
 
+from config import POSITION_SIZING_OUTPUT_PATH
 
-POSITION_SIZING_OUTPUT = "results/model_portfolio_sizing.csv"
+
+POSITION_SIZING_OUTPUT = POSITION_SIZING_OUTPUT_PATH
 
 REQUIRED_COLUMNS = [
     "Ticker",

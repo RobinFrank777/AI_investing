@@ -1,9 +1,8 @@
-from pathlib import Path
-
 import pandas as pd
+from config import DATA_DIR_PATH
 from watchlist import load_watchlist
 
-DATA_DIR = Path("data")
+DATA_DIR = DATA_DIR_PATH
 
 REQUIRED_COLUMNS = [
     "Date",

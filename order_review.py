@@ -3,8 +3,8 @@ from pathlib import Path
 import pandas as pd
 
 from config import (
-    ORDER_DRAFT_OUTPUT as CONFIG_ORDER_DRAFT_OUTPUT,
-    ORDER_REVIEW_OUTPUT as CONFIG_ORDER_REVIEW_OUTPUT,
+    ORDER_DRAFT_OUTPUT_PATH,
+    ORDER_REVIEW_OUTPUT_PATH,
     MAX_SINGLE_ORDER_VALUE,
     MAX_TOTAL_ORDER_VALUE,
     MAX_ORDER_COUNT,
@@ -12,10 +12,11 @@ from config import (
     ALLOWED_ORDER_STATUS,
     ALLOWED_REVIEW_STATUS,
     ALLOWED_PORTFOLIO_REVIEW_FLAG,
+    display_path,
 )
 
-ORDER_DRAFT_INPUT = Path(CONFIG_ORDER_DRAFT_OUTPUT)
-ORDER_REVIEW_OUTPUT = Path(CONFIG_ORDER_REVIEW_OUTPUT)
+ORDER_DRAFT_INPUT = ORDER_DRAFT_OUTPUT_PATH
+ORDER_REVIEW_OUTPUT = ORDER_REVIEW_OUTPUT_PATH
 
 
 
@@ -145,7 +146,7 @@ def build_order_review():
 
 
 def save_order_review(order_df):
-    ORDER_REVIEW_OUTPUT.parent.mkdir(exist_ok=True)
+    ORDER_REVIEW_OUTPUT.parent.mkdir(parents=True, exist_ok=True)
 
     order_df.to_csv(
         ORDER_REVIEW_OUTPUT,
@@ -190,7 +191,7 @@ def print_order_review():
     print(f"REVIEW Count          : {review_count}")
     print(f"BLOCKED Count         : {blocked_count}")
     print(f"Portfolio Flag        : {review_df['PortfolioReviewFlag'].iloc[0]}")
-    print(f"Saved Order Review To : {output_path}")
+    print(f"Saved Order Review To : {display_path(output_path)}")
 
 
 if __name__ == "__main__":

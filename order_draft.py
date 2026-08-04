@@ -3,15 +3,16 @@ from pathlib import Path
 import pandas as pd
 
 from config import (
-    POSITION_SIZING_OUTPUT as CONFIG_POSITION_SIZING_OUTPUT,
-    ORDER_DRAFT_OUTPUT as CONFIG_ORDER_DRAFT_OUTPUT,
+    POSITION_SIZING_OUTPUT_PATH,
+    ORDER_DRAFT_OUTPUT_PATH,
     ALLOWED_ACTIONS,
     ALLOWED_ORDER_STATUS,
+    display_path,
 )
 
 
-POSITION_SIZING_INPUT = Path(CONFIG_POSITION_SIZING_OUTPUT)
-ORDER_DRAFT_OUTPUT = Path(CONFIG_ORDER_DRAFT_OUTPUT)
+POSITION_SIZING_INPUT = POSITION_SIZING_OUTPUT_PATH
+ORDER_DRAFT_OUTPUT = ORDER_DRAFT_OUTPUT_PATH
 
 DEFAULT_ACTION = ALLOWED_ACTIONS[0]
 DEFAULT_ORDER_STATUS = ALLOWED_ORDER_STATUS[0]
@@ -94,7 +95,7 @@ def build_order_draft():
 
 
 def save_order_draft(order_df):
-    ORDER_DRAFT_OUTPUT.parent.mkdir(exist_ok=True)
+    ORDER_DRAFT_OUTPUT.parent.mkdir(parents=True, exist_ok=True)
 
     order_df.to_csv(
         ORDER_DRAFT_OUTPUT,
@@ -135,7 +136,7 @@ def print_order_draft():
     print("\nOrder Draft Summary")
     print(f"Orders Count          : {len(order_df)}")
     print(f"Total Estimated Value : ${total_order_value:,.2f}")
-    print(f"Saved Order Draft To  : {output_path}")
+    print(f"Saved Order Draft To  : {display_path(output_path)}")
 
 
 if __name__ == "__main__":

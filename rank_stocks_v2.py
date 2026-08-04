@@ -13,7 +13,13 @@ from indicators import calculate_indicators
 from position import calculate_position_size
 from score import calculate_rank_score, calculate_final_score
 from trade_signal import generate_signals
-from config import ACCOUNT_SIZE, RISK_PER_TRADE, STOCK_RANK_OUTPUT, TOP10_OUTPUT
+from config import (
+    ACCOUNT_SIZE,
+    RISK_PER_TRADE,
+    STOCK_RANK_OUTPUT,
+    STOCK_RANK_OUTPUT_PATH,
+    TOP10_OUTPUT_PATH,
+)
 
 
 def process_single_stock(ticker):
@@ -210,13 +216,15 @@ def run_ranking_pipeline():
 
     print_signal_summary(rank_df)
 
+    STOCK_RANK_OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+
     rank_df.to_csv(
-        STOCK_RANK_OUTPUT,
+        STOCK_RANK_OUTPUT_PATH,
         index=False,
     )
 
     top10_df.to_csv(
-        TOP10_OUTPUT,
+        TOP10_OUTPUT_PATH,
         index=False,
     )
 
@@ -233,4 +241,3 @@ def run_ranking_pipeline():
 
 if __name__ == "__main__":
     run_ranking_pipeline()
-

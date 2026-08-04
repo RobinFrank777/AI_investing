@@ -12,11 +12,13 @@ from config import (
     MEDIUM_RISK_WEIGHT_MULTIPLIER,
     HIGH_RISK_WEIGHT_MULTIPLIER,
     UNKNOWN_RISK_WEIGHT_MULTIPLIER,
-    MODEL_PORTFOLIO_OUTPUT as CONFIG_MODEL_PORTFOLIO_OUTPUT,
+    BACKTEST_QUALIFIED_20D_OUTPUT_PATH,
+    MODEL_PORTFOLIO_OUTPUT_PATH,
+    display_path,
 )
 
-QUALIFIED_BACKTEST_OUTPUT = "results/backtest_qualified_20d.csv"
-MODEL_PORTFOLIO_OUTPUT = Path(CONFIG_MODEL_PORTFOLIO_OUTPUT)
+QUALIFIED_BACKTEST_OUTPUT = BACKTEST_QUALIFIED_20D_OUTPUT_PATH
+MODEL_PORTFOLIO_OUTPUT = MODEL_PORTFOLIO_OUTPUT_PATH
 
 MAX_POSITION_WEIGHT = MAX_SINGLE_POSITION_WEIGHT
 
@@ -88,6 +90,7 @@ def build_model_portfolio():
     return selected_df
 
 def save_model_portfolio(portfolio_df):
+    MODEL_PORTFOLIO_OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     portfolio_df.to_csv(
         MODEL_PORTFOLIO_OUTPUT,
         index=False,
@@ -126,7 +129,7 @@ def print_model_portfolio():
     print(f"Holdings Count             : {len(portfolio_df)}")
     print(f"Total Exposure             : {total_weight:.2%}")
     print(f"Cash Reserve               : {1 - total_weight:.2%}")
-    print(f"Saved Model Portfolio To   : {output_path}")
+    print(f"Saved Model Portfolio To   : {display_path(output_path)}")
 
 
 if __name__ == "__main__":

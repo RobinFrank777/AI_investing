@@ -11,7 +11,7 @@ The project documentation is organized as follows:
 - **[module_catalog.md](docs/module_catalog.md)** — Module classification, module status, and system inventory.
 - **[development_rules.md](docs/development_rules.md)** — Development workflow, validation requirements, Git workflow, release process, and project governance.
 
-Current release: `v3.2.6`
+Current release: `v3.2.7`
 
 These documents should be read together.
 When documentation conflicts, the precedence defined in

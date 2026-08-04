@@ -3,11 +3,12 @@ from pathlib import Path
 import pandas as pd
 
 from config import (
-    MODEL_PORTFOLIO_OUTPUT,
-    FUNDAMENTAL_SCORE_OUTPUT,
-    COMBINED_SCORE_OUTPUT,
+    MODEL_PORTFOLIO_OUTPUT_PATH,
+    FUNDAMENTAL_SCORE_OUTPUT_PATH,
+    COMBINED_SCORE_OUTPUT_PATH,
     BACKTEST_SCORE_WEIGHT,
     FUNDAMENTAL_SCORE_WEIGHT,
+    display_path,
 )
 
 
@@ -111,13 +112,13 @@ def calculate_combined_score(model_df, fundamental_df):
 
 
 def print_combined_score():
-    model_df = load_csv(MODEL_PORTFOLIO_OUTPUT)
-    fundamental_df = load_csv(FUNDAMENTAL_SCORE_OUTPUT)
+    model_df = load_csv(MODEL_PORTFOLIO_OUTPUT_PATH)
+    fundamental_df = load_csv(FUNDAMENTAL_SCORE_OUTPUT_PATH)
 
     result_df = calculate_combined_score(model_df, fundamental_df)
 
-    output_path = Path(COMBINED_SCORE_OUTPUT)
-    output_path.parent.mkdir(exist_ok=True)
+    output_path = COMBINED_SCORE_OUTPUT_PATH
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     result_df.to_csv(output_path, index=False)
 
     print("=" * 80)
@@ -135,7 +136,7 @@ def print_combined_score():
         ].to_string(index=False)
     )
     print()
-    print(f"Saved Combined Score To : {COMBINED_SCORE_OUTPUT}")
+    print(f"Saved Combined Score To : {display_path(output_path)}")
 
 
 if __name__ == "__main__":

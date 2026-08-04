@@ -5,11 +5,13 @@ import sys
 
 from config import (
     PROJECT_VERSION,
-    SYSTEM_VERSION_OUTPUT as CONFIG_SYSTEM_VERSION_OUTPUT,
+    REPO_ROOT,
+    SYSTEM_VERSION_OUTPUT_PATH,
+    display_path,
 )
 
 
-OUTPUT_FILE = Path(CONFIG_SYSTEM_VERSION_OUTPUT)
+OUTPUT_FILE = SYSTEM_VERSION_OUTPUT_PATH
 
 
 CORE_MODULES = [
@@ -50,6 +52,7 @@ def get_git_value(command_args, default_value="UNKNOWN"):
     try:
         result = subprocess.run(
             command_args,
+            cwd=REPO_ROOT,
             capture_output=True,
             text=True,
             check=True,
@@ -106,7 +109,7 @@ def build_system_version_text():
     lines.append("=" * 80)
 
     for module_name in CORE_MODULES:
-        module_path = Path(module_name)
+        module_path = REPO_ROOT / module_name
         status = "FOUND" if module_path.exists() else "MISSING"
         lines.append(f"- {module_name}: {status}")
 
@@ -116,7 +119,7 @@ def build_system_version_text():
     lines.append("=" * 80)
 
     for module_name in VALIDATION_MODULES:
-        module_path = Path(module_name)
+        module_path = REPO_ROOT / module_name
         status = "FOUND" if module_path.exists() else "MISSING"
         lines.append(f"- {module_name}: {status}")
 
@@ -126,7 +129,7 @@ def build_system_version_text():
     lines.append("=" * 80)
 
     for module_name in TEST_MODULES:
-        module_path = Path(module_name)
+        module_path = REPO_ROOT / module_name
         status = "FOUND" if module_path.exists() else "MISSING"
         lines.append(f"- {module_name}: {status}")
 
@@ -144,12 +147,12 @@ def build_system_version_text():
 def print_system_version():
     version_text = build_system_version_text()
 
-    OUTPUT_FILE.parent.mkdir(exist_ok=True)
+    OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT_FILE.write_text(version_text, encoding="utf-8")
 
     print(version_text)
     print("")
-    print(f"Saved System Version Report To : {OUTPUT_FILE}")
+    print(f"Saved System Version Report To : {display_path(OUTPUT_FILE)}")
 
 
 if __name__ == "__main__":

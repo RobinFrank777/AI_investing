@@ -1,7 +1,7 @@
 import sys
 from datetime import datetime
-from pathlib import Path
 
+from config import LOGS_DIR_PATH, display_path
 from portfolio_risk import print_model_portfolio
 from validate_portfolio_outputs import validate_portfolio_outputs
 from fundamental_scoring import print_fundamental_score
@@ -21,7 +21,7 @@ from system_health_check import run_system_health_check
 from validate_config import print_config_validation
 from system_version import print_system_version
 
-LOG_DIR = Path("logs")
+LOG_DIR = LOGS_DIR_PATH
 
 
 class Tee:
@@ -62,7 +62,7 @@ def main():
 
     print_section("AI INVESTING PORTFOLIO PIPELINE")
     print(f"Started At: {started_at}")
-    print(f"Log File: {log_path}")
+    print(f"Log File: {display_path(log_path)}")
 
     print_section("Running: Validate config settings")
     print_config_validation()

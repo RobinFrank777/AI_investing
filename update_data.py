@@ -1,10 +1,11 @@
 import pandas as pd
 import yfinance as yf
-from pathlib import Path
+
+from config import DATA_DIR_PATH, WATCHLIST_INPUT_PATH
 
 
-DATA_DIR = Path("data")
-WATCHLIST_FILE = DATA_DIR / "watchlist.csv"
+DATA_DIR = DATA_DIR_PATH
+WATCHLIST_FILE = WATCHLIST_INPUT_PATH
 
 
 def load_watchlist():

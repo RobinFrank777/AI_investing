@@ -1,13 +1,13 @@
 from datetime import datetime
-from pathlib import Path
 import sys
 import traceback
 
+from config import LOGS_DIR_PATH, display_path
 from rank_stocks_v2 import run_ranking_pipeline
 from update_data import update_all_stocks
 
 
-LOG_DIR = Path("logs")
+LOG_DIR = LOGS_DIR_PATH
 
 
 def get_log_file():
@@ -58,7 +58,7 @@ def main():
 
     print_section("AI INVESTING DAILY PIPELINE", log_file)
     write_log(f"Started At: {started_at}", log_file)
-    write_log(f"Log File: {log_file}", log_file)
+    write_log(f"Log File: {display_path(log_file)}", log_file)
 
     try:
         run_step(

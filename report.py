@@ -1,5 +1,5 @@
 from datetime import datetime
-from config import STOCK_RANK_OUTPUT
+from config import REPORTS_DIR_PATH, STOCK_RANK_OUTPUT, display_path
 
 
 def save_daily_report(
@@ -12,9 +12,7 @@ def save_daily_report(
     report_date = now.strftime("%Y-%m-%d")
     report_generated_at = now.strftime("%Y-%m-%d %H:%M:%S")
 
-    report_path = (
-        f"reports/daily_trading_report_{report_date}.txt"
-    )
+    report_path = REPORTS_DIR_PATH / f"daily_trading_report_{report_date}.txt"
 
     buy_df = rank_df[rank_df["TradeSignal"] == "BUY"]
     watch_df = rank_df[rank_df["TradeSignal"] == "WATCH"]
@@ -61,6 +59,8 @@ def save_daily_report(
         market_data_date = "Unavailable"
     else:
         market_data_date = ", ".join(market_data_dates)
+
+    report_path.parent.mkdir(parents=True, exist_ok=True)
 
     with open(report_path, "w", encoding="utf-8") as f:
         buy_count = len(buy_df)
@@ -217,4 +217,4 @@ def save_daily_report(
                 for reason in row["Reason"].split(" | "):
                     f.write(f"  - {reason}\n")
 
-    print(f"\nDaily report saved to {report_path}")
+    print(f"\nDaily report saved to {display_path(report_path)}")

@@ -1,5 +1,6 @@
 import pandas as pd
 
+from config import RESULTS_DIR_PATH, display_path
 from stock_loader import load_stock
 from indicators import calculate_indicators
 from watchlist import load_watchlist
@@ -300,9 +301,11 @@ def print_entry_signal_summary(ticker):
     buy_df = df[df["TradeSignal"] == "BUY"].copy()
     entry_df = df[df["EntrySignal"]].copy()
 
-    signal_output_path = f"results/backtest_signals_{ticker}.csv"
-    entry_output_path = f"results/backtest_entries_{ticker}.csv"
-    trades_output_path = f"results/backtest_trades_{ticker}_20d.csv"
+    signal_output_path = RESULTS_DIR_PATH / f"backtest_signals_{ticker}.csv"
+    entry_output_path = RESULTS_DIR_PATH / f"backtest_entries_{ticker}.csv"
+    trades_output_path = RESULTS_DIR_PATH / f"backtest_trades_{ticker}_20d.csv"
+
+    RESULTS_DIR_PATH.mkdir(parents=True, exist_ok=True)
 
     buy_df.to_csv(signal_output_path, index=False)
     entry_df.to_csv(entry_output_path, index=False)
@@ -360,9 +363,9 @@ def print_entry_signal_summary(ticker):
         f"{summary['WinRate60D']:.1%}"
     )
 
-    print(f"\nSaved signal days to {signal_output_path}")
-    print(f"Saved entry signals to {entry_output_path}")
-    print(f"Saved 20D trades to {trades_output_path}")
+    print(f"\nSaved signal days to {display_path(signal_output_path)}")
+    print(f"Saved entry signals to {display_path(entry_output_path)}")
+    print(f"Saved 20D trades to {display_path(trades_output_path)}")
 
     if not trades_df.empty:
         print("\n20D fixed holding trade summary:")
@@ -672,7 +675,8 @@ def backtest_watchlist(holding_days=20):
         na_position="last",
     )
 
-    summary_output_path = f"results/backtest_summary_{holding_days}d.csv"
+    summary_output_path = RESULTS_DIR_PATH / f"backtest_summary_{holding_days}d.csv"
+    RESULTS_DIR_PATH.mkdir(parents=True, exist_ok=True)
     summary_df.to_csv(summary_output_path, index=False)
 
     qualified_df = summary_df[summary_df["IsQualified"]].copy()
@@ -683,7 +687,7 @@ def backtest_watchlist(holding_days=20):
     na_position="last",
     )
 
-    qualified_output_path = f"results/backtest_qualified_{holding_days}d.csv"
+    qualified_output_path = RESULTS_DIR_PATH / f"backtest_qualified_{holding_days}d.csv"
     qualified_df.to_csv(qualified_output_path, index=False)
 
     if all_trades:
@@ -691,7 +695,7 @@ def backtest_watchlist(holding_days=20):
     else:
         all_trades_df = pd.DataFrame()
 
-    trades_output_path = f"results/backtest_all_trades_{holding_days}d.csv"
+    trades_output_path = RESULTS_DIR_PATH / f"backtest_all_trades_{holding_days}d.csv"
     all_trades_df.to_csv(trades_output_path, index=False)
 
     print("\n" + "=" * 70)
@@ -701,9 +705,9 @@ def backtest_watchlist(holding_days=20):
     print(f"Stocks Tested      : {len(summary_df)}")
     print(f"Qualified Stocks   : {len(qualified_df)}")
     print(f"Total Trades       : {len(all_trades_df)}")
-    print(f"Saved Summary To   : {summary_output_path}")
-    print(f"Saved Qualified To : {qualified_output_path}")
-    print(f"Saved Trades To    : {trades_output_path}")
+    print(f"Saved Summary To   : {display_path(summary_output_path)}")
+    print(f"Saved Qualified To : {display_path(qualified_output_path)}")
+    print(f"Saved Trades To    : {display_path(trades_output_path)}")
 
     print_top_average_return(summary_df)
 

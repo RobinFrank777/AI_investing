@@ -3,7 +3,7 @@ from pathlib import Path
 import pandas as pd
 
 from config import (
-    COMBINED_SCORE_OUTPUT,
+    COMBINED_SCORE_OUTPUT_PATH,
     BACKTEST_SCORE_WEIGHT,
     FUNDAMENTAL_SCORE_WEIGHT,
 )
@@ -33,11 +33,11 @@ ALLOWED_FUNDAMENTAL_RATINGS = [
 
 
 def load_combined_score_output():
-    output_path = Path(COMBINED_SCORE_OUTPUT)
+    output_path = COMBINED_SCORE_OUTPUT_PATH
 
     if not output_path.exists():
         raise FileNotFoundError(
-            f"Combined score output file not found: {COMBINED_SCORE_OUTPUT}"
+            f"Combined score output file not found: {COMBINED_SCORE_OUTPUT_PATH}"
         )
 
     return pd.read_csv(output_path)

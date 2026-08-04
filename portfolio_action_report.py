@@ -3,12 +3,13 @@ from datetime import datetime
 
 import pandas as pd
 from config import (
-    ORDER_REVIEW_OUTPUT as CONFIG_ORDER_REVIEW_OUTPUT,
-    PORTFOLIO_ACTION_REPORT_OUTPUT as CONFIG_PORTFOLIO_ACTION_REPORT_OUTPUT,
+    ORDER_REVIEW_OUTPUT_PATH,
+    PORTFOLIO_ACTION_REPORT_OUTPUT_PATH,
+    display_path,
 )
 
-ORDER_REVIEW_OUTPUT = Path(CONFIG_ORDER_REVIEW_OUTPUT)
-ACTION_REPORT_OUTPUT = Path(CONFIG_PORTFOLIO_ACTION_REPORT_OUTPUT)
+ORDER_REVIEW_OUTPUT = ORDER_REVIEW_OUTPUT_PATH
+ACTION_REPORT_OUTPUT = PORTFOLIO_ACTION_REPORT_OUTPUT_PATH
 
 DISPLAY_COLUMNS = [
     "Ticker",
@@ -114,7 +115,7 @@ def build_action_report_text(order_df):
 
 def save_action_report(report_text):
     output_path = Path(ACTION_REPORT_OUTPUT)
-    output_path.parent.mkdir(exist_ok=True)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
 
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(report_text)
@@ -129,7 +130,7 @@ def print_portfolio_action_report():
 
     print(report_text)
     print("")
-    print(f"Saved Portfolio Action Report To : {output_path}")
+    print(f"Saved Portfolio Action Report To : {display_path(output_path)}")
 
 
 if __name__ == "__main__":

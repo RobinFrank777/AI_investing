@@ -4,15 +4,17 @@ from pathlib import Path
 from config import (
     ACCOUNT_VALUE,
     CASH_RESERVE_RATIO,
-    MODEL_PORTFOLIO_OUTPUT as CONFIG_MODEL_PORTFOLIO_OUTPUT,
-    POSITION_SIZING_OUTPUT as CONFIG_POSITION_SIZING_OUTPUT,
-    COMBINED_SCORE_OUTPUT as CONFIG_COMBINED_SCORE_OUTPUT,
+    MODEL_PORTFOLIO_OUTPUT_PATH,
+    POSITION_SIZING_OUTPUT_PATH,
+    COMBINED_SCORE_OUTPUT_PATH,
+    DATA_DIR_PATH,
+    display_path,
 )
 
-MODEL_PORTFOLIO_INPUT = Path(CONFIG_MODEL_PORTFOLIO_OUTPUT)
-POSITION_SIZING_OUTPUT = Path(CONFIG_POSITION_SIZING_OUTPUT)
-COMBINED_SCORE_INPUT = Path(CONFIG_COMBINED_SCORE_OUTPUT)
-STOCK_DATA_DIR = Path("data")
+MODEL_PORTFOLIO_INPUT = MODEL_PORTFOLIO_OUTPUT_PATH
+POSITION_SIZING_OUTPUT = POSITION_SIZING_OUTPUT_PATH
+COMBINED_SCORE_INPUT = COMBINED_SCORE_OUTPUT_PATH
+STOCK_DATA_DIR = DATA_DIR_PATH
 
 def add_combined_scores(portfolio_df):
     combined_df = pd.read_csv(COMBINED_SCORE_INPUT)
@@ -133,7 +135,7 @@ def add_share_sizing(position_df):
 
 def save_position_sizing(position_df):
     output_path = Path(POSITION_SIZING_OUTPUT)
-    output_path.parent.mkdir(exist_ok=True)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
 
     position_df.to_csv(
         output_path,
@@ -183,7 +185,7 @@ def print_position_sizing():
     print(f"Target Invested     : ${total_target_amount:,.2f}")
     print(f"Estimated Invested  : ${estimated_invested:,.2f}")
     print(f"Cash Reserve        : ${cash_reserve:,.2f}")
-    print(f"Saved Position Size : {output_path}")
+    print(f"Saved Position Size : {display_path(output_path)}")
 
 
 if __name__ == "__main__":

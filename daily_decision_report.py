@@ -1,12 +1,13 @@
 from datetime import datetime
 from pathlib import Path
 from config import (
-    PORTFOLIO_ACTION_REPORT_OUTPUT as CONFIG_PORTFOLIO_ACTION_REPORT_OUTPUT,
-    REPORTS_DIR as CONFIG_REPORTS_DIR,
+    PORTFOLIO_ACTION_REPORT_OUTPUT_PATH,
+    REPORTS_DIR_PATH,
+    display_path,
 )
 
-REPORTS_DIR = Path(CONFIG_REPORTS_DIR)
-ACTION_REPORT_INPUT = Path(CONFIG_PORTFOLIO_ACTION_REPORT_OUTPUT)
+REPORTS_DIR = REPORTS_DIR_PATH
+ACTION_REPORT_INPUT = PORTFOLIO_ACTION_REPORT_OUTPUT_PATH
 
 
 def find_latest_daily_report():
@@ -67,7 +68,7 @@ def build_daily_decision_report():
     lines.append("All trades must be reviewed before execution.")
 
     output_path = REPORTS_DIR / f"daily_decision_report_{report_date}.txt"
-    REPORTS_DIR.mkdir(exist_ok=True)
+    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
     output_text = "\n".join(lines)
     output_path.write_text(output_text, encoding="utf-8")
@@ -80,7 +81,7 @@ def print_daily_decision_report():
     report_text = read_text_file(output_path)
 
     print(report_text)
-    print(f"\nSaved Daily Decision Report To : {output_path}")
+    print(f"\nSaved Daily Decision Report To : {display_path(output_path)}")
 
     return output_path
 

@@ -7,6 +7,11 @@ order draft, order review, reporting, and future risk-control modules.
 Older variable names are kept for backward compatibility.
 """
 
+from pathlib import Path
+
+
+REPO_ROOT = Path(__file__).resolve().parent
+
 
 # ============================================================
 # Account settings
@@ -76,7 +81,7 @@ LOGS_DIR = "logs"
 # ============================================================
 # Output files
 # ============================================================
-PROJECT_VERSION = "v3.2.6"
+PROJECT_VERSION = "v3.2.7"
 STOCK_RANK_OUTPUT = "results/stock_rank.csv"
 TOP10_OUTPUT = "results/top10.csv"
 
@@ -92,3 +97,46 @@ DAILY_DECISION_REPORT_PREFIX = "reports/daily_decision_report"
 FUNDAMENTAL_INPUT = "data/fundamentals.csv"
 FUNDAMENTAL_SCORE_OUTPUT = "results/fundamental_score.csv"
 COMBINED_SCORE_OUTPUT = "results/combined_score.csv"
+
+
+# ============================================================
+# Repository-root anchored paths
+# ============================================================
+
+# The string constants above remain available for backward compatibility and
+# human-readable output. Filesystem operations should use these Path constants.
+DATA_DIR_PATH = REPO_ROOT / DATA_DIR
+RESULTS_DIR_PATH = REPO_ROOT / RESULTS_DIR
+REPORTS_DIR_PATH = REPO_ROOT / REPORTS_DIR
+LOGS_DIR_PATH = REPO_ROOT / LOGS_DIR
+
+WATCHLIST_INPUT_PATH = DATA_DIR_PATH / "watchlist.csv"
+WATCHLIST_EXAMPLE_PATH = DATA_DIR_PATH / "watchlist.example.csv"
+FUNDAMENTALS_EXAMPLE_PATH = DATA_DIR_PATH / "fundamentals.example.csv"
+
+STOCK_RANK_OUTPUT_PATH = REPO_ROOT / STOCK_RANK_OUTPUT
+TOP10_OUTPUT_PATH = REPO_ROOT / TOP10_OUTPUT
+MODEL_PORTFOLIO_OUTPUT_PATH = REPO_ROOT / MODEL_PORTFOLIO_OUTPUT
+POSITION_SIZING_OUTPUT_PATH = REPO_ROOT / POSITION_SIZING_OUTPUT
+ORDER_DRAFT_OUTPUT_PATH = REPO_ROOT / ORDER_DRAFT_OUTPUT
+ORDER_REVIEW_OUTPUT_PATH = REPO_ROOT / ORDER_REVIEW_OUTPUT
+PORTFOLIO_ACTION_REPORT_OUTPUT_PATH = REPO_ROOT / PORTFOLIO_ACTION_REPORT_OUTPUT
+SYSTEM_VERSION_OUTPUT_PATH = REPO_ROOT / SYSTEM_VERSION_OUTPUT
+DAILY_DECISION_REPORT_PREFIX_PATH = REPO_ROOT / DAILY_DECISION_REPORT_PREFIX
+FUNDAMENTAL_INPUT_PATH = REPO_ROOT / FUNDAMENTAL_INPUT
+FUNDAMENTAL_SCORE_OUTPUT_PATH = REPO_ROOT / FUNDAMENTAL_SCORE_OUTPUT
+COMBINED_SCORE_OUTPUT_PATH = REPO_ROOT / COMBINED_SCORE_OUTPUT
+
+BACKTEST_SUMMARY_20D_OUTPUT_PATH = RESULTS_DIR_PATH / "backtest_summary_20d.csv"
+BACKTEST_QUALIFIED_20D_OUTPUT_PATH = RESULTS_DIR_PATH / "backtest_qualified_20d.csv"
+BACKTEST_ALL_TRADES_20D_OUTPUT_PATH = RESULTS_DIR_PATH / "backtest_all_trades_20d.csv"
+
+
+def display_path(path):
+    """Return a repository-relative path for user-visible output."""
+    path = Path(path)
+
+    try:
+        return str(path.relative_to(REPO_ROOT))
+    except ValueError:
+        return str(path)

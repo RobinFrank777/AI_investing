@@ -3,13 +3,14 @@ from pathlib import Path
 import pandas as pd
 
 from config import (
-    FUNDAMENTAL_INPUT as CONFIG_FUNDAMENTAL_INPUT,
-    FUNDAMENTAL_SCORE_OUTPUT as CONFIG_FUNDAMENTAL_SCORE_OUTPUT,
+    FUNDAMENTAL_INPUT_PATH,
+    FUNDAMENTAL_SCORE_OUTPUT_PATH,
+    display_path,
 )
 
 
-FUNDAMENTAL_INPUT = Path(CONFIG_FUNDAMENTAL_INPUT)
-FUNDAMENTAL_SCORE_OUTPUT = Path(CONFIG_FUNDAMENTAL_SCORE_OUTPUT)
+FUNDAMENTAL_INPUT = FUNDAMENTAL_INPUT_PATH
+FUNDAMENTAL_SCORE_OUTPUT = FUNDAMENTAL_SCORE_OUTPUT_PATH
 
 
 REQUIRED_COLUMNS = [
@@ -161,7 +162,7 @@ def print_fundamental_score():
     df = load_fundamental_data()
     result_df = calculate_fundamental_score(df)
 
-    FUNDAMENTAL_SCORE_OUTPUT.parent.mkdir(exist_ok=True)
+    FUNDAMENTAL_SCORE_OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     result_df.to_csv(FUNDAMENTAL_SCORE_OUTPUT, index=False)
 
     print("=" * 80)
@@ -169,7 +170,7 @@ def print_fundamental_score():
     print("=" * 80)
     print(result_df.to_string(index=False))
     print("")
-    print(f"Saved Fundamental Score To : {FUNDAMENTAL_SCORE_OUTPUT}")
+    print(f"Saved Fundamental Score To : {display_path(FUNDAMENTAL_SCORE_OUTPUT)}")
 
 
 if __name__ == "__main__":
