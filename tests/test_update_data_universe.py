@@ -10,7 +10,7 @@ import update_data
 
 class UpdateDataUniverseTests(unittest.TestCase):
     @patch("update_data.update_one_stock")
-    @patch("update_data.load_universe", return_value=["AAPL", "AMD", "NVDA"])
+    @patch("update_data.load_active_universe", return_value=["AAPL", "AMD", "NVDA"])
     def test_updates_normal_universe_in_order(self, mock_load, mock_update):
         result = update_data.update_all_stocks()
 
@@ -21,7 +21,7 @@ class UpdateDataUniverseTests(unittest.TestCase):
         self.assertEqual(result["succeeded"], 3)
 
     @patch("update_data.update_one_stock")
-    @patch("update_data.load_universe", return_value=["MixedCase", " spaced "])
+    @patch("update_data.load_active_universe", return_value=["MixedCase", " spaced "])
     def test_uses_symbols_without_additional_normalization(self, _, mock_update):
         update_data.update_all_stocks()
 
@@ -31,13 +31,13 @@ class UpdateDataUniverseTests(unittest.TestCase):
         )
 
     @patch("update_data.update_one_stock")
-    @patch("update_data.load_universe", return_value=["AAPL", "AMD"])
+    @patch("update_data.load_active_universe", return_value=["AAPL", "AMD"])
     def test_loads_universe_once_per_batch(self, mock_load, _):
         update_data.update_all_stocks()
         mock_load.assert_called_once_with()
 
     @patch("update_data.update_one_stock")
-    @patch("update_data.load_universe", return_value=[])
+    @patch("update_data.load_active_universe", return_value=[])
     @patch("builtins.print")
     def test_empty_universe_skips_downloads(self, mock_print, _, mock_update):
         result = update_data.update_all_stocks()
@@ -51,21 +51,21 @@ class UpdateDataUniverseTests(unittest.TestCase):
             "No enabled symbols found in market universe."
         )
 
-    @patch("update_data.load_universe", side_effect=FileNotFoundError("missing"))
+    @patch("update_data.load_active_universe", side_effect=FileNotFoundError("missing"))
     @patch("builtins.print")
     def test_missing_universe_is_reported_and_raised(self, mock_print, _):
         with self.assertRaisesRegex(FileNotFoundError, "missing"):
             update_data.update_all_stocks()
         self.assertIn("Unable to load market universe", mock_print.call_args.args[0])
 
-    @patch("update_data.load_universe", side_effect=ValueError("invalid CSV"))
+    @patch("update_data.load_active_universe", side_effect=ValueError("invalid CSV"))
     @patch("builtins.print")
     def test_invalid_universe_is_reported_and_raised(self, mock_print, _):
         with self.assertRaisesRegex(ValueError, "invalid CSV"):
             update_data.update_all_stocks()
         self.assertIn("Unable to load market universe", mock_print.call_args.args[0])
 
-    @patch("update_data.load_universe", return_value=["AAPL", "AMD", "NVDA"])
+    @patch("update_data.load_active_universe", return_value=["AAPL", "AMD", "NVDA"])
     @patch("update_data.update_one_stock")
     def test_single_failure_does_not_stop_other_symbols(self, mock_update, _):
         mock_update.side_effect = [None, RuntimeError("download failed"), None]
@@ -77,7 +77,7 @@ class UpdateDataUniverseTests(unittest.TestCase):
         self.assertEqual(result["failed"], 1)
         self.assertEqual(result["failed_symbols"], ["AMD"])
 
-    @patch("update_data.load_universe", return_value=["AAPL", "AMD"])
+    @patch("update_data.load_active_universe", return_value=["AAPL", "AMD"])
     @patch("update_data.update_one_stock")
     def test_all_success_statistics(self, mock_update, _):
         result = update_data.update_all_stocks()
@@ -129,8 +129,8 @@ class UpdateDataUniverseTests(unittest.TestCase):
     def test_main_failure_exit_code(self, _):
         self.assertEqual(update_data.main(), 1)
 
-    @patch("update_data.load_universe", return_value=["AAPL"])
-    def test_legacy_load_watchlist_uses_universe_manager(self, mock_load):
+    @patch("update_data.load_active_universe", return_value=["AAPL"])
+    def test_legacy_load_watchlist_uses_active_source(self, mock_load):
         self.assertEqual(update_data.load_watchlist(), ["AAPL"])
         mock_load.assert_called_once_with()
 

@@ -2,7 +2,7 @@ import pandas as pd
 import yfinance as yf
 
 from config import DATA_DIR_PATH
-from universe_manager import load_universe
+from universe_source import load_active_universe
 
 
 DATA_DIR = DATA_DIR_PATH
@@ -10,7 +10,7 @@ DATA_DIR = DATA_DIR_PATH
 
 def load_watchlist():
     """Return the managed market universe (kept for API compatibility)."""
-    return load_universe()
+    return load_active_universe()
 
 
 def update_one_stock(ticker):
@@ -51,7 +51,7 @@ def update_one_stock(ticker):
 
 def update_all_stocks():
     try:
-        symbols = load_universe()
+        symbols = load_active_universe()
     except (FileNotFoundError, ValueError) as error:
         print(f"Unable to load market universe: {error}")
         raise
