@@ -19,13 +19,37 @@
             </div>
             <div>
                 <div class="label">AI_investing Version</div>
-                <div class="value">v3.3.1</div>
+                <div class="value">{{PROJECT_VERSION}}</div>
             </div>
             <div>
                 <div class="label">Generated Time</div>
                 <div class="value">{{GENERATED_TIME}}</div>
             </div>
         </div>
+
+        <section class="research-summary-section">
+            <h2>Research Summary</h2>
+            <div class="research-summary-meta">
+                <div>
+                    <div class="label">Stance</div>
+                    <div class="stance-badge">{{RESEARCH_STANCE}}</div>
+                </div>
+                <div>
+                    <div class="label">Project Version</div>
+                    <div class="value">{{PROJECT_VERSION}}</div>
+                </div>
+            </div>
+
+            <h3>Strengths</h3>
+            {{RESEARCH_STRENGTHS}}
+
+            <h3>Risks</h3>
+            {{RESEARCH_RISKS}}
+
+            <h3>Summary</h3>
+            <p class="research-summary-text">{{RESEARCH_SUMMARY}}</p>
+            {{MANUAL_REVIEW_WARNING}}
+        </section>
 
         <section>
             <h2>Top Opportunity</h2>
@@ -49,7 +73,6 @@
 
         <aside class="warning">
             <p>Research use only.</p>
-            <p>Manual review is required before any real trade.</p>
             <p>No brokerage order is placed by this system.</p>
         </aside>
 

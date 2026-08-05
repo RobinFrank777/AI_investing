@@ -19,6 +19,22 @@ class StockCardReportTests(unittest.TestCase):
             "model_portfolio": {"Ticker": "GOOGL", "PortfolioRole": "candidate"},
             "order_review": {"Ticker": "GOOGL", "ReviewStatus": "PASS"},
         }
+        self.research_summary = {
+            "symbol": "GOOGL",
+            "project_version": "v3.3.1",
+            "stance": "BUY CANDIDATE",
+            "strengths": [
+                "Combined score is strong.",
+                "Order review passed the current system checks.",
+            ],
+            "risks": [
+                "The stock is not included in the current Top Opportunities list."
+            ],
+            "summary": (
+                "GOOGL is classified as a BUY CANDIDATE for research review only."
+            ),
+            "manual_review_required": True,
+        }
 
         self.cards_patch = mock.patch.object(
             stock_card_report,
@@ -30,10 +46,17 @@ class StockCardReportTests(unittest.TestCase):
             "build_stock_card",
             return_value=self.stock_card,
         )
+        self.summary_patch = mock.patch.object(
+            stock_card_report,
+            "build_research_summary",
+            return_value=self.research_summary,
+        )
         self.mock_builder = self.builder_patch.start()
+        self.mock_summary_builder = self.summary_patch.start()
         self.cards_patch.start()
 
     def tearDown(self):
+        self.summary_patch.stop()
         self.builder_patch.stop()
         self.cards_patch.stop()
         self.temp_directory.cleanup()
@@ -50,6 +73,7 @@ class StockCardReportTests(unittest.TestCase):
         html = self.read_report(output_path)
         for expected in (
             "GOOGL Stock Research Card",
+            "Top Opportunity",
             "Combined Score",
             "Model Portfolio",
             "Order Review",
@@ -62,6 +86,85 @@ class StockCardReportTests(unittest.TestCase):
 
         self.assertEqual(output_path.name, "GOOGL.html")
         self.mock_builder.assert_called_once_with("GOOGL")
+        self.mock_summary_builder.assert_called_once_with("GOOGL")
+
+    def test_displays_research_summary(self):
+        html = self.read_report(
+            stock_card_report.generate_stock_card_report("GOOGL")
+        )
+
+        for expected in (
+            "Research Summary",
+            "BUY CANDIDATE",
+            "Combined score is strong.",
+            "Order review passed",
+            "Top Opportunities",
+            "research review only",
+            "Manual review is required before any real trade.",
+            "v3.3.1",
+        ):
+            self.assertIn(expected, html)
+
+    def test_empty_strengths_show_explanation(self):
+        self.research_summary["strengths"] = []
+        html = self.read_report(
+            stock_card_report.generate_stock_card_report("GOOGL")
+        )
+        self.assertIn("No identified strengths from the current rules.", html)
+
+    def test_empty_risks_show_explanation(self):
+        self.research_summary["risks"] = []
+        html = self.read_report(
+            stock_card_report.generate_stock_card_report("GOOGL")
+        )
+        self.assertIn(
+            "No additional rule-based risks were identified.",
+            html,
+        )
+
+    def test_research_summary_special_characters_are_escaped(self):
+        unsafe_value = "<script>alert(1)</script>"
+        self.research_summary.update(
+            stance=unsafe_value,
+            strengths=[unsafe_value],
+            risks=[unsafe_value],
+            summary=unsafe_value,
+            project_version=unsafe_value,
+        )
+
+        html = self.read_report(
+            stock_card_report.generate_stock_card_report("GOOGL")
+        )
+
+        self.assertNotIn(unsafe_value, html)
+        self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;", html)
+
+    def test_empty_research_summary_values_display_na(self):
+        self.research_summary.update(
+            stance=None,
+            summary="",
+            project_version=None,
+        )
+
+        html = self.read_report(
+            stock_card_report.generate_stock_card_report("GOOGL")
+        )
+
+        self.assertGreaterEqual(html.count("N/A"), 3)
+
+    def test_manual_review_true_displays_warning(self):
+        html = self.read_report(
+            stock_card_report.generate_stock_card_report("GOOGL")
+        )
+        self.assertIn("Manual review is required before any real trade.", html)
+
+    def test_manual_review_false_omits_warning(self):
+        self.research_summary["manual_review_required"] = False
+        html = self.read_report(
+            stock_card_report.generate_stock_card_report("GOOGL")
+        )
+        self.assertNotIn("Manual review is required before any real trade.", html)
+        self.assertIn("Research Summary", html)
 
     def test_none_section_shows_message_and_keeps_other_sections(self):
         self.stock_card["top_opportunity"] = None

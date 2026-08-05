@@ -4,6 +4,7 @@ import math
 from pathlib import Path
 import sys
 
+from research_summary import build_research_summary
 from stock_card_builder import build_stock_card
 
 
@@ -59,6 +60,20 @@ def _build_table(record, empty_message):
     )
 
 
+def _build_research_list(items, css_class, empty_message):
+    if not isinstance(items, (list, tuple)):
+        items = []
+    display_items = [
+        _display_value(item)
+        for item in items
+        if _display_value(item) != "N/A"
+    ]
+    if not display_items:
+        return f'<p class="empty">{escape(empty_message)}</p>'
+    list_items = "".join(f"<li>{item}</li>" for item in display_items)
+    return f'<ul class="{css_class}">{list_items}</ul>'
+
+
 def generate_stock_card_report(symbol):
     normalized_symbol = str(symbol).strip().upper() if symbol is not None else ""
     if not normalized_symbol:
@@ -67,6 +82,7 @@ def generate_stock_card_report(symbol):
     template = TEMPLATE_PATH.read_text(encoding="utf-8")
     report_css = CSS_PATH.read_text(encoding="utf-8")
     stock_card = build_stock_card(normalized_symbol)
+    research_summary = build_research_summary(normalized_symbol)
     generated_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     escaped_symbol = escape(normalized_symbol, quote=True)
 
@@ -75,6 +91,28 @@ def generate_stock_card_report(symbol):
         "{{REPORT_CSS}}": report_css,
         "{{SYMBOL}}": escaped_symbol,
         "{{GENERATED_TIME}}": escape(generated_time),
+        "{{PROJECT_VERSION}}": _display_value(
+            research_summary.get("project_version")
+        ),
+        "{{RESEARCH_STANCE}}": _display_value(research_summary.get("stance")),
+        "{{RESEARCH_STRENGTHS}}": _build_research_list(
+            research_summary.get("strengths"),
+            "strengths-list",
+            "No identified strengths from the current rules.",
+        ),
+        "{{RESEARCH_RISKS}}": _build_research_list(
+            research_summary.get("risks"),
+            "risks-list",
+            "No additional rule-based risks were identified.",
+        ),
+        "{{RESEARCH_SUMMARY}}": _display_value(research_summary.get("summary")),
+        "{{MANUAL_REVIEW_WARNING}}": (
+            '<p class="manual-review-warning">'
+            "Manual review is required before any real trade."
+            "</p>"
+            if research_summary.get("manual_review_required") is True
+            else ""
+        ),
     }
     for placeholder, card_key, empty_message in SECTION_CONFIG:
         replacements[f"{{{{{placeholder}}}}}"] = _build_table(
