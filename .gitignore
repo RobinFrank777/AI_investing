@@ -13,6 +13,9 @@ Thumbs.db
 data/*.csv
 !data/watchlist.example.csv
 !data/fundamentals.example.csv
+!data/universe_config.example.csv
+data/universes/*.csv
+!data/universes/*.example.csv
 results/
 reports/daily_trading_report_*.txt
 reports/daily_decision_report_*.txt

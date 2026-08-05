@@ -1,0 +1,6 @@
+Universe,Enabled,File
+current_watchlist,yes,data/watchlist.csv
+ai,no,data/universes/ai.csv
+semiconductor,no,data/universes/semiconductor.csv
+space,no,data/universes/space.csv
+custom,no,data/universes/custom.csv
