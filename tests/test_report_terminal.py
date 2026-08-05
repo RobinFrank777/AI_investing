@@ -1,20 +1,45 @@
+import tempfile
+import unittest
 from pathlib import Path
+from unittest import mock
+
+import pandas as pd
 
 import report_terminal
-from report_terminal import generate_terminal_report as build_terminal_report
 
 
-def test_build_terminal_report_creates_expected_html(monkeypatch, tmp_path):
-    output_path = tmp_path / "ai_terminal_report.html"
-    monkeypatch.setattr(report_terminal, "OUTPUT_PATH", output_path)
+class ReportTerminalTests(unittest.TestCase):
+    def test_terminal_report_contains_sections_and_stock_card_link(self):
+        report_data = [
+            ("Top Opportunities", pd.DataFrame([{"Ticker": "NVDA", "Score": 90}])),
+            ("Model Portfolio", pd.DataFrame([{"Ticker": "NVDA"}])),
+            ("Order Review", pd.DataFrame([{"Ticker": "NVDA"}])),
+            ("Combined Score", pd.DataFrame([{"Ticker": "NVDA"}])),
+        ]
 
-    generated_path = build_terminal_report()
+        with tempfile.TemporaryDirectory() as temp_directory:
+            output_path = Path(temp_directory) / "ai_terminal_report.html"
+            with (
+                mock.patch.object(report_terminal, "OUTPUT_PATH", output_path),
+                mock.patch.object(
+                    report_terminal,
+                    "load_report_data",
+                    return_value=report_data,
+                ),
+            ):
+                generated_path = report_terminal.generate_terminal_report()
 
-    assert generated_path == output_path
-    assert Path(generated_path).exists()
+            self.assertEqual(generated_path, output_path)
+            self.assertTrue(output_path.exists())
+            html = output_path.read_text(encoding="utf-8")
 
-    html = output_path.read_text(encoding="utf-8")
-    assert "AI_investing Daily Research Terminal" in html
-    assert "Top Opportunities" in html
-    assert "Model Portfolio" in html
-    assert "Order Review" in html
+        self.assertIn("AI_investing Daily Research Terminal", html)
+        self.assertIn("Top Opportunities", html)
+        self.assertIn("Model Portfolio", html)
+        self.assertIn("Order Review", html)
+        self.assertIn("Research Card", html)
+        self.assertIn('href="cards/NVDA.html"', html)
+
+
+if __name__ == "__main__":
+    unittest.main()

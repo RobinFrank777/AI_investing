@@ -1,5 +1,7 @@
 from datetime import datetime
+from html import escape
 from pathlib import Path
+from urllib.parse import quote
 
 import pandas as pd
 
@@ -24,6 +26,31 @@ def load_report_data():
     ]
 
 
+def _top_opportunities_table(dataframe):
+    display_dataframe = dataframe.copy()
+    replacements = {}
+    links = []
+
+    for row_number, ticker in enumerate(display_dataframe.get("Ticker", [])):
+        if pd.isna(ticker) or not str(ticker).strip():
+            links.append("")
+            continue
+
+        symbol = str(ticker).strip().upper()
+        placeholder = f"RESEARCH_CARD_LINK_{row_number}"
+        href = f"cards/{quote(symbol, safe='')}.html"
+        replacements[placeholder] = (
+            f'<a href="{escape(href, quote=True)}">View Card</a>'
+        )
+        links.append(placeholder)
+
+    display_dataframe["Research Card"] = links
+    table_html = display_dataframe.to_html(index=False, border=0, na_rep="")
+    for placeholder, link_html in replacements.items():
+        table_html = table_html.replace(placeholder, link_html)
+    return table_html
+
+
 def build_html(report_data):
     generated_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     sections_html = "\n".join(
@@ -31,7 +58,11 @@ def build_html(report_data):
         <section>
             <h2>{section_title}</h2>
             <div class="table-container">
-                {dataframe.to_html(index=False, border=0, na_rep="")}
+                {
+                    _top_opportunities_table(dataframe)
+                    if section_title == "Top Opportunities"
+                    else dataframe.to_html(index=False, border=0, na_rep="")
+                }
             </div>
         </section>
         """
