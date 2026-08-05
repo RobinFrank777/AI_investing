@@ -123,7 +123,7 @@ def validate_combined_outputs():
     print("=" * 80)
     print()
     print("VALIDATION PASSED")
-    print(f"Combined score output is valid: {COMBINED_SCORE_OUTPUT}")
+    print(f"Combined score output is valid: {COMBINED_SCORE_OUTPUT_PATH}")
 
 
 if __name__ == "__main__":

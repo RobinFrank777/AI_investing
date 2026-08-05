@@ -50,13 +50,13 @@ def calculate_combined_score(model_df, fundamental_df):
     check_required_columns(
         model_df,
         REQUIRED_MODEL_COLUMNS,
-        MODEL_PORTFOLIO_OUTPUT,
+        MODEL_PORTFOLIO_OUTPUT_PATH,
     )
 
     check_required_columns(
         fundamental_df,
         REQUIRED_FUNDAMENTAL_COLUMNS,
-        FUNDAMENTAL_SCORE_OUTPUT,
+        FUNDAMENTAL_SCORE_OUTPUT_PATH,
     )
 
     merged_df = model_df.merge(
