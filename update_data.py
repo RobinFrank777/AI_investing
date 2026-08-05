@@ -1,16 +1,16 @@
 import pandas as pd
 import yfinance as yf
 
-from config import DATA_DIR_PATH, WATCHLIST_INPUT_PATH
+from config import DATA_DIR_PATH
+from universe_manager import load_universe
 
 
 DATA_DIR = DATA_DIR_PATH
-WATCHLIST_FILE = WATCHLIST_INPUT_PATH
 
 
 def load_watchlist():
-    df = pd.read_csv(WATCHLIST_FILE)
-    return df["Ticker"].tolist()
+    """Return the managed market universe (kept for API compatibility)."""
+    return load_universe()
 
 
 def update_one_stock(ticker):
@@ -50,14 +50,42 @@ def update_one_stock(ticker):
 
 
 def update_all_stocks():
-    tickers = load_watchlist()
+    try:
+        symbols = load_universe()
+    except (FileNotFoundError, ValueError) as error:
+        print(f"Unable to load market universe: {error}")
+        raise
 
-    for ticker in tickers:
+    result = {
+        "total": len(symbols),
+        "succeeded": 0,
+        "failed": 0,
+        "failed_symbols": [],
+    }
+
+    if not symbols:
+        print("No enabled symbols found in market universe.")
+        return result
+
+    for ticker in symbols:
         try:
             update_one_stock(ticker)
+            result["succeeded"] += 1
         except Exception as e:
+            result["failed"] += 1
+            result["failed_symbols"].append(ticker)
             print(f"更新 {ticker} 失败，原因：{e}")
+
+    return result
+
+
+def main():
+    try:
+        update_all_stocks()
+    except (FileNotFoundError, ValueError):
+        return 1
+    return 0
 
 
 if __name__ == "__main__":
-    update_all_stocks()
+    raise SystemExit(main())
