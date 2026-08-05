@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{PAGE_TITLE}}</title>
+    <style>
+{{REPORT_CSS}}
+    </style>
+</head>
+<body>
+    <main class="card">
+        <h1>{{PAGE_TITLE}}</h1>
+
+        <div class="summary">
+            <div>
+                <div class="label">Symbol</div>
+                <div class="value">{{SYMBOL}}</div>
+            </div>
+            <div>
+                <div class="label">AI_investing Version</div>
+                <div class="value">v3.3.1</div>
+            </div>
+            <div>
+                <div class="label">Generated Time</div>
+                <div class="value">{{GENERATED_TIME}}</div>
+            </div>
+        </div>
+
+        <section>
+            <h2>Top Opportunity</h2>
+            {{TOP_OPPORTUNITY}}
+        </section>
+
+        <section>
+            <h2>Combined Score</h2>
+            {{COMBINED_SCORE}}
+        </section>
+
+        <section>
+            <h2>Model Portfolio</h2>
+            {{MODEL_PORTFOLIO}}
+        </section>
+
+        <section>
+            <h2>Order Review</h2>
+            {{ORDER_REVIEW}}
+        </section>
+
+        <aside class="warning">
+            <p>Research use only.</p>
+            <p>Manual review is required before any real trade.</p>
+            <p>No brokerage order is placed by this system.</p>
+        </aside>
+
+        <footer>Generated Time: {{GENERATED_TIME}}</footer>
+    </main>
+</body>
+</html>

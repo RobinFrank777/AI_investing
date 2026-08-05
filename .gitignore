@@ -18,3 +18,4 @@ reports/daily_trading_report_*.txt
 reports/daily_decision_report_*.txt
 reports/*.html
 logs/
+reports/cards/
