@@ -67,6 +67,9 @@ The current repository has several categories of files at its root.
 
 ### Pipeline entry points
 
+- `run_all.py`: runs the complete active research workflow in a fixed sequence
+  with fail-closed step handling, artifact-freshness checks, logging, and a final
+  runtime summary.
 - `run_daily.py`: updates market data and runs the current ranking pipeline.
 - `run_backtest.py`: runs batch historical backtests and validates their outputs.
 - `run_portfolio.py`: orchestrates portfolio construction, scoring, sizing, draft-order review, reporting, and system checks.
@@ -261,6 +264,36 @@ reports/daily_trading_report_*.txt -------------+
 ```
 
 `run_portfolio.py` does not update market data, generate the daily ranking, or run the backtest. Those are upstream prerequisites and must be run separately when fresh inputs are required.
+
+### One Command Pipeline
+
+Entry point: `run_all.py`
+
+The unified entry calls existing business functions rather than the `main()`
+functions of the three independent runners. Its fixed order is:
+
+```text
+preflight and configuration
+    -> repository and manual-input readiness
+    -> market-data update and validation
+    -> daily screening
+    -> fixed 20-day backtest and validation
+    -> model portfolio and validation
+    -> fundamental and combined scoring with validation
+    -> position sizing with validation
+    -> draft-only order generation and review with validation
+    -> portfolio action and daily decision reports
+    -> final validation and runtime summary
+```
+
+Before each producer runs, the entry records the expected artifacts' existence,
+modification time, and size. A required producer fails unless every expected
+artifact exists, is nonempty, and changed during that step. A producer or
+validator failure prevents every dependent step from running and produces exit
+code `1`; complete success produces exit code `0`.
+
+This freshness evidence applies only to the current process. It is not a
+persistent manifest or a change to any production CSV or text schema.
 
 ## Configuration architecture
 
@@ -517,6 +550,7 @@ The following is a documentation target, not the current filesystem layout and n
 
 ```text
 AI_investing/
+├── run_all.py
 ├── run_daily.py
 ├── run_backtest.py
 ├── run_portfolio.py

@@ -43,6 +43,7 @@ recommendations.
 
 | Module | Pipeline | Purpose | Main inputs | Main outputs | Status |
 |---|---|---|---|---|---|
+| `run_all.py` | One Command Pipeline | Runs the complete active research workflow with fail-closed orchestration, freshness checks, logging, and a final summary. | Manual inputs and all active pipeline inputs | Existing daily, backtest, portfolio, and report artifacts; unified runtime log | Active |
 | `run_daily.py` | Daily screening | Runs the daily data, ranking, and report pipeline. | `data/watchlist.csv`, downloaded price data | `results/stock_rank.csv`, `results/top10.csv`,`reports/daily_trading_report_<date>.txt` | Active |
 | `run_backtest.py` | Backtest | Runs the 20-day backtest pipeline and validates outputs. | `data/watchlist.csv`, `data/<ticker>.csv` | `results/backtest_summary_20d.csv`, `results/backtest_qualified_20d.csv`, `results/backtest_all_trades_20d.csv` | Active |
 | `run_portfolio.py` | Portfolio research | Runs the portfolio research, scoring, sizing, order review, and decision-report pipeline. | Backtest outputs, fundamentals, price data, daily report | Portfolio research CSVs and reports | Active |
@@ -175,6 +176,16 @@ It is not part of the production AI_investing pipeline and should not be used as
 ## Current main pipeline map
 
 ```text
+run_all.py
+    -> preflight, config, repository, and manual-input readiness
+    -> update_data.py
+    -> rank_stocks_v2.py
+    -> backtest_engine.py + validate_backtest_outputs.py
+    -> portfolio research producers + existing validators
+    -> portfolio_action_report.py
+    -> daily_decision_report.py + final validation
+    -> fail-closed runtime summary
+
 run_daily.py
     -> update_data.py
     -> rank_stocks_v2.py

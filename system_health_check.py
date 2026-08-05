@@ -15,6 +15,7 @@ from config import (
 
 
 REQUIRED_CORE_FILES = [
+    "run_all.py",
     "run_daily.py",
     "run_backtest.py",
     "run_portfolio.py",

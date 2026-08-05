@@ -15,6 +15,7 @@ OUTPUT_FILE = SYSTEM_VERSION_OUTPUT_PATH
 
 
 CORE_MODULES = [
+    "run_all.py",
     "run_daily.py",
     "run_backtest.py",
     "run_portfolio.py",
@@ -45,6 +46,7 @@ VALIDATION_MODULES = [
 TEST_MODULES = [
     "config_validation_failure_demo.py",
     "pipeline_smoke_test.py",
+    "tests/test_run_all_orchestration.py",
 ]
 
 

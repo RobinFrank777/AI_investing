@@ -11,7 +11,7 @@ The project documentation is organized as follows:
 - **[module_catalog.md](docs/module_catalog.md)** — Module classification, module status, and system inventory.
 - **[development_rules.md](docs/development_rules.md)** — Development workflow, validation requirements, Git workflow, release process, and project governance.
 
-Current release: `v3.2.7`
+Current release: `v3.2.8`
 
 These documents should be read together.
 When documentation conflicts, the precedence defined in
@@ -94,6 +94,25 @@ pipeline:
 ```bash
 python3 system_health_check.py
 ```
+
+## One Command Pipeline
+
+Run the complete supported research workflow in its required order:
+
+```bash
+python3 run_all.py
+```
+
+This command performs preflight checks, updates and validates market data, runs
+the daily screening and fixed 20-day backtest, validates each produced artifact,
+then runs the portfolio research, draft-only order-review, and reporting chain.
+Every required step is fail-closed. Each producer must create or update a
+nonempty expected artifact before its validator can pass.
+
+The existing `run_daily.py`, `run_backtest.py`, and `run_portfolio.py` commands
+remain independently usable with their existing meanings. Pipeline and
+validation PASS statuses are research checks, not investment approval; the
+system does not connect to a broker or submit orders.
 
 ## Daily usage
 

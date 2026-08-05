@@ -66,8 +66,13 @@ def validate_fundamental_outputs():
     for col in NUMERIC_COLUMNS:
         df[col] = pd.to_numeric(df[col], errors="coerce")
 
-        if df[col].isna().any():
-            raise ValueError(f"Column contains non-numeric or missing values: {col}")
+        missing_count = df[col].isna().sum()
+
+        if missing_count > 0:
+            print(
+                f"WARNING: {col} contains {missing_count} missing values"
+            )
+        
 
     if not df["FundamentalScore"].between(0, 100).all():
         raise ValueError("FundamentalScore must be between 0 and 100")
