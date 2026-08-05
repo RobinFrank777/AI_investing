@@ -11,9 +11,7 @@ The project documentation is organized as follows:
 - **[module_catalog.md](docs/module_catalog.md)** — Module classification, module status, and system inventory.
 - **[development_rules.md](docs/development_rules.md)** — Development workflow, validation requirements, Git workflow, release process, and project governance.
 
-Current development release: `v3.3.1`
-
-Release tag pending final review.
+Current development release: `AI_investing v3.4.0`
 
 These documents should be read together.
 When documentation conflicts, the precedence defined in
@@ -40,6 +38,7 @@ AI_investing is a research and decision-support system.
 - Validation PASS is not investment approval.
 - Manual review is required before any real trade.
 - No brokerage order is placed by this system.
+- Deterministic Research Summary is not financial advice.
 
 It does not:
 
@@ -121,21 +120,27 @@ remain independently usable with their existing meanings. Pipeline and
 validation PASS statuses are research checks, not investment approval; the
 system does not connect to a broker or submit orders.
 
-The current unified pipeline has 18 required steps. The v3.3.1 release review
+The current unified pipeline has 18 required steps. The current release review
 completed with 18/18 steps passing.
 
-## v3.3.1 Research Terminal Upgrade
+## v3.4.0 Research Center Upgrade
 
-v3.3.1 adds a presentation layer for reviewing existing pipeline outputs:
+v3.4.0 expands the presentation layer into a deterministic Research Center:
 
-- Daily Research Terminal
-- Stock Card Data Builder
-- Single Stock HTML Research Card
-- Top10 Batch Stock Card Generator
-- Research Terminal hyperlinks to stock cards
+- Deterministic Research Summary with rule-based strengths and risks
+- Stance classification: `BUY CANDIDATE`, `HOLD / REVIEW`,
+  `REDUCE / AVOID`, or `INSUFFICIENT DATA`
+- Research Summary embedded in single-stock HTML Research Cards
+- Research Summary embedded in the Research Terminal
+- Today's Research Dashboard summary
+- Top Opportunity Research Summary cards
+- Model Portfolio Research Card links
+- Centralized current-version metadata through `config.PROJECT_VERSION`
 
 These features read existing research artifacts. They do not change screening,
 scoring, backtesting, position sizing, or order-review logic.
+The Research Summary is deterministic rule-based output: it does not call an
+external LLM or the OpenAI API. It does not execute real trades.
 
 ### Recommended run order
 
@@ -150,8 +155,9 @@ python report_terminal.py
 `python run_all.py` runs the existing 18-step unified pipeline and generates
 the core CSV and TXT research outputs.
 
-`python generate_stock_cards.py` reads `results/top10.csv` and generates one
-offline HTML research card per Top10 ticker:
+`python generate_stock_cards.py` reads `results/top10.csv` and
+`results/model_portfolio.csv`, then generates one shared offline HTML Research
+Card per unique ticker:
 
 ```text
 reports/cards/{TICKER}.html
@@ -163,8 +169,19 @@ reports/cards/{TICKER}.html
 reports/ai_terminal_report.html
 ```
 
-The Top Opportunities table in the terminal contains relative links to the
-generated stock cards.
+The Research Terminal contains:
+
+- System Status
+- Today's Research Dashboard
+- Top Opportunities table
+- Top Opportunity Research Summary cards
+- Model Portfolio with Research Card links
+- Order Review
+- Combined Score
+
+The Dashboard displays Pipeline Status, Top Opportunities, counts for all four
+stances, Average Combined Score, Highest Score, Model Portfolio Count, Research
+Card Links, and Generated Time.
 
 The resulting data flow is:
 
@@ -173,10 +190,13 @@ Market Data
 → Validation
 → Screening
 → Backtest
-→ Scoring
-→ Portfolio
+→ Fundamental Score
+→ Combined Score
+→ Position Sizing
 → Order Review
+→ Research Summary
 → Stock Cards
+→ Research Dashboard
 → Research Terminal
 ```
 
@@ -184,7 +204,9 @@ Market Data
 
 ```text
 AI_investing/
+├── config.py
 ├── run_all.py
+├── research_summary.py
 ├── report_terminal.py
 ├── stock_card_builder.py
 ├── stock_card_report.py
@@ -206,17 +228,19 @@ AI_investing/
 
 ### Research Terminal tests
 
-Run the v3.3.1 presentation-layer tests from the repository root:
+Run the Research Center tests from the repository root:
 
 ```bash
+python -m unittest tests.test_research_summary -v
 python -m unittest tests.test_stock_card_builder -v
 python -m unittest tests.test_stock_card_report -v
 python -m unittest tests.test_generate_stock_cards -v
 python -m unittest tests.test_report_terminal -v
 ```
 
-The unified `run_all.py` pipeline is currently 18/18 PASS. This status confirms
-pipeline validation only; it is not investment approval.
+The unified `run_all.py` pipeline is currently 18/18 PASS, and all Research
+Center unittest modules pass. These statuses confirm research-system validation
+only; they are not investment approval.
 
 ## Daily usage
 
