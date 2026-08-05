@@ -12,6 +12,7 @@ from research_summary import build_research_summary
 PROJECT_ROOT = Path(__file__).resolve().parent
 RESULTS_DIR = PROJECT_ROOT / "results"
 OUTPUT_PATH = PROJECT_ROOT / "reports" / "ai_terminal_report.html"
+PIPELINE_STATUS = "PASS"
 
 REPORT_SECTIONS = [
     ("Top Opportunities", RESULTS_DIR / "top10.csv"),
@@ -90,16 +91,14 @@ def _table_with_card_links(dataframe):
     return table_html
 
 
-def _top_opportunities_content(dataframe, combined_scores=None):
-    cards = []
-
+def _build_top_opportunity_research(dataframe, combined_scores=None):
+    research_items = []
     for row_number, ticker in enumerate(dataframe.get("Ticker", [])):
         symbol = _normalized_symbol(ticker)
         if not symbol:
             continue
 
         href = f"cards/{quote(symbol, safe='')}.html"
-        escaped_href = escape(href, quote=True)
 
         try:
             research = build_research_summary(symbol)
@@ -111,6 +110,75 @@ def _top_opportunities_content(dataframe, combined_scores=None):
 
         row = dataframe.iloc[row_number]
         score = _combined_score_for(symbol, row, combined_scores)
+        research_items.append(
+            {
+                "symbol": symbol,
+                "stance": stance,
+                "summary": summary,
+                "combined_score": score,
+                "href": href,
+            }
+        )
+    return research_items
+
+
+def build_dashboard_metrics(
+    research_items,
+    model_portfolio,
+    pipeline_status=PIPELINE_STATUS,
+):
+    stance_counts = {
+        "BUY CANDIDATE": 0,
+        "HOLD / REVIEW": 0,
+        "REDUCE / AVOID": 0,
+        "INSUFFICIENT DATA": 0,
+    }
+    valid_scores = []
+    for item in research_items:
+        stance = item.get("stance")
+        if stance in stance_counts:
+            stance_counts[stance] += 1
+        else:
+            stance_counts["INSUFFICIENT DATA"] += 1
+        score = _safe_score(item.get("combined_score"))
+        if score is not None:
+            valid_scores.append((item.get("symbol", ""), score))
+
+    if valid_scores:
+        average_score = f"{sum(score for _, score in valid_scores) / len(valid_scores):.2f}"
+        highest_symbol, highest_value = max(valid_scores, key=lambda entry: entry[1])
+        highest_score = f"{highest_symbol} / {highest_value:.2f}"
+    else:
+        average_score = "N/A"
+        highest_score = "N/A"
+
+    portfolio_count = sum(
+        1
+        for ticker in model_portfolio.get("Ticker", [])
+        if _normalized_symbol(ticker)
+    )
+    return {
+        "pipeline_status": pipeline_status,
+        "top_opportunities_count": len(research_items),
+        "buy_candidate_count": stance_counts["BUY CANDIDATE"],
+        "hold_review_count": stance_counts["HOLD / REVIEW"],
+        "reduce_avoid_count": stance_counts["REDUCE / AVOID"],
+        "insufficient_data_count": stance_counts["INSUFFICIENT DATA"],
+        "average_combined_score": average_score,
+        "highest_score": highest_score,
+        "model_portfolio_count": portfolio_count,
+        "research_card_link_count": len(research_items),
+    }
+
+
+def _top_opportunities_content(dataframe, research_items):
+    cards = []
+    for item in research_items:
+        symbol = item["symbol"]
+        stance = item["stance"]
+        summary = item["summary"]
+        score = item["combined_score"]
+        escaped_href = escape(item["href"], quote=True)
         score_text = f"{score:.2f}" if score is not None else "N/A"
         cards.append(
             f"""
@@ -130,8 +198,51 @@ def _top_opportunities_content(dataframe, combined_scores=None):
     return table_html + f'<div class="opportunity-list">{"".join(cards)}</div>'
 
 
+def _dashboard_html(metrics, generated_time):
+    metric_rows = (
+        ("Pipeline Status", metrics["pipeline_status"], "metric-pass"),
+        ("Top Opportunities", metrics["top_opportunities_count"], ""),
+        ("BUY CANDIDATE", metrics["buy_candidate_count"], "metric-buy"),
+        ("HOLD / REVIEW", metrics["hold_review_count"], "metric-hold"),
+        ("REDUCE / AVOID", metrics["reduce_avoid_count"], "metric-reduce"),
+        (
+            "INSUFFICIENT DATA",
+            metrics["insufficient_data_count"],
+            "metric-insufficient",
+        ),
+        ("Average Combined Score", metrics["average_combined_score"], ""),
+        ("Highest Score", metrics["highest_score"], ""),
+        ("Model Portfolio Count", metrics["model_portfolio_count"], ""),
+        ("Research Card Links", metrics["research_card_link_count"], ""),
+        ("Generated Time", generated_time, ""),
+    )
+    cards = "".join(
+        f"""
+        <div class="metric-card">
+            <div class="metric-label">{escape(label, quote=True)}</div>
+            <div class="metric-value {css_class}">{escape(str(value), quote=True)}</div>
+        </div>
+        """
+        for label, value, css_class in metric_rows
+    )
+    return f"""
+    <section class="dashboard">
+        <h2>Today's Research Dashboard</h2>
+        <div class="dashboard-grid">{cards}</div>
+    </section>
+    """
+
+
 def build_html(report_data):
     generated_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    top_opportunities = next(
+        (dataframe for title, dataframe in report_data if title == "Top Opportunities"),
+        pd.DataFrame(),
+    )
+    model_portfolio = next(
+        (dataframe for title, dataframe in report_data if title == "Model Portfolio"),
+        pd.DataFrame(),
+    )
     combined_scores = next(
         (
             dataframe
@@ -140,13 +251,19 @@ def build_html(report_data):
         ),
         None,
     )
+    research_items = _build_top_opportunity_research(
+        top_opportunities,
+        combined_scores,
+    )
+    dashboard_metrics = build_dashboard_metrics(research_items, model_portfolio)
+    dashboard_html = _dashboard_html(dashboard_metrics, generated_time)
     sections_html = "\n".join(
         f"""
         <section>
             <h2>{section_title}</h2>
             <div class="table-container">
                 {
-                    _top_opportunities_content(dataframe, combined_scores)
+                    _top_opportunities_content(dataframe, research_items)
                     if section_title == "Top Opportunities"
                     else (
                         _table_with_card_links(dataframe)
@@ -229,6 +346,23 @@ def build_html(report_data):
         .score {{ margin-top: 14px; }}
         .opportunity-card .summary {{ color: #3e4c59; line-height: 1.5; }}
         .card-link {{ color: #145da0; font-weight: bold; }}
+        .dashboard-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+            gap: 14px;
+        }}
+        .metric-card {{
+            padding: 16px;
+            background: #f8fafc;
+            border: 1px solid #d9e2ec;
+            border-radius: 6px;
+        }}
+        .metric-label {{ color: #52606d; font-size: 13px; }}
+        .metric-value {{ margin-top: 6px; font-size: 20px; font-weight: bold; }}
+        .metric-pass, .metric-buy {{ color: #16803c; }}
+        .metric-hold {{ color: #8a6100; }}
+        .metric-reduce {{ color: #b42318; }}
+        .metric-insufficient {{ color: #52606d; }}
     </style>
 </head>
 <body>
@@ -248,10 +382,12 @@ def build_html(report_data):
             </div>
             <div>
                 <div class="status-label">Pipeline Status</div>
-                <div class="status-value pass">PASS</div>
+                <div class="status-value pass">{escape(PIPELINE_STATUS, quote=True)}</div>
             </div>
         </div>
     </section>
+
+    {dashboard_html}
 
     {sections_html}
 </main>

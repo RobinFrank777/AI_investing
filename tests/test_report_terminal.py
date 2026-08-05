@@ -28,6 +28,10 @@ class ReportTerminalTests(unittest.TestCase):
             "summary": "GOOGL deterministic research summary.",
         }
 
+    def dashboard_metrics(self, items, portfolio_tickers=()):
+        portfolio = pd.DataFrame({"Ticker": list(portfolio_tickers)})
+        return report_terminal.build_dashboard_metrics(items, portfolio)
+
     def generate(self, report_data=None, summary_side_effect=None):
         report_data = self.report_data if report_data is None else report_data
 
@@ -121,6 +125,10 @@ class ReportTerminalTests(unittest.TestCase):
         self.assertIn("INSUFFICIENT DATA", html)
         self.assertIn("Research summary is unavailable for this symbol.", html)
         self.assertIn("Model Portfolio", html)
+        self.assertIn(
+            '<div class="metric-value metric-insufficient">1</div>',
+            html,
+        )
 
     def test_terminal_uses_project_version(self):
         html, _ = self.generate()
@@ -154,6 +162,95 @@ class ReportTerminalTests(unittest.TestCase):
         self.assertNotIn("cards/.html", html)
         self.assertIn("PortfolioRole", html)
         summary_builder.assert_not_called()
+
+    def test_dashboard_counts_all_stances(self):
+        items = [
+            {"symbol": "A", "stance": stance, "combined_score": 70}
+            for stance in (
+                "BUY CANDIDATE",
+                "HOLD / REVIEW",
+                "REDUCE / AVOID",
+                "INSUFFICIENT DATA",
+            )
+        ]
+        metrics = self.dashboard_metrics(items)
+
+        self.assertEqual(metrics["top_opportunities_count"], 4)
+        self.assertEqual(metrics["buy_candidate_count"], 1)
+        self.assertEqual(metrics["hold_review_count"], 1)
+        self.assertEqual(metrics["reduce_avoid_count"], 1)
+        self.assertEqual(metrics["insufficient_data_count"], 1)
+
+    def test_dashboard_average_combined_score(self):
+        items = [
+            {"symbol": "A", "stance": "HOLD / REVIEW", "combined_score": score}
+            for score in (80, 70, "60")
+        ]
+        metrics = self.dashboard_metrics(items)
+        self.assertEqual(metrics["average_combined_score"], "70.00")
+
+    def test_dashboard_ignores_invalid_scores(self):
+        items = [
+            {"symbol": symbol, "stance": "HOLD / REVIEW", "combined_score": score}
+            for symbol, score in (
+                ("A", 80),
+                ("B", None),
+                ("C", float("nan")),
+                ("D", "invalid"),
+            )
+        ]
+        metrics = self.dashboard_metrics(items)
+        self.assertEqual(metrics["average_combined_score"], "80.00")
+        self.assertEqual(metrics["highest_score"], "A / 80.00")
+
+    def test_dashboard_highest_score_uses_first_ticker_on_tie(self):
+        items = [
+            {"symbol": "FIRST", "stance": "HOLD / REVIEW", "combined_score": 92.35},
+            {"symbol": "SECOND", "stance": "HOLD / REVIEW", "combined_score": 92.35},
+            {"symbol": "THIRD", "stance": "HOLD / REVIEW", "combined_score": 80},
+        ]
+        metrics = self.dashboard_metrics(items)
+        self.assertEqual(metrics["highest_score"], "FIRST / 92.35")
+
+    def test_empty_dashboard_metrics(self):
+        metrics = self.dashboard_metrics([])
+        self.assertEqual(metrics["top_opportunities_count"], 0)
+        self.assertEqual(metrics["buy_candidate_count"], 0)
+        self.assertEqual(metrics["hold_review_count"], 0)
+        self.assertEqual(metrics["reduce_avoid_count"], 0)
+        self.assertEqual(metrics["insufficient_data_count"], 0)
+        self.assertEqual(metrics["average_combined_score"], "N/A")
+        self.assertEqual(metrics["highest_score"], "N/A")
+        self.assertEqual(metrics["research_card_link_count"], 0)
+
+    def test_dashboard_model_portfolio_counts_only_valid_tickers(self):
+        metrics = self.dashboard_metrics(
+            [],
+            portfolio_tickers=("GOOGL", " amd ", None, float("nan"), "  "),
+        )
+        self.assertEqual(metrics["model_portfolio_count"], 2)
+
+    def test_dashboard_html_contains_all_metrics_and_original_sections(self):
+        html, _ = self.generate()
+        for expected in (
+            "Today's Research Dashboard",
+            "Pipeline Status",
+            "Top Opportunities",
+            "BUY CANDIDATE",
+            "HOLD / REVIEW",
+            "REDUCE / AVOID",
+            "INSUFFICIENT DATA",
+            "Average Combined Score",
+            "Highest Score",
+            "Model Portfolio Count",
+            "Research Card Links",
+            "Generated Time",
+            "System Status",
+            "Model Portfolio",
+            "Order Review",
+            "Combined Score",
+        ):
+            self.assertIn(expected, html)
 
 
 if __name__ == "__main__":
