@@ -11,6 +11,7 @@ class GenerateStockCardsTests(unittest.TestCase):
         self.temp_directory = tempfile.TemporaryDirectory()
         self.temp_path = Path(self.temp_directory.name)
         self.top10_path = self.temp_path / "results" / "top10.csv"
+        self.portfolio_path = self.temp_path / "results" / "model_portfolio.csv"
         self.cards_dir = self.temp_path / "reports" / "cards"
         self.top10_path.parent.mkdir()
 
@@ -24,18 +25,25 @@ class GenerateStockCardsTests(unittest.TestCase):
             "CARDS_DIR",
             self.cards_dir,
         )
+        self.portfolio_patch = mock.patch.object(
+            generate_stock_cards,
+            "MODEL_PORTFOLIO_PATH",
+            self.portfolio_path,
+        )
         self.generator_patch = mock.patch.object(
             generate_stock_cards,
             "generate_stock_card_report",
             side_effect=self.generate_card,
         )
         self.mock_generator = self.generator_patch.start()
+        self.portfolio_patch.start()
         self.cards_patch.start()
         self.top10_patch.start()
 
     def tearDown(self):
         self.generator_patch.stop()
         self.cards_patch.stop()
+        self.portfolio_patch.stop()
         self.top10_patch.stop()
         self.temp_directory.cleanup()
 
@@ -47,6 +55,9 @@ class GenerateStockCardsTests(unittest.TestCase):
     def write_top10(self, content):
         self.top10_path.write_text(content, encoding="utf-8")
 
+    def write_portfolio(self, content):
+        self.portfolio_path.write_text(content, encoding="utf-8")
+
     def test_generates_one_card_for_each_top10_ticker(self):
         self.write_top10("Ticker,Score\nNVDA,90\nAMD,85\n")
 
@@ -57,6 +68,50 @@ class GenerateStockCardsTests(unittest.TestCase):
         self.assertEqual(
             self.mock_generator.call_args_list,
             [mock.call("NVDA"), mock.call("AMD")],
+        )
+
+    def test_merges_sources_deduplicates_and_preserves_order(self):
+        self.write_top10("Ticker\nNVDA\nAMD\n")
+        self.write_portfolio("Ticker\nAMD\nGOOGL\n")
+
+        paths = generate_stock_cards.generate_all_stock_cards()
+
+        self.assertEqual(
+            [path.name for path in paths],
+            ["NVDA.html", "AMD.html", "GOOGL.html"],
+        )
+        self.assertEqual(
+            self.mock_generator.call_args_list,
+            [mock.call("NVDA"), mock.call("AMD"), mock.call("GOOGL")],
+        )
+
+    def test_missing_portfolio_still_generates_top10(self):
+        self.write_top10("Ticker\nNVDA\n")
+        paths = generate_stock_cards.generate_all_stock_cards()
+        self.assertEqual([path.name for path in paths], ["NVDA.html"])
+
+    def test_portfolio_without_ticker_still_generates_top10(self):
+        self.write_top10("Ticker\nNVDA\n")
+        self.write_portfolio("Symbol\nGOOGL\n")
+        paths = generate_stock_cards.generate_all_stock_cards()
+        self.assertEqual([path.name for path in paths], ["NVDA.html"])
+
+    def test_portfolio_symbol_is_normalized(self):
+        self.write_top10("Ticker\nNVDA\n")
+        self.write_portfolio('Ticker\n" googl "\n')
+        paths = generate_stock_cards.generate_all_stock_cards()
+        self.assertEqual(
+            [path.name for path in paths],
+            ["NVDA.html", "GOOGL.html"],
+        )
+
+    def test_portfolio_empty_and_nan_symbols_are_ignored(self):
+        self.write_top10("Ticker\nNVDA\n")
+        self.write_portfolio('Ticker\n""\nNaN\nGOOGL\n')
+        generate_stock_cards.generate_all_stock_cards()
+        self.assertEqual(
+            self.mock_generator.call_args_list,
+            [mock.call("NVDA"), mock.call("GOOGL")],
         )
 
     def test_missing_top10_csv_raises_file_not_found_error(self):
@@ -79,6 +134,7 @@ class GenerateStockCardsTests(unittest.TestCase):
 
     def test_empty_csv_returns_empty_list(self):
         self.write_top10("Ticker\n")
+        self.write_portfolio("Ticker\n")
 
         paths = generate_stock_cards.generate_all_stock_cards()
 

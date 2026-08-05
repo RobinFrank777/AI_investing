@@ -128,6 +128,33 @@ class ReportTerminalTests(unittest.TestCase):
         source = Path(report_terminal.__file__).read_text(encoding="utf-8")
         self.assertNotIn('VERSION = "v3.3.0"', source)
 
+    def test_model_portfolio_has_normalized_research_card_link(self):
+        self.report_data[1] = (
+            "Model Portfolio",
+            pd.DataFrame(
+                [{"Ticker": " googl ", "PortfolioRole": "candidate"}]
+            ),
+        )
+        html, _ = self.generate()
+        self.assertIn('href="cards/GOOGL.html"', html)
+        self.assertIn("View Card", html)
+        self.assertIn("PortfolioRole", html)
+        self.assertIn("candidate", html)
+
+    def test_model_portfolio_empty_ticker_has_no_empty_link(self):
+        self.report_data[0] = (
+            "Top Opportunities",
+            pd.DataFrame(columns=["Ticker", "CombinedScore"]),
+        )
+        self.report_data[1] = (
+            "Model Portfolio",
+            pd.DataFrame([{"Ticker": None, "PortfolioRole": "candidate"}]),
+        )
+        html, summary_builder = self.generate()
+        self.assertNotIn("cards/.html", html)
+        self.assertIn("PortfolioRole", html)
+        summary_builder.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()

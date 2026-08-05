@@ -66,11 +66,10 @@ def _stance_class(stance):
     }.get(stance, "stance-insufficient")
 
 
-def _top_opportunities_content(dataframe, combined_scores=None):
+def _table_with_card_links(dataframe):
     display_dataframe = dataframe.copy()
     replacements = {}
     links = []
-    cards = []
 
     for row_number, ticker in enumerate(display_dataframe.get("Ticker", [])):
         symbol = _normalized_symbol(ticker)
@@ -84,6 +83,24 @@ def _top_opportunities_content(dataframe, combined_scores=None):
         replacements[placeholder] = f'<a href="{escaped_href}">View Card</a>'
         links.append(placeholder)
 
+    display_dataframe["Research Card"] = links
+    table_html = display_dataframe.to_html(index=False, border=0, na_rep="")
+    for placeholder, link_html in replacements.items():
+        table_html = table_html.replace(placeholder, link_html)
+    return table_html
+
+
+def _top_opportunities_content(dataframe, combined_scores=None):
+    cards = []
+
+    for row_number, ticker in enumerate(dataframe.get("Ticker", [])):
+        symbol = _normalized_symbol(ticker)
+        if not symbol:
+            continue
+
+        href = f"cards/{quote(symbol, safe='')}.html"
+        escaped_href = escape(href, quote=True)
+
         try:
             research = build_research_summary(symbol)
             stance = str(research.get("stance") or "INSUFFICIENT DATA").strip()
@@ -92,7 +109,7 @@ def _top_opportunities_content(dataframe, combined_scores=None):
             stance = "INSUFFICIENT DATA"
             summary = "Research summary is unavailable for this symbol."
 
-        row = display_dataframe.iloc[row_number]
+        row = dataframe.iloc[row_number]
         score = _combined_score_for(symbol, row, combined_scores)
         score_text = f"{score:.2f}" if score is not None else "N/A"
         cards.append(
@@ -109,10 +126,7 @@ def _top_opportunities_content(dataframe, combined_scores=None):
             """
         )
 
-    display_dataframe["Research Card"] = links
-    table_html = display_dataframe.to_html(index=False, border=0, na_rep="")
-    for placeholder, link_html in replacements.items():
-        table_html = table_html.replace(placeholder, link_html)
+    table_html = _table_with_card_links(dataframe)
     return table_html + f'<div class="opportunity-list">{"".join(cards)}</div>'
 
 
@@ -134,7 +148,11 @@ def build_html(report_data):
                 {
                     _top_opportunities_content(dataframe, combined_scores)
                     if section_title == "Top Opportunities"
-                    else dataframe.to_html(index=False, border=0, na_rep="")
+                    else (
+                        _table_with_card_links(dataframe)
+                        if section_title == "Model Portfolio"
+                        else dataframe.to_html(index=False, border=0, na_rep="")
+                    )
                 }
             </div>
         </section>
