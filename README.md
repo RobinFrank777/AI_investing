@@ -11,7 +11,9 @@ The project documentation is organized as follows:
 - **[module_catalog.md](docs/module_catalog.md)** — Module classification, module status, and system inventory.
 - **[development_rules.md](docs/development_rules.md)** — Development workflow, validation requirements, Git workflow, release process, and project governance.
 
-Current release: `v3.2.8`
+Current development release: `v3.3.1`
+
+Release tag pending final review.
 
 These documents should be read together.
 When documentation conflicts, the precedence defined in
@@ -33,6 +35,11 @@ The system supports:
 ## Safety boundary
 
 AI_investing is a research and decision-support system.
+
+- This system provides research outputs only.
+- Validation PASS is not investment approval.
+- Manual review is required before any real trade.
+- No brokerage order is placed by this system.
 
 It does not:
 
@@ -113,6 +120,103 @@ The existing `run_daily.py`, `run_backtest.py`, and `run_portfolio.py` commands
 remain independently usable with their existing meanings. Pipeline and
 validation PASS statuses are research checks, not investment approval; the
 system does not connect to a broker or submit orders.
+
+The current unified pipeline has 18 required steps. The v3.3.1 release review
+completed with 18/18 steps passing.
+
+## v3.3.1 Research Terminal Upgrade
+
+v3.3.1 adds a presentation layer for reviewing existing pipeline outputs:
+
+- Daily Research Terminal
+- Stock Card Data Builder
+- Single Stock HTML Research Card
+- Top10 Batch Stock Card Generator
+- Research Terminal hyperlinks to stock cards
+
+These features read existing research artifacts. They do not change screening,
+scoring, backtesting, position sizing, or order-review logic.
+
+### Recommended run order
+
+Run the three commands from the repository root:
+
+```bash
+python run_all.py
+python generate_stock_cards.py
+python report_terminal.py
+```
+
+`python run_all.py` runs the existing 18-step unified pipeline and generates
+the core CSV and TXT research outputs.
+
+`python generate_stock_cards.py` reads `results/top10.csv` and generates one
+offline HTML research card per Top10 ticker:
+
+```text
+reports/cards/{TICKER}.html
+```
+
+`python report_terminal.py` generates:
+
+```text
+reports/ai_terminal_report.html
+```
+
+The Top Opportunities table in the terminal contains relative links to the
+generated stock cards.
+
+The resulting data flow is:
+
+```text
+Market Data
+→ Validation
+→ Screening
+→ Backtest
+→ Scoring
+→ Portfolio
+→ Order Review
+→ Stock Cards
+→ Research Terminal
+```
+
+### Core project structure
+
+```text
+AI_investing/
+├── run_all.py
+├── report_terminal.py
+├── stock_card_builder.py
+├── stock_card_report.py
+├── generate_stock_cards.py
+├── templates/
+│   ├── report.css
+│   └── stock_card.html
+├── results/
+├── reports/
+│   └── cards/
+└── tests/
+```
+
+- `results/`: runtime CSV outputs
+- `reports/`: daily reports and HTML outputs
+- `reports/cards/`: runtime-generated stock cards; not tracked by Git
+- `templates/`: offline HTML templates and CSS
+- `tests/`: unittest test modules
+
+### Research Terminal tests
+
+Run the v3.3.1 presentation-layer tests from the repository root:
+
+```bash
+python -m unittest tests.test_stock_card_builder -v
+python -m unittest tests.test_stock_card_report -v
+python -m unittest tests.test_generate_stock_cards -v
+python -m unittest tests.test_report_terminal -v
+```
+
+The unified `run_all.py` pipeline is currently 18/18 PASS. This status confirms
+pipeline validation only; it is not investment approval.
 
 ## Daily usage
 
