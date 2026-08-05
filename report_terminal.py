@@ -9,7 +9,7 @@ import pandas as pd
 PROJECT_ROOT = Path(__file__).resolve().parent
 RESULTS_DIR = PROJECT_ROOT / "results"
 OUTPUT_PATH = PROJECT_ROOT / "reports" / "ai_terminal_report.html"
-VERSION = "v3.3.0"
+VERSION = "v3.3.1"
 
 REPORT_SECTIONS = [
     ("Top Opportunities", RESULTS_DIR / "top10.csv"),
