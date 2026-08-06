@@ -94,7 +94,7 @@ def _valid_number(value):
     return value is not None and not pd.isna(value)
 
 
-def build_factor_snapshot(symbol, data=None, _sources=None):
+def _build_factor_snapshot(symbol, data, sources):
     """Return one factor row without mutating caller-supplied market data."""
     ticker = _symbol(symbol)
     row = _empty_row(ticker)
@@ -158,7 +158,6 @@ def build_factor_snapshot(symbol, data=None, _sources=None):
     else:
         messages.append("Indicator inputs missing")
 
-    sources = _load_optional_sources() if _sources is None else _sources
     for name, _, _ in SOURCE_SPECS:
         source = sources[name]
         if ticker in source["duplicates"]:
@@ -177,14 +176,24 @@ def build_factor_snapshot(symbol, data=None, _sources=None):
     return row
 
 
-def build_factor_snapshot_table(symbols=None):
+def build_factor_snapshot(symbol, data=None, *, include_runtime_sources=True):
+    """Return one factor row with optional current production-result fields."""
+    sources = _load_optional_sources() if include_runtime_sources else {
+        name: {"rows": {}, "duplicates": set()} for name, _, _ in SOURCE_SPECS
+    }
+    return _build_factor_snapshot(symbol, data, sources)
+
+
+def build_factor_snapshot_table(symbols=None, *, include_runtime_sources=True):
     """Build one row per requested symbol, preserving source order."""
     requested = load_active_universe() if symbols is None else symbols
-    sources = _load_optional_sources()
+    sources = _load_optional_sources() if include_runtime_sources else {
+        name: {"rows": {}, "duplicates": set()} for name, _, _ in SOURCE_SPECS
+    }
     rows = []
     for symbol in requested:
         try:
-            rows.append(build_factor_snapshot(symbol, _sources=sources))
+            rows.append(_build_factor_snapshot(symbol, None, sources))
         except Exception as error:
             row = _empty_row(symbol)
             row["FactorMessage"] = f"Unexpected symbol error: {error}"
@@ -192,10 +201,14 @@ def build_factor_snapshot_table(symbols=None):
     return pd.DataFrame(rows, columns=SNAPSHOT_COLUMNS)
 
 
-def save_factor_snapshot(symbols=None, output_path=None):
+def save_factor_snapshot(
+    symbols=None, output_path=None, *, include_runtime_sources=True
+):
     """Write the snapshot as UTF-8 CSV and return its Path."""
     path = FACTOR_SNAPSHOT_OUTPUT_PATH if output_path is None else Path(output_path)
-    table = build_factor_snapshot_table(symbols)
+    table = build_factor_snapshot_table(
+        symbols, include_runtime_sources=include_runtime_sources
+    )
     path.parent.mkdir(parents=True, exist_ok=True)
     table.to_csv(path, index=False, encoding="utf-8")
     return path

@@ -36,10 +36,12 @@ def sources(ticker="AAPL", complete=True):
 
 class FactorSnapshotTests(unittest.TestCase):
     def build(self, symbol="AAPL", data=None, source_data=None):
-        return snapshot.build_factor_snapshot(
-            symbol, market() if data is None else data,
-            sources() if source_data is None else source_data,
-        )
+        with patch("factor_snapshot._load_optional_sources", return_value=(
+            sources() if source_data is None else source_data
+        )):
+            return snapshot.build_factor_snapshot(
+                symbol, market() if data is None else data
+            )
 
     def test_valid_data_identification(self):
         row = self.build()
@@ -163,8 +165,37 @@ class FactorSnapshotTests(unittest.TestCase):
 
     @patch("factor_snapshot.load_stock", return_value=market())
     def test_single_snapshot_loads_market_data_once(self, loader):
-        snapshot.build_factor_snapshot("AAPL", _sources=sources())
+        with patch("factor_snapshot._load_optional_sources", return_value=sources()):
+            snapshot.build_factor_snapshot("AAPL")
         loader.assert_called_once_with("AAPL")
+
+    @patch("factor_snapshot._load_optional_sources")
+    def test_runtime_sources_disabled_are_not_opened(self, loader):
+        row = snapshot.build_factor_snapshot(
+            "AAPL", market(), include_runtime_sources=False
+        )
+        loader.assert_not_called()
+        self.assertIsNotNone(row["TrendValue"])
+        self.assertIsNone(row["TechnicalScore"])
+
+    @patch("factor_snapshot._load_optional_sources")
+    @patch("factor_snapshot.load_stock", return_value=market())
+    def test_table_forwards_runtime_source_option(self, _, loader):
+        snapshot.build_factor_snapshot_table(
+            ["AAPL"], include_runtime_sources=False
+        )
+        loader.assert_not_called()
+
+    @patch("factor_snapshot.build_factor_snapshot_table", return_value=pd.DataFrame([{"Ticker": "AAPL"}]))
+    def test_save_forwards_runtime_source_option(self, table):
+        with tempfile.TemporaryDirectory() as directory:
+            snapshot.save_factor_snapshot(
+                ["AAPL"], Path(directory) / "out.csv",
+                include_runtime_sources=False,
+            )
+        table.assert_called_once_with(
+            ["AAPL"], include_runtime_sources=False
+        )
 
     def test_source_loader_missing_file(self):
         with patch.object(snapshot, "SOURCE_SPECS", (("technical", Path("/missing"), {}),)):
