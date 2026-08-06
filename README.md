@@ -11,11 +11,39 @@ The project documentation is organized as follows:
 - **[module_catalog.md](docs/module_catalog.md)** — Module classification, module status, and system inventory.
 - **[development_rules.md](docs/development_rules.md)** — Development workflow, validation requirements, Git workflow, release process, and project governance.
 
-Current development release: `AI_investing v3.5.0`
+Current development release: `AI_investing v3.6.0`
 
 These documents should be read together.
 When documentation conflicts, the precedence defined in
 docs/development_rules.md applies.
+
+## V3.6.0 system status
+
+V3.6.0 completes the following research capabilities:
+
+- Scale50 research universe support
+- unified validation engine
+- factor research report layer
+- research dashboard layer
+- artifact schema documentation
+- research artifact contract testing
+
+The research architecture remains:
+
+```text
+Price Factors
+→ Normalization
+→ Composite Factor Model
+→ Validation Engine
+→ Research Report
+→ Research Dashboard
+→ Documentation
+```
+
+Research and Production remain isolated. Scale50 is used only as a research
+universe and is not a buy list. The Scale50 workflow does not modify the
+production universe, portfolio, or order workflow, and it generates no
+brokerage orders.
 
 ## Project purpose
 

@@ -1,17 +1,24 @@
 # Version History
 
-## V3.6.0 — Research validation and presentation release
+## V3.6.0
 
-V3.6.0 packages the completed Scale50 research path for release review while
-preserving the V3.5.0 production configuration and workflow.
+Release preparation completed for the Scale50 research validation and
+presentation workflow.
 
-Included milestones:
+Completed:
 
-- Phase 7B: isolated Scale50 universe and data-readiness validation.
-- Phase 8A: reusable factor forward-return validation engine.
-- Phase 8B: standardized research report with canonical JSON and HTML outputs.
-- Phase 8C: standalone offline research dashboard driven by the JSON report.
-- Release preparation: artifact-contract documentation and regression coverage.
+- Phase 7B: Scale50 research universe support
+- Phase 8A: unified validation engine
+- Phase 8B: factor research report layer
+- Phase 8C: research dashboard layer
+- Artifact schema documentation
+- Research artifact contract testing
+
+Status:
+
+- Production pipeline unchanged.
+- Research workflow isolated.
+- No brokerage execution.
 
 Model assumptions remain unchanged:
 
@@ -30,9 +37,8 @@ Safety boundaries:
 - Static universe membership may introduce survivorship bias.
 - Historical validation is diagnostic and does not prove future returns.
 
-During release preparation, `PROJECT_VERSION` intentionally remains `v3.5.0`,
-`UNIVERSE_MODE` remains `single`, and the production pipeline remains 18 steps.
-Version activation is a separate production-controlled release action.
+The production universe mode remains `single`, and the production pipeline
+remains 18 steps.
 
 ## V3.5.0 — Scalable market universe foundation
 
