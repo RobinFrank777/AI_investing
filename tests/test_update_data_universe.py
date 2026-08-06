@@ -12,6 +12,7 @@ class UpdateDataUniverseTests(unittest.TestCase):
     @patch("update_data.update_one_stock")
     @patch("update_data.load_active_universe", return_value=["AAPL", "AMD", "NVDA"])
     def test_updates_normal_universe_in_order(self, mock_load, mock_update):
+        mock_update.return_value = {"status": "success"}
         result = update_data.update_all_stocks()
 
         self.assertEqual(
@@ -68,7 +69,11 @@ class UpdateDataUniverseTests(unittest.TestCase):
     @patch("update_data.load_active_universe", return_value=["AAPL", "AMD", "NVDA"])
     @patch("update_data.update_one_stock")
     def test_single_failure_does_not_stop_other_symbols(self, mock_update, _):
-        mock_update.side_effect = [None, RuntimeError("download failed"), None]
+        mock_update.side_effect = [
+            {"status": "success"},
+            {"status": "failed", "message": "download failed"},
+            {"status": "success"},
+        ]
 
         result = update_data.update_all_stocks()
 
@@ -80,6 +85,7 @@ class UpdateDataUniverseTests(unittest.TestCase):
     @patch("update_data.load_active_universe", return_value=["AAPL", "AMD"])
     @patch("update_data.update_one_stock")
     def test_all_success_statistics(self, mock_update, _):
+        mock_update.return_value = {"status": "success"}
         result = update_data.update_all_stocks()
 
         self.assertEqual(
@@ -87,6 +93,22 @@ class UpdateDataUniverseTests(unittest.TestCase):
             {"total": 2, "succeeded": 2, "failed": 0, "failed_symbols": []},
         )
         self.assertEqual(mock_update.call_count, 2)
+
+    @patch("update_data.load_active_universe", return_value=["EMPTY"])
+    @patch("update_data.update_one_stock", return_value={"status": "empty"})
+    def test_empty_download_is_counted_as_failed(self, mock_update, _):
+        result = update_data.update_all_stocks()
+
+        self.assertEqual(
+            result,
+            {
+                "total": 1,
+                "succeeded": 0,
+                "failed": 1,
+                "failed_symbols": ["EMPTY"],
+            },
+        )
+        mock_update.assert_called_once_with("EMPTY")
 
     @patch("update_data.yf.download")
     def test_output_path_filename_and_csv_columns_are_unchanged(self, mock_download):
@@ -104,9 +126,11 @@ class UpdateDataUniverseTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             with patch("update_data.DATA_DIR", Path(directory)):
-                update_data.update_one_stock("BRK.B")
+                result = update_data.update_one_stock("BRK.B")
             output = Path(directory) / "BRK.B.csv"
             self.assertTrue(output.is_file())
+            self.assertEqual(result["status"], "success")
+            self.assertEqual(result["output_path"], str(output))
             self.assertEqual(
                 list(pd.read_csv(output).columns),
                 ["Date", "Open", "High", "Low", "Close", "Volume"],
