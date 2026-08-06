@@ -588,3 +588,56 @@ For a fully refreshed research cycle, the intended high-level order is:
 ```
 
 This sequence is a research workflow. It is not an instruction to place a trade.
+
+---
+
+## V3.6.0 Research Architecture
+
+V3.6.0 retains the V3.5.0 production foundation. During release review,
+`PROJECT_VERSION` remains `v3.5.0`, `UNIVERSE_MODE` remains `single`, and
+the production pipeline remains 18 steps. Release preparation does not change
+the production universe, trading workflow, portfolio construction, or order
+flow.
+
+The research dependency direction is:
+
+```text
+Raw Market Data
+      |
+      v
+Price Factors
+      |
+      v
+Cross-sectional Normalization
+      |
+      v
+Composite Score
+      |
+      v
+Forward-return Validation
+      |
+      v
+Robustness Diagnostics
+      |
+      v
+Research Report (HTML + canonical JSON)
+      |
+      v
+Static Research Dashboard
+```
+
+Phase 7B introduced the explicit, isolated Scale50 research universe and local
+data-readiness workflow. Phase 8A exposed reusable monthly validation for the
+5D, 10D, 20D, and 60D horizons. Phase 8B added the rule-based research report
+and canonical JSON artifact. Phase 8C added a standalone offline dashboard that
+reads only that JSON artifact.
+
+Production continues to use `data/watchlist.csv`, the active universe selected
+by `config.py`, and the unchanged `run_all.py` pipeline. Scale50 outputs are
+research artifacts and do not feed production ranking, portfolio, or order
+modules. Static Scale50 membership may introduce survivorship bias and is not a
+point-in-time historical universe.
+
+The Phase 8B-to-8C boundary is specified in `docs/ArtifactSchema.md`.
+`results/scale50_factor_report.json` is the dashboard's single source of
+truth; HTML outputs are presentations rather than machine interfaces.
