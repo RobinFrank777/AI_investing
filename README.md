@@ -11,7 +11,7 @@ The project documentation is organized as follows:
 - **[module_catalog.md](docs/module_catalog.md)** — Module classification, module status, and system inventory.
 - **[development_rules.md](docs/development_rules.md)** — Development workflow, validation requirements, Git workflow, release process, and project governance.
 
-Current development release: `AI_investing v3.4.0`
+Current development release: `AI_investing v3.5.0`
 
 These documents should be read together.
 When documentation conflicts, the precedence defined in
@@ -123,6 +123,158 @@ system does not connect to a broker or submit orders.
 The current unified pipeline has 18 required steps. The current release review
 completed with 18/18 steps passing.
 
+## v3.5.0 Scalable Market Universe
+
+v3.5.0 adds a deterministic, configurable Market Universe layer while keeping
+the existing formal watchlist and 18-step Pipeline as the default behavior.
+
+### Universe Manager
+
+`universe_manager.py` is the canonical loader for a single Universe CSV. It
+normalizes ticker symbols, filters invalid and disabled values, validates the
+ticker format, and removes duplicates while preserving first appearance.
+An optional `Enabled` column can control membership. Stable summaries are
+available without exposing pandas DataFrames:
+
+```python
+load_universe(...)
+validate_universe(...)
+```
+
+### Universe Groups
+
+`universe_groups.py` composes multiple Universe files. Enabled groups are
+loaded in configuration order, cross-group duplicates retain their first
+appearance, and ticker validation remains delegated to Universe Manager.
+Absolute paths, URLs, parent-directory traversal, non-CSV paths, and paths
+outside the project root are rejected.
+
+```python
+load_universe_config(...)
+validate_universe_config(...)
+load_combined_universe(...)
+```
+
+### Universe Source Selection
+
+`universe_source.py` explicitly selects one of two modes:
+
+- `single`: loads the existing formal `data/watchlist.csv`.
+- `groups`: loads an explicit Universe Groups configuration.
+
+The default remains `UNIVERSE_MODE = "single"`. There is no automatic mode
+detection and no automatic fallback. Explicit function parameters override
+configuration for isolated testing. The public interfaces are:
+
+```python
+load_active_universe(...)
+validate_active_universe(...)
+```
+
+### Market-data update and result contract
+
+`update_data.py` loads symbols once from the active Universe source instead of
+maintaining separate ticker-cleaning logic. Market-data files continue to use
+`data/{SYMBOL}.csv`, and no new `run_all.py` Pipeline step was required.
+
+`update_one_stock(symbol)` returns a structured result containing `symbol`,
+`status`, `rows`, `latest_date`, `output_path`, and `message`. The only statuses
+are:
+
+- `success`: downloaded data contains a valid row and the CSV was written.
+- `empty`: the data provider returned no rows.
+- `failed`: downloading, processing, or writing raised an error.
+
+The absence of an exception is no longer automatically interpreted as a
+successful download.
+
+### Scale50 validation
+
+`universe_scale_test.py` is offline by default. It checks local file existence,
+CSV readability, required `Date` and `Close` columns, valid rows, latest dates,
+and disk usage. Network access requires the explicit `--download` flag, while
+`--limit` keeps the original Universe order:
+
+```bash
+python universe_scale_test.py
+python universe_scale_test.py --limit 5
+python universe_scale_test.py --download --limit 5
+```
+
+Download-attempt status and post-download local-file status remain separate.
+For example, an older valid CSV does not turn a new `empty` or `failed` attempt
+into a success.
+
+### Example configuration
+
+Tracked templates and scalability samples include:
+
+```text
+data/universe_config.example.csv
+data/universes/ai.example.csv
+data/universes/semiconductor.example.csv
+data/universes/space.example.csv
+data/universes/custom.example.csv
+data/universes/scale50.example.csv
+```
+
+Files ending in `.example.csv` are templates or test samples. Formal runtime
+Universe CSV files remain ignored by Git. `scale50.example.csv` is a technical
+scalability sample, not an investment recommendation, and the system does not
+automatically create a formal `scale50.csv`.
+
+### Universe data flow
+
+```text
+Configuration
+    ↓
+Universe Source Selection
+    ├── single → Universe Manager → data/watchlist.csv
+    └── groups → Universe Groups → enabled Universe CSV files
+    ↓
+Active Symbol List
+    ↓
+Market Data Update
+    ↓
+Data Validation
+    ↓
+Technical Screening
+    ↓
+Backtest
+    ↓
+Fundamental Scoring
+    ↓
+Combined Scoring
+    ↓
+Position Sizing
+    ↓
+Order Review
+    ↓
+Research Summary
+    ↓
+Stock Cards
+    ↓
+Research Dashboard
+    ↓
+Research Terminal
+```
+
+Scale50 is not the default active Universe. Universe membership, successful
+downloads, and validation results are not investment signals and do not
+validate company fundamentals or valuation.
+
+### Universe tests
+
+```bash
+python -m unittest tests.test_universe_manager -v
+python -m unittest tests.test_universe_groups -v
+python -m unittest tests.test_universe_source -v
+python -m unittest tests.test_update_data_universe -v
+python -m unittest tests.test_update_one_stock -v
+python -m unittest tests.test_universe_scale_test -v
+python -m unittest discover -s tests -p "test_*.py" -v
+```
+
 ## v3.4.0 Research Center Upgrade
 
 v3.4.0 expands the presentation layer into a deterministic Research Center:
@@ -206,18 +358,33 @@ Market Data
 AI_investing/
 ├── config.py
 ├── run_all.py
+├── update_data.py
+├── universe_manager.py
+├── universe_groups.py
+├── universe_source.py
+├── universe_scale_test.py
 ├── research_summary.py
 ├── report_terminal.py
 ├── stock_card_builder.py
 ├── stock_card_report.py
 ├── generate_stock_cards.py
+├── data/
+│   ├── watchlist.example.csv
+│   ├── universe_config.example.csv
+│   └── universes/
+│       ├── ai.example.csv
+│       ├── semiconductor.example.csv
+│       ├── space.example.csv
+│       ├── custom.example.csv
+│       └── scale50.example.csv
 ├── templates/
 │   ├── report.css
 │   └── stock_card.html
+├── tests/
 ├── results/
 ├── reports/
 │   └── cards/
-└── tests/
+└── logs/
 ```
 
 - `results/`: runtime CSV outputs
@@ -241,6 +408,11 @@ python -m unittest tests.test_report_terminal -v
 The unified `run_all.py` pipeline is currently 18/18 PASS, and all Research
 Center unittest modules pass. These statuses confirm research-system validation
 only; they are not investment approval.
+
+The v3.5.0 Universe features retain the same safety boundary: Scale50 is a
+technical validation Universe, a successful data download is not an investment
+signal, Universe membership is not an investment recommendation, and download
+success does not validate company fundamentals or valuation.
 
 ## Daily usage
 
