@@ -141,6 +141,31 @@ class FactorSnapshotTests(unittest.TestCase):
     def test_fixed_column_order(self, *_):
         self.assertEqual(list(snapshot.build_factor_snapshot_table(["AAPL"])), snapshot.SNAPSHOT_COLUMNS)
 
+    def test_native_factor_columns_follow_return(self):
+        start = snapshot.SNAPSHOT_COLUMNS.index("Return20D")
+        self.assertEqual(snapshot.SNAPSHOT_COLUMNS[start:start + 4], ["Return20D", "TrendValue", "MomentumValue", "Volatility20D"])
+
+    def test_full_history_produces_native_factors(self):
+        row = self.build()
+        for factor in ("TrendValue", "MomentumValue", "Volatility20D"):
+            self.assertIsNotNone(row[factor])
+
+    def test_short_history_native_factors_missing_and_partial(self):
+        row = self.build(data=market(20))
+        self.assertEqual(row["FactorStatus"], "PARTIAL")
+        self.assertIn("TrendValue;MomentumValue;Volatility20D", row["MissingFactors"])
+
+    @patch("factor_snapshot.calculate_price_factors", side_effect=RuntimeError("bad factors"))
+    def test_native_exception_is_symbol_level(self, _):
+        row = self.build()
+        self.assertEqual(row["FactorStatus"], "PARTIAL")
+        self.assertIn("bad factors", row["FactorMessage"])
+
+    @patch("factor_snapshot.load_stock", return_value=market())
+    def test_single_snapshot_loads_market_data_once(self, loader):
+        snapshot.build_factor_snapshot("AAPL", _sources=sources())
+        loader.assert_called_once_with("AAPL")
+
     def test_source_loader_missing_file(self):
         with patch.object(snapshot, "SOURCE_SPECS", (("technical", Path("/missing"), {}),)):
             self.assertEqual(snapshot._load_optional_sources()["technical"]["rows"], {})

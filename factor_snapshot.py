@@ -19,6 +19,7 @@ from config import (
     display_path,
 )
 from indicators import calculate_indicators
+from price_factors import calculate_price_factors
 from stock_loader import load_stock
 from universe_source import load_active_universe
 
@@ -31,7 +32,8 @@ REQUIRED_COLUMNS = [
     "MissingFactors", "FactorMessage",
 ]
 OPTIONAL_COLUMNS = [
-    "Return20D", "MA20", "MA60", "ATR14", "RSI14", "MACD",
+    "Return20D", "TrendValue", "MomentumValue", "Volatility20D",
+    "MA20", "MA60", "ATR14", "RSI14", "MACD",
     "MACDSignal", "MACDHistogram", "TechnicalScore", "BacktestScore",
     "CombinedScore", "MaxDrawdown", "SharpeRatio",
 ]
@@ -131,6 +133,14 @@ def build_factor_snapshot(symbol, data=None, _sources=None):
     })
 
     messages = []
+    try:
+        native_factors = calculate_price_factors(working)
+        for factor, value in native_factors.items():
+            if _valid_number(value):
+                row[factor] = value
+    except Exception as error:
+        messages.append(f"Native price factors unavailable: {error}")
+
     indicator_inputs = {"High", "Low", "Volume"}
     if indicator_inputs.issubset(working.columns):
         try:
