@@ -163,23 +163,34 @@ class UniverseScaleTestTests(unittest.TestCase):
     def test_download_is_followed_by_local_inspection(self, mock_download, mock_inspect):
         self.write_universe(["AAPL"])
         mock_download.return_value = self.download_result("AAPL")
-        mock_inspect.return_value = {
+        missing = {
+            "existing_files": 0, "missing_files": 1, "valid_files": 0,
+            "invalid_files": 0, "symbols_with_data": [],
+            "symbols_missing_data": ["AAPL"], "invalid_entries": [],
+            "warnings": [],
+        }
+        valid = {
             "existing_files": 1,
             "missing_files": 0,
             "valid_files": 1,
             "invalid_files": 0,
             "total_bytes": 10,
             "latest_dates": {"AAPL": "2026-08-05"},
+            "first_dates": {"AAPL": "2026-08-05"},
+            "row_counts": {"AAPL": 1},
+            "file_sizes": {"AAPL": 10},
             "symbols_with_data": ["AAPL"],
             "symbols_missing_data": [],
             "invalid_entries": [],
             "warnings": [],
         }
+        mock_inspect.side_effect = [missing, valid]
         report = universe_scale_test.run_scale_validation(
             self.universe_path, self.data_dir, download=True
         )
         mock_download.assert_called_once_with("AAPL")
-        mock_inspect.assert_called_once_with(["AAPL"], self.data_dir)
+        self.assertEqual(mock_inspect.call_count, 2)
+        mock_inspect.assert_called_with(["AAPL"], self.data_dir)
         self.assertEqual(report["valid_files"], 1)
 
     @patch("universe_scale_test.update_data.update_one_stock")
@@ -271,22 +282,16 @@ class UniverseScaleTestTests(unittest.TestCase):
                 self.assertTrue(report["warnings"])
 
     @patch("universe_scale_test.update_data.update_one_stock")
-    def test_old_valid_file_does_not_change_empty_or_failed_download_status(self, mock_download):
+    def test_existing_valid_files_are_skipped(self, mock_download):
         self.write_universe(["AAPL", "AMD"])
         self.write_data("AAPL", {"Date": ["2026-08-05"], "Close": [1.0]})
         self.write_data("AMD", {"Date": ["2026-08-05"], "Close": [2.0]})
-        mock_download.side_effect = [
-            self.download_result("AAPL", "empty", "no new data"),
-            self.download_result("AMD", "failed", "timeout"),
-        ]
         report = universe_scale_test.run_scale_validation(
             self.universe_path, self.data_dir, download=True
         )
+        mock_download.assert_not_called()
         self.assertEqual(report["valid_files"], 2)
-        self.assertEqual(
-            [result["status"] for result in report["download_summary"]["results"]],
-            ["empty", "failed"],
-        )
+        self.assertEqual(report["download_summary"]["skipped"], 2)
 
     @patch("universe_scale_test.update_data.update_one_stock")
     def test_success_status_is_preserved_when_post_download_file_is_invalid(self, mock_download):
@@ -318,14 +323,32 @@ class UniverseScaleTestTests(unittest.TestCase):
         report = universe_scale_test.run_scale_validation(
             self.universe_path, self.data_dir, download=True
         )
-        first, second = report["download_summary"]["results"]
-        self.assertTrue(first["file_existed_before"])
-        self.assertEqual(first["bytes_before"], before_bytes)
-        self.assertTrue(first["file_exists_after"])
-        self.assertFalse(second["file_existed_before"])
-        self.assertIsNone(second["bytes_before"])
-        self.assertTrue(second["file_exists_after"])
-        self.assertGreater(second["bytes_after"], 0)
+        result = report["download_summary"]["results"][0]
+        mock_download.assert_called_once_with("AMD")
+        self.assertEqual(existing.stat().st_size, before_bytes)
+        self.assertFalse(result["file_existed_before"])
+        self.assertIsNone(result["bytes_before"])
+        self.assertTrue(result["file_exists_after"])
+        self.assertGreater(result["bytes_after"], 0)
+
+    @patch("universe_scale_test.update_data.update_one_stock")
+    def test_download_limit_selects_first_missing_symbols(self, mock_download):
+        self.write_universe(["AAPL", "AMD", "NVDA"])
+        self.write_data("AAPL", {"Date": ["2026-08-05"], "Close": [1.0]})
+        mock_download.return_value = self.download_result("AMD")
+        universe_scale_test.run_scale_validation(
+            self.universe_path, self.data_dir, download=True, limit=1
+        )
+        mock_download.assert_called_once_with("AMD")
+
+    def test_inspection_reports_rows_dates_and_sizes(self):
+        path = self.write_data(
+            "AAPL", {"Date": ["2026-08-01", "2026-08-05"], "Close": [1, 2]}
+        )
+        report = universe_scale_test.inspect_local_data(["AAPL"], self.data_dir)
+        self.assertEqual(report["row_counts"], {"AAPL": 2})
+        self.assertEqual(report["first_dates"], {"AAPL": "2026-08-01"})
+        self.assertEqual(report["file_sizes"], {"AAPL": path.stat().st_size})
 
     def test_inspection_is_deterministic(self):
         self.write_data(

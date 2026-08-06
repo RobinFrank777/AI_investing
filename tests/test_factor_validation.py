@@ -176,6 +176,69 @@ class FactorValidationTests(unittest.TestCase):
             self.assertTrue(all(path.is_file() and "Unnamed: 0" not in pd.read_csv(path).columns for path in result.values()))
 
     @patch("factor_validation.save_factor_validation")
+    @patch("factor_validation.build_validation_summary", return_value={"symbol_count": 3})
+    @patch("factor_validation.build_turnover_table", return_value=pd.DataFrame())
+    @patch("factor_validation.build_group_return_table", return_value=pd.DataFrame())
+    @patch("factor_validation.build_rank_ic_table", return_value=pd.DataFrame())
+    @patch("factor_validation.build_factor_validation_table", return_value=validation_table())
+    @patch("factor_validation.load_active_universe", return_value=["A", "B", "C"])
+    def test_runner_defaults_to_active_universe(
+        self, active, build, rank_ic, groups, turnover, summary, save
+    ):
+        save.return_value = dict(validation.OUTPUT_PATHS)
+        result = validation.run_factor_validation()
+        active.assert_called_once_with()
+        build.assert_called_once_with(
+            ["A", "B", "C"], None, None, None, "monthly"
+        )
+        self.assertEqual(result["output_paths"], dict(validation.OUTPUT_PATHS))
+
+    @patch("factor_validation.load_stock")
+    @patch("factor_validation.load_active_universe")
+    def test_runner_explicit_data_avoids_default_loaders(self, active, stock):
+        data = histories()
+        result = validation.run_factor_validation(
+            ["C", "A"], data, save=False
+        )
+        active.assert_not_called()
+        stock.assert_not_called()
+        self.assertEqual(result["summary"]["symbol_count"], 2)
+
+    def test_runner_preserves_explicit_order(self):
+        result = validation.run_factor_validation(
+            ["C", "A"], histories(), start_date="2024-04-01",
+            end_date="2024-04-30", save=False,
+        )
+        self.assertEqual(result["validation"].Ticker.tolist(), ["C", "A"])
+
+    @patch("factor_validation.save_factor_validation")
+    def test_runner_custom_paths_are_forwarded(self, save):
+        paths = {name: Path(f"scale50_{name}.csv") for name in validation.OUTPUT_PATHS}
+        save.return_value = paths
+        result = validation.run_factor_validation(
+            ["A", "B", "C"], histories(), output_paths=paths
+        )
+        save.assert_called_once_with(result["validation"], paths)
+        self.assertEqual(result["output_paths"], paths)
+
+    @patch("factor_validation.save_factor_validation")
+    def test_runner_save_false_does_not_write(self, save):
+        result = validation.run_factor_validation(
+            ["A", "B", "C"], histories(), save=False
+        )
+        save.assert_not_called()
+        self.assertEqual(result["output_paths"], dict(validation.OUTPUT_PATHS))
+
+    def test_runner_returns_complete_structure(self):
+        result = validation.run_factor_validation(
+            ["A", "B", "C"], histories(), save=False
+        )
+        self.assertEqual(set(result), {
+            "validation", "rank_ic", "group_returns", "turnover",
+            "summary", "output_paths",
+        })
+
+    @patch("factor_validation.save_factor_validation")
     @patch("factor_validation.build_factor_validation_table", return_value=validation_table())
     @patch("factor_validation.load_active_universe", return_value=["A","B","C"])
     def test_cli_without_network(self, _, __, save):

@@ -349,6 +349,34 @@ def save_factor_validation(validation, output_paths=None):
     return paths
 
 
+def run_factor_validation(
+    symbols=None, market_data=None, *, start_date=None, end_date=None,
+    rebalance_frequency="monthly", output_paths=None, save=True,
+):
+    """Run the shared validation workflow for production or explicit research data."""
+    requested = load_active_universe() if symbols is None else list(symbols)
+    validation = build_factor_validation_table(
+        requested, market_data, start_date, end_date, rebalance_frequency
+    )
+    rank_ic = build_rank_ic_table(validation)
+    group_returns = build_group_return_table(validation)
+    turnover = build_turnover_table(validation)
+    summary = build_validation_summary(
+        validation, rank_ic, group_returns, turnover, len(requested)
+    )
+    resolved_paths = dict(OUTPUT_PATHS if output_paths is None else output_paths)
+    if save:
+        resolved_paths = save_factor_validation(validation, resolved_paths)
+    return {
+        "validation": validation,
+        "rank_ic": rank_ic,
+        "group_returns": group_returns,
+        "turnover": turnover,
+        "summary": summary,
+        "output_paths": resolved_paths,
+    }
+
+
 def _parser():
     parser = argparse.ArgumentParser(description="Validate Composite Factor forward returns")
     parser.add_argument("--start"); parser.add_argument("--end")
@@ -365,14 +393,12 @@ def main(argv=None):
         symbols = load_active_universe()
         if args.limit_symbols is not None:
             symbols = symbols[:args.limit_symbols]
-        validation = build_factor_validation_table(
+        result = run_factor_validation(
             symbols, start_date=args.start, end_date=args.end,
             rebalance_frequency=args.frequency,
         )
-        ic = build_rank_ic_table(validation); groups = build_group_return_table(validation)
-        turnover = build_turnover_table(validation)
-        summary = build_validation_summary(validation, ic, groups, turnover, len(symbols))
-        paths = save_factor_validation(validation)
+        summary = result["summary"]
+        paths = result["output_paths"]
         print("Composite Factor Forward Validation")
         print(f"Symbols Requested: {len(symbols)}")
         print(f"Rebalance Dates: {summary['rebalance_count']}")

@@ -149,8 +149,8 @@ class ResearchUniverseTests(unittest.TestCase):
     def test_26_default_snapshot_path(self):
         self.assertEqual(subject.build_research_output_paths(results_dir=self.root)["snapshot"], self.root / "scale50_factor_snapshot.csv")
 
-    def test_27_all_14_paths(self):
-        self.assertEqual(len(subject.build_research_output_paths(results_dir=self.root)), 14)
+    def test_27_all_16_paths(self):
+        self.assertEqual(len(subject.build_research_output_paths(results_dir=self.root)), 16)
 
     def test_28_custom_name(self):
         self.assertTrue(subject.build_research_output_paths("trial_2", self.root)["summary"].name.startswith("trial_2_"))
@@ -181,10 +181,15 @@ class ResearchUniverseTests(unittest.TestCase):
         paths = subject.build_research_output_paths(results_dir=self.root)
         table = pd.DataFrame({"RebalanceDate": ["2025-01-31"], "Ticker": ["S00"], "CompositeFactorScore": [1.0], "ForwardReturn5D": [0.1], "ForwardReturn10D": [0.1], "ForwardReturn20D": [0.1], "ForwardReturn60D": [0.1]})
         empty = pd.DataFrame()
+        validation_run = {
+            "validation": table.copy(), "rank_ic": empty.copy(),
+            "group_returns": empty.copy(), "turnover": empty.copy(),
+            "summary": {"rows": 1}, "output_paths": {},
+        }
         patches = [
             patch.object(subject, "load_research_universe", return_value=SYMBOLS), patch.object(subject, "inspect_research_market_data", return_value=inspection), patch.object(subject, "build_research_output_paths", return_value=paths),
             patch.object(subject, "build_factor_snapshot_table", return_value=table.copy()), patch.object(subject, "build_normalized_factor_table", return_value=table.copy()), patch.object(subject, "build_composite_factor_table", return_value=table.copy()), patch.object(subject, "_read_market_file", return_value=(market(120), pd.Series(pd.date_range("2025-01-01", periods=120)), 120)),
-            patch.object(subject, "build_factor_validation_table", return_value=table.copy()), patch.object(subject, "build_rank_ic_table", return_value=empty.copy()), patch.object(subject, "build_group_return_table", return_value=empty.copy()), patch.object(subject, "build_turnover_table", return_value=empty.copy()), patch.object(subject, "build_validation_summary", return_value={"rows": 1}), patch.object(subject, "build_alternative_entry_validation", return_value=table.copy()), patch.object(subject, "build_date_contribution_diagnostics", return_value=empty.copy()), patch.object(subject, "build_robust_return_statistics", return_value=empty.copy()), patch.object(subject, "build_symbol_influence_table", return_value=empty.copy()), patch.object(subject, "build_entry_comparison", return_value=empty.copy()), patch.object(subject, "classify_market_regimes", return_value=empty.copy()), patch.object(subject, "build_regime_diagnostics", return_value=empty.copy()), patch.object(subject, "build_coverage_diagnostics", return_value=empty.copy()),
+            patch.object(subject, "run_factor_validation", return_value=validation_run), patch.object(subject, "generate_factor_research_report", return_value={"html_path": str(paths["report"]), "json_path": str(paths["report_json"]), "report": {"factors": 3}}), patch.object(subject, "build_alternative_entry_validation", return_value=table.copy()), patch.object(subject, "build_date_contribution_diagnostics", return_value=empty.copy()), patch.object(subject, "build_robust_return_statistics", return_value=empty.copy()), patch.object(subject, "build_symbol_influence_table", return_value=empty.copy()), patch.object(subject, "build_entry_comparison", return_value=empty.copy()), patch.object(subject, "classify_market_regimes", return_value=empty.copy()), patch.object(subject, "build_regime_diagnostics", return_value=empty.copy()), patch.object(subject, "build_coverage_diagnostics", return_value=empty.copy()),
         ]
         return patches
 
@@ -213,6 +218,21 @@ class ResearchUniverseTests(unittest.TestCase):
     def test_39_validation_gets_symbols(self):
         _, mocks = self.run_mocked()
         self.assertEqual(mocks[7].call_args.args[0], SYMBOLS)
+        self.assertEqual(mocks[7].call_args.args[1].keys(), dict.fromkeys(SYMBOLS).keys())
+        self.assertEqual(
+            set(mocks[7].call_args.kwargs["output_paths"]),
+            {"validation", "rank_ic", "group_returns", "turnover"},
+        )
+
+    def test_39b_validation_paths_are_scale50_specific(self):
+        _, mocks = self.run_mocked()
+        output_paths = mocks[7].call_args.kwargs["output_paths"]
+        self.assertTrue(all(path.name.startswith("scale50_") for path in output_paths.values()))
+
+    def test_39c_report_uses_scale50_output(self):
+        _, mocks = self.run_mocked()
+        self.assertTrue(mocks[8].call_args.kwargs["html_path"].name.startswith("scale50_"))
+        self.assertTrue(mocks[8].call_args.kwargs["json_path"].name.startswith("scale50_"))
 
     def test_40_strict_missing_stops_before_factors(self):
         inspection = {"symbols_missing_data": ["S00"], "invalid_entries": [], "factor_eligible_symbols": SYMBOLS[1:], "missing_files": 1, "invalid_files": 0}

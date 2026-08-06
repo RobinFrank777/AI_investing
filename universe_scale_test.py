@@ -13,6 +13,14 @@ from universe_manager import load_universe
 
 
 DEFAULT_UNIVERSE_PATH = DATA_DIR_PATH / "universes" / "scale50.example.csv"
+SAFETY_LINES = [
+    "The Scale50 Universe is a research sample, not an investment recommendation.",
+    "Inclusion in the Universe does not approve a security for purchase.",
+    "Successful market-data download does not validate a security or strategy.",
+    "Factor outputs are research diagnostics only.",
+    "Historical data does not prove future performance.",
+    "No brokerage order is created by this workflow.",
+]
 
 
 def load_scale_test_universe(file_path):
@@ -32,6 +40,9 @@ def inspect_local_data(symbols, data_dir=None):
     valid_files = 0
     total_bytes = 0
     latest_dates = {}
+    first_dates = {}
+    row_counts = {}
+    file_sizes = {}
     symbols_with_data = []
     symbols_missing_data = []
     invalid_entries = []
@@ -45,7 +56,9 @@ def inspect_local_data(symbols, data_dir=None):
 
         existing_files += 1
         try:
-            total_bytes += file_path.stat().st_size
+            file_size = file_path.stat().st_size
+            total_bytes += file_size
+            file_sizes[symbol] = file_size
         except OSError as error:
             invalid_entries.append(
                 _invalid_entry(symbol, file_path, [f"Unable to stat file: {error}"])
@@ -90,8 +103,11 @@ def inspect_local_data(symbols, data_dir=None):
             )
             continue
 
-        latest_date = parsed_dates[usable_rows].max().strftime("%Y-%m-%d")
+        valid_dates = parsed_dates[usable_rows]
+        latest_date = valid_dates.max().strftime("%Y-%m-%d")
+        first_dates[symbol] = valid_dates.min().strftime("%Y-%m-%d")
         latest_dates[symbol] = latest_date
+        row_counts[symbol] = int(usable_rows.sum())
         symbols_with_data.append(symbol)
         valid_files += 1
 
@@ -106,6 +122,9 @@ def inspect_local_data(symbols, data_dir=None):
         "invalid_files": len(invalid_entries),
         "total_bytes": total_bytes,
         "latest_dates": latest_dates,
+        "first_dates": first_dates,
+        "row_counts": row_counts,
+        "file_sizes": file_sizes,
         "symbols_with_data": symbols_with_data,
         "symbols_missing_data": symbols_missing_data,
         "invalid_entries": invalid_entries,
@@ -202,10 +221,14 @@ def _normalize_download_result(symbol, raw_result, output_path):
 
 def _empty_download_summary():
     return {
+        "requested": 0,
+        "existing_valid": 0,
+        "missing_before": 0,
         "attempted": 0,
         "succeeded": 0,
         "empty": 0,
         "failed": 0,
+        "skipped": 0,
         "successful_symbols": [],
         "empty_symbols": [],
         "failed_symbols": [],
@@ -221,12 +244,19 @@ def run_scale_validation(universe_path, data_dir=None, download=False, limit=Non
     selected_limit = _validate_limit(limit)
     source_path = Path(universe_path)
     symbols = load_scale_test_universe(source_path)
-    if selected_limit is not None:
+    if selected_limit is not None and not download:
         symbols = symbols[:selected_limit]
 
     target_dir = Path(data_dir) if data_dir is not None else DATA_DIR_PATH
     download_summary = _empty_download_summary()
     download_warnings = []
+    initial_summary = inspect_local_data(symbols, target_dir)
+    download_summary.update({
+        "requested": len(symbols),
+        "existing_valid": initial_summary["valid_files"],
+        "missing_before": initial_summary["missing_files"],
+        "skipped": initial_summary["valid_files"] + initial_summary["invalid_files"],
+    })
 
     if download:
         target_dir.mkdir(parents=True, exist_ok=True)
@@ -234,7 +264,11 @@ def run_scale_validation(universe_path, data_dir=None, download=False, limit=Non
         original_data_dir = update_data.DATA_DIR
         update_data.DATA_DIR = target_dir
         try:
-            for symbol in symbols:
+            candidates = list(initial_summary["symbols_missing_data"])
+            if selected_limit is not None:
+                candidates = candidates[:selected_limit]
+            download_summary["skipped"] = len(symbols) - len(candidates)
+            for symbol in candidates:
                 download_summary["attempted"] += 1
                 output_file = target_dir / f"{symbol}.csv"
                 before = _file_state(output_file)
@@ -304,11 +338,17 @@ def run_scale_validation(universe_path, data_dir=None, download=False, limit=Non
         "invalid_files": local_summary["invalid_files"],
         "total_bytes": local_summary["total_bytes"],
         "latest_dates": local_summary["latest_dates"],
+        "first_dates": local_summary["first_dates"],
+        "row_counts": local_summary["row_counts"],
+        "file_sizes": local_summary["file_sizes"],
         "symbols_with_data": local_summary["symbols_with_data"],
         "symbols_missing_data": local_summary["symbols_missing_data"],
         "invalid_entries": local_summary["invalid_entries"],
         "elapsed_seconds": elapsed_seconds,
         "download_summary": download_summary,
+        "missing_after": local_summary["missing_files"],
+        "valid_after": local_summary["valid_files"],
+        "invalid_after": local_summary["invalid_files"],
         "warnings": local_summary["warnings"] + download_warnings,
     }
 
@@ -349,6 +389,7 @@ def _print_summary(report):
         print(f"Succeeded: {download['succeeded']}")
         print(f"Empty: {download['empty']}")
         print(f"Failed: {download['failed']}")
+        print(f"Skipped: {download.get('skipped', 0)}")
         print(f"Elapsed: {download['elapsed_seconds']:.2f} seconds")
         print(
             "Average Per Symbol: "
@@ -375,6 +416,8 @@ def _print_summary(report):
         print("Warnings:")
         for warning in report["warnings"]:
             print(f"- {warning}")
+    for line in SAFETY_LINES:
+        print(line)
 
 
 def main(argv=None):

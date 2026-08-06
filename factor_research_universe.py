@@ -11,11 +11,9 @@ import pandas as pd
 from config import DATA_DIR_PATH, REPO_ROOT, RESULTS_DIR_PATH
 from factor_composite import build_composite_factor_table
 from factor_normalization import build_normalized_factor_table
+from factor_research_report import generate_factor_research_report
 from factor_snapshot import build_factor_snapshot_table
-from factor_validation import (
-    build_factor_validation_table, build_group_return_table,
-    build_rank_ic_table, build_turnover_table, build_validation_summary,
-)
+from factor_validation import run_factor_validation
 from factor_validation_robustness import (
     build_alternative_entry_validation, build_coverage_diagnostics,
     build_date_contribution_diagnostics, build_entry_comparison,
@@ -129,6 +127,8 @@ def build_research_output_paths(research_name="scale50", results_dir=None):
         "entry_comparison": "factor_validation_entry_comparison.csv",
         "regimes": "factor_validation_regimes.csv",
         "coverage": "factor_validation_coverage.csv",
+        "report": "factor_report.html",
+        "report_json": "factor_report.json",
         "summary": "factor_research_summary.json",
     }
     return {key: directory / f"{research_name}_{stem}" for key, stem in stems.items()}
@@ -179,15 +179,19 @@ def run_factor_research_universe(
     for symbol in used:
         frame, _, _ = _read_market_file(DATA_DIR_PATH / f"{symbol}.csv")
         market_data[symbol] = frame
-    validation = build_factor_validation_table(
-        used, market_data, start_date, end_date, "monthly"
+    validation_run = run_factor_validation(
+        used, market_data, start_date=start_date, end_date=end_date,
+        rebalance_frequency="monthly",
+        output_paths={
+            name: paths[name]
+            for name in ("validation", "rank_ic", "group_returns", "turnover")
+        },
     )
-    rank_ic = build_rank_ic_table(validation)
-    groups = build_group_return_table(validation)
-    turnover = build_turnover_table(validation)
-    validation_summary = build_validation_summary(
-        validation, rank_ic, groups, turnover, len(used)
-    )
+    validation = validation_run["validation"]
+    rank_ic = validation_run["rank_ic"]
+    groups = validation_run["group_returns"]
+    turnover = validation_run["turnover"]
+    validation_summary = validation_run["summary"]
     next_close = build_alternative_entry_validation(validation, market_data)
     date_contributions = build_date_contribution_diagnostics(groups)
     robust_stats = build_robust_return_statistics(groups)
@@ -201,8 +205,7 @@ def run_factor_research_universe(
     coverage = build_coverage_diagnostics(validation)
     tables = {
         "snapshot": snapshot, "normalized": normalized,
-        "composite": composite, "validation": validation,
-        "rank_ic": rank_ic, "group_returns": groups, "turnover": turnover,
+        "composite": composite,
         "date_contributions": date_contributions, "robust_stats": robust_stats,
         "symbol_influence": symbol_influence,
         "entry_comparison": entry_comparison, "regimes": regime_results,
@@ -211,6 +214,14 @@ def run_factor_research_universe(
     for name, table in tables.items():
         paths[name].parent.mkdir(parents=True, exist_ok=True)
         table.to_csv(paths[name], index=False, encoding="utf-8")
+    report_result = generate_factor_research_report(
+        validation_run["output_paths"],
+        {
+            name: paths[name] for name in ("robust_stats", "regimes", "coverage")
+        },
+        universe="Scale50" if research_name == "scale50" else research_name,
+        html_path=paths["report"], json_path=paths["report_json"],
+    )
     warnings = list(inspection["warnings"])
     if spy is None:
         warnings.append("Local SPY data unavailable; regime classification used no benchmark")
@@ -225,6 +236,7 @@ def run_factor_research_universe(
         "normalization": {"rows": len(normalized)},
         "composite": {"rows": len(composite)},
         "validation": validation_summary,
+        "factor_report": report_result["report"],
         "robustness": {"regime_rows": len(regime_results)},
         "outputs": {key: _display(path) for key, path in paths.items()},
         "warnings": warnings, "safety": list(SAFETY_LINES),
