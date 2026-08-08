@@ -13,8 +13,8 @@ def snapshot_data():
             "Ticker": ["A", "B", "C"],
             "Rank": [3, 1, 2],
             "CompositeScore": [0.7, 0.9, 0.8],
-            "TrendSignal": ["BULLISH", "BEARISH", "MIXED"],
-            "MomentumSignal": ["STRONG", "NORMAL", "NORMAL"],
+            "TrendSignal": ["STRONG", "WEAK", "NORMAL"],
+            "MomentumSignal": ["POSITIVE", "NEUTRAL", "NEUTRAL"],
             "VolatilitySignal": ["LOW", "HIGH", "LOW"],
             "Signal": ["A", "D", "B"],
             "SnapshotStatus": ["ACTIVE", "ACTIVE", "ACTIVE"],
@@ -32,6 +32,9 @@ class ResearchExplanationEngineTests(unittest.TestCase):
     def test_positive_tone_and_summary(self):
         result = subject.build_research_explanations(snapshot_data().iloc[[0]])
         self.assertEqual(result.at[0, "ResearchTone"], "POSITIVE")
+        self.assertEqual(result.at[0, "TrendSignal"], "BULLISH")
+        self.assertEqual(result.at[0, "MomentumSignal"], "STRONG")
+        self.assertEqual(result.at[0, "VolatilitySignal"], "LOW")
         self.assertEqual(
             result.at[0, "ResearchSummary"],
             "Strong trend and momentum with controlled volatility.",
@@ -41,9 +44,20 @@ class ResearchExplanationEngineTests(unittest.TestCase):
         bearish = subject.build_research_explanations(snapshot_data().iloc[[1]])
         self.assertEqual(bearish.at[0, "ResearchTone"], "CAUTION")
         data = snapshot_data().iloc[[2]].copy()
-        data.loc[:, "MomentumSignal"] = "WEAK"
+        data.loc[:, "MomentumSignal"] = "NEGATIVE"
         weak = subject.build_research_explanations(data)
         self.assertEqual(weak.at[0, "ResearchTone"], "CAUTION")
+
+    def test_weak_negative_high_outputs_caution_semantics(self):
+        data = snapshot_data().iloc[[0]].copy()
+        data.loc[:, "TrendSignal"] = "WEAK"
+        data.loc[:, "MomentumSignal"] = "NEGATIVE"
+        data.loc[:, "VolatilitySignal"] = "HIGH"
+        result = subject.build_research_explanations(data)
+        self.assertEqual(result.at[0, "TrendSignal"], "BEARISH")
+        self.assertEqual(result.at[0, "MomentumSignal"], "WEAK")
+        self.assertEqual(result.at[0, "VolatilitySignal"], "HIGH")
+        self.assertEqual(result.at[0, "ResearchTone"], "CAUTION")
 
     def test_neutral_tone_and_summary(self):
         result = subject.build_research_explanations(snapshot_data().iloc[[2]])

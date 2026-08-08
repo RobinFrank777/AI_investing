@@ -7,6 +7,11 @@ from pathlib import Path
 import pandas as pd
 
 from research_schema import normalize_research_schema
+from signal_contract import (
+    normalize_momentum_signal,
+    normalize_trend_signal,
+    normalize_volatility_signal,
+)
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -56,9 +61,9 @@ def _finite_number(value):
 
 def research_tone(trend_signal, momentum_signal, volatility_signal):
     """Classify the supplied signal combination with fixed research rules."""
-    trend = str(trend_signal).strip().upper()
-    momentum = str(momentum_signal).strip().upper()
-    volatility = str(volatility_signal).strip().upper()
+    trend = normalize_trend_signal(trend_signal)
+    momentum = normalize_momentum_signal(momentum_signal)
+    volatility = normalize_volatility_signal(volatility_signal)
     if trend == "BULLISH" and momentum == "STRONG" and volatility == "LOW":
         return "POSITIVE"
     if trend == "BEARISH" or momentum == "WEAK":
@@ -106,9 +111,14 @@ def build_research_explanations(snapshot):
         ticker = "" if pd.isna(source["Ticker"]) else str(source["Ticker"]).strip()
         rank = _finite_number(source["Rank"])
         score = _finite_number(source["CompositeScore"])
-        signals = [
+        raw_signals = [
             "" if pd.isna(source[column]) else str(source[column]).strip().upper()
             for column in ("TrendSignal", "MomentumSignal", "VolatilitySignal")
+        ]
+        signals = [
+            normalize_trend_signal(raw_signals[0]),
+            normalize_momentum_signal(raw_signals[1]),
+            normalize_volatility_signal(raw_signals[2]),
         ]
         snapshot_status = (
             ""
@@ -123,13 +133,13 @@ def build_research_explanations(snapshot):
             or rank is None
             or rank <= 0
             or score is None
-            or not all(signals)
+            or not all(raw_signals)
             or snapshot_status != "ACTIVE"
             or not report_date
         ):
             continue
 
-        tone = research_tone(*signals)
+        tone = research_tone(*raw_signals)
         rows.append(
             {
                 "Ticker": ticker,
