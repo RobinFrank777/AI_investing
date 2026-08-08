@@ -1,5 +1,12 @@
 # Version History
 
+## V3.7.0-rc2
+
+User-layer refinement clarifies research status, separates investment-research
+candidates from data-review issues, and removes duplicate warning text from
+the daily Dashboard and Markdown report. Existing factor, ranking, signal,
+risk, universe, pipeline, and validation logic remains unchanged.
+
 ## V3.7.0-rc1
 
 Release-candidate preparation adds the Universe150 daily research presentation

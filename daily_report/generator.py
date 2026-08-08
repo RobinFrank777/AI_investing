@@ -219,6 +219,11 @@ def build_daily_report(artifacts, generated_at=None):
         ["Rank", "Ticker", "CompositeScore", "Signal", "CandidateStatus"],
         [[row["rank"], row["ticker"], row["score"], row["signal"], row["status"]] for row in candidate_rows],
     )
+    candidate_notice = (
+        "\n" + "\n".join(f"> **{item}**" for item in candidate_warnings)
+        if candidate_warnings
+        else ""
+    )
     summary_lines = []
     for candidate in candidate_rows:
         summary = summary_lookup.get(candidate["ticker"], {})
@@ -232,6 +237,10 @@ def build_daily_report(artifacts, generated_at=None):
             ]
         )
     summary_section = "\n".join(summary_lines).rstrip() if summary_lines else "Data unavailable."
+    if summary_warnings:
+        summary_section += "\n\n" + "\n".join(
+            f"> **{item}**" for item in summary_warnings
+        )
     if alerts_frame is None:
         alert_table = "Data unavailable."
     elif alert_rows:
@@ -241,19 +250,42 @@ def build_daily_report(artifacts, generated_at=None):
         )
     else:
         alert_table = "No active risk alerts."
-    queue = _risk_queue(risk, alert_rows)
-    queue_text = "\n".join(f"- {ticker}: {reason}" for ticker, reason in queue) or "No pending items."
-    insufficient = [row["ticker"] for row in alert_rows if row["type"].upper() == "HISTORY_WARNING"]
-    metric_warnings = [row["message"] for row in alert_rows if row["type"].upper() == "DATA_WARNING"]
-    quality_items = validation_warnings + [f"Historical data insufficient: {ticker}" for ticker in insufficient] + metric_warnings + warnings
-    quality_text = "\n".join(f"- {item}" for item in quality_items) or "- No recorded data quality warnings."
+    research_queue = _markdown_table(
+        ["Symbol", "Rank", "Score", "Signal", "Reason"],
+        [
+            [
+                row["ticker"],
+                f"#{row['rank']}",
+                row["score"],
+                row["signal"],
+                f"Existing research Rank #{row['rank']}; CandidateStatus={row['status']}.",
+            ]
+            for row in candidate_rows
+        ],
+    )
+    if alerts_frame is None:
+        risk_summary = "Data unavailable."
+    elif not alert_rows:
+        risk_summary = "- Total Alerts: 0"
+    else:
+        type_counts = {}
+        level_counts = {}
+        for row in alert_rows:
+            type_counts[row["type"]] = type_counts.get(row["type"], 0) + 1
+            level_counts[row["level"]] = level_counts.get(row["level"], 0) + 1
+        summary_items = [f"Total Alerts: {len(alert_rows)}"]
+        summary_items.extend(f"{name}: {count}" for name, count in sorted(type_counts.items()))
+        summary_items.extend(f"Level {name}: {count}" for name, count in sorted(level_counts.items()))
+        risk_summary = "\n".join(f"- {item}" for item in summary_items)
+    history_count = sum(row["type"].upper() == "HISTORY_WARNING" for row in alert_rows)
+    data_warning_count = sum(row["type"].upper() == "DATA_WARNING" for row in alert_rows)
 
     return f"""# AI_investing Daily Investment Report
 
 Report Date: {report_date}
 Generated At: {now.strftime('%Y-%m-%d %H:%M:%S %Z')}
 
-## 1. Market / Research Status
+## 1. Research Status
 
 - Research Universe: {universe}
 - Research Completed: {completed}
@@ -263,26 +295,34 @@ Generated At: {now.strftime('%Y-%m-%d %H:%M:%S %Z')}
 {quality_warning}
 ## 2. Top 10 Research Candidates
 
-{candidate_table}
+{candidate_table}{candidate_notice}
 
 ## 3. Research Summary
 
 {summary_section}
 
-## 4. Risk Alerts
+## 4. Risk Watchlist
 
-{alert_table}
+{risk_summary}
 
 ## 5. Human Research Queue
 
-{queue_text}
+{research_queue}
 
-## 6. Data Quality
+## 6. Data Review Queue
+
+{alert_table}
+
+## 7. Data Quality
 
 - Validation Status: {validation_status}
-{quality_text}
+- Total Alerts: {len(alert_rows)}
+- History Warnings: {history_count}
+- Data Warnings: {data_warning_count}
+- Validation Warnings: {len(validation_warnings)}
+- Artifact Warnings: {len(warnings)}
 
-## 7. Disclaimer
+## 8. Disclaimer
 
 {DISCLAIMER}
 """

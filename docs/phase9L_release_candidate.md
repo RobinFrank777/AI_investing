@@ -1,6 +1,6 @@
 # Phase 9L Release Candidate
 
-Version: `v3.7.0-rc1`
+Version: `v3.7.0-rc2`
 
 Current phase: `Phase 9L Step 7`
 

@@ -102,7 +102,9 @@ class DailyReportGeneratorTests(unittest.TestCase):
 
     def test_empty_csv_does_not_crash(self):
         self.paths["risk"].write_text("", encoding="utf-8")
-        self.assertIn("Risk: artifact is empty.", self.generate()["markdown"])
+        markdown = self.generate()["markdown"]
+        self.assertIn("Research Universe: Data unavailable", markdown)
+        self.assertIn("Artifact Warnings: 1", markdown)
 
     def test_missing_columns_show_schema_warning(self):
         pd.DataFrame({"Other": [1]}).to_csv(self.paths["candidate"], index=False)
@@ -117,6 +119,16 @@ class DailyReportGeneratorTests(unittest.TestCase):
 
     def test_disclaimer_is_included(self):
         self.assertIn(DISCLAIMER, self.generate()["markdown"])
+
+    def test_human_and_data_review_queues_are_separate(self):
+        markdown = self.generate()["markdown"]
+        self.assertIn("## 5. Human Research Queue", markdown)
+        self.assertIn("Existing research Rank #1; CandidateStatus=READY.", markdown)
+        self.assertIn("## 6. Data Review Queue", markdown)
+
+    def test_alert_message_is_not_duplicated(self):
+        markdown = self.generate()["markdown"]
+        self.assertEqual(1, markdown.count("Manual review required."))
 
 
 if __name__ == "__main__":

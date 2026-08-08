@@ -244,6 +244,36 @@ def _alert_rows(alerts):
     )
 
 
+def _research_queue_rows(candidates):
+    if not candidates:
+        return '<tr><td colspan="5" class="empty">No research candidates</td></tr>'
+    return "\n".join(
+        "<tr>"
+        f"<td>{html.escape(item['symbol'])}</td>"
+        f"<td>#{html.escape(item['rank'])}</td>"
+        f"<td>{html.escape(item['score'])}</td>"
+        f"<td><span class=\"badge\">{html.escape(item['signal'])}</span></td>"
+        f"<td>Existing research Rank #{html.escape(item['rank'])}; "
+        f"CandidateStatus={html.escape(item['validation'])}.</td>"
+        "</tr>"
+        for item in candidates
+    )
+
+
+def _alert_summary(alerts):
+    if not alerts:
+        return "<li>No recorded risk alerts</li>"
+    type_counts = {}
+    level_counts = {}
+    for item in alerts:
+        type_counts[item["type"]] = type_counts.get(item["type"], 0) + 1
+        level_counts[item["level"]] = level_counts.get(item["level"], 0) + 1
+    parts = [f"Total alerts: {len(alerts)}"]
+    parts.extend(f"{name}: {count}" for name, count in sorted(type_counts.items()))
+    parts.extend(f"Level {name}: {count}" for name, count in sorted(level_counts.items()))
+    return "\n".join(f"<li>{html.escape(part)}</li>" for part in parts)
+
+
 def _source_items(sources):
     return "\n".join(
         f"<li><strong>{html.escape(name)}</strong>: "
@@ -298,7 +328,7 @@ def render_dashboard_html(data):
   <div class="subtitle">Report Date: {html.escape(str(data['report_date']))} · Generated At: {html.escape(data['generated_at'])} · Research diagnostics only</div>
 
   <section>
-    <h2>Market Status</h2>
+    <h2>Research Status</h2>
     <div class="cards">
       <div class="card"><div class="label">Research Universe</div><div class="value">{html.escape(str(data['universe_size']))}</div></div>
       <div class="card"><div class="label">Research Completed</div><div class="value">{html.escape(str(data['completed']))}</div></div>
@@ -310,13 +340,6 @@ def render_dashboard_html(data):
   </section>
 
   <section>
-    <h2>Risk Alerts</h2>
-    <table><thead><tr><th>Symbol</th><th>Type</th><th>Level</th><th>Description</th></tr></thead>
-      <tbody>{_alert_rows(data['alert_items'])}</tbody>
-    </table>
-  </section>
-
-  <section>
     <h2>Top Candidates</h2>
     <table><thead><tr><th>Rank</th><th>Symbol</th><th>Score</th><th>Signal</th><th>Validation</th></tr></thead>
       <tbody>{_candidate_rows(data['top_candidates'])}</tbody>
@@ -324,25 +347,33 @@ def render_dashboard_html(data):
   </section>
 
   <section>
-    <h2>Risk Watchlist</h2>
-    <ul>{_warning_items(data['risk_items'], data['global_warnings'])}</ul>
+    <h2>Human Research Queue</h2>
+    <table><thead><tr><th>Symbol</th><th>Rank</th><th>Score</th><th>Signal</th><th>Reason</th></tr></thead>
+      <tbody>{_research_queue_rows(data['top_candidates'])}</tbody>
+    </table>
   </section>
 
   <section>
-    <h2>Human Research Queue</h2>
-    <ul>{_warning_items(
-        [
-            {"ticker": item["symbol"], "reason": item["description"]}
-            for item in data["alert_items"]
-            if item["level"].upper() == "WATCH"
-        ],
-        [],
-    )}</ul>
+    <h2>Risk Watchlist</h2>
+    <ul>{_alert_summary(data['alert_items'])}</ul>
+  </section>
+
+  <section>
+    <h2>Data Review Queue</h2>
+    <table><thead><tr><th>Symbol</th><th>Issue Type</th><th>Level</th><th>Issue</th></tr></thead>
+      <tbody>{_alert_rows(data['alert_items'])}</tbody>
+    </table>
   </section>
 
   <section>
     <h2>Data Quality</h2>
-    <ul>{_warning_items([], data['global_warnings'])}</ul>
+    <ul>
+      <li><strong>Validation Status</strong>: {html.escape(str(data['validation_status']))}</li>
+      <li><strong>Total Alerts</strong>: {len(data['alert_items'])}</li>
+      <li><strong>History Warnings</strong>: {sum(item['type'].upper() == 'HISTORY_WARNING' for item in data['alert_items'])}</li>
+      <li><strong>Data Warnings</strong>: {sum(item['type'].upper() == 'DATA_WARNING' for item in data['alert_items'])}</li>
+      <li><strong>Artifact Warnings</strong>: {len(data['global_warnings'])}</li>
+    </ul>
     <h3>Artifact Sources</h3>
     <ul>{_source_items(data['artifact_sources'])}</ul>
   </section>
