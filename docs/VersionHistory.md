@@ -1,5 +1,27 @@
 # Version History
 
+## V3.7.0-rc1
+
+Release-candidate preparation adds the Universe150 daily research presentation
+and execution interface on top of the V3.6.0 research foundation.
+
+Completed:
+
+- Universe150 data readiness, factor, signal, risk, and research artifact layers;
+- daily research pipeline orchestration, CLI, logging, and scheduler interface;
+- schema compatibility and signal semantic contracts;
+- candidate, snapshot, explanation, and deterministic AI-summary artifacts;
+- factual risk alerts and the static daily research dashboard;
+- investor-facing Markdown daily report; and
+- formal `python daily_report.py` user entry point.
+
+Release-candidate boundaries:
+
+- Existing factor, ranking, signal, and risk calculations are unchanged.
+- Research and production workflows remain isolated.
+- No brokerage order, trade execution, or investment recommendation is created.
+- Validation and historical-data warnings remain visible for manual review.
+
 ## V3.6.0
 
 Release preparation completed for the Scale50 research validation and

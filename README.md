@@ -11,22 +11,23 @@ The project documentation is organized as follows:
 - **[module_catalog.md](docs/module_catalog.md)** — Module classification, module status, and system inventory.
 - **[development_rules.md](docs/development_rules.md)** — Development workflow, validation requirements, Git workflow, release process, and project governance.
 
-Current development release: `AI_investing v3.6.0`
+Current development release: `AI_investing v3.7.0-rc1`
 
 These documents should be read together.
 When documentation conflicts, the precedence defined in
 docs/development_rules.md applies.
 
-## V3.6.0 system status
+## V3.7.0-rc1 system status
 
-V3.6.0 completes the following research capabilities:
+V3.7.0-rc1 retains the V3.6.0 research foundation and adds the Universe150
+daily research user layer:
 
-- Scale50 research universe support
-- unified validation engine
-- factor research report layer
-- research dashboard layer
-- artifact schema documentation
-- research artifact contract testing
+- Universe150 research-data preparation and factor/risk artifact workflow
+- daily research pipeline, status logging, CLI, and scheduled-call entry
+- research schema and signal semantic contracts
+- candidate, snapshot, explanation, and deterministic summary layers
+- factual risk alerts and an offline daily dashboard
+- an investor-facing Markdown daily report and formal `daily_report.py` entry
 
 The research architecture remains:
 
@@ -150,6 +151,27 @@ system does not connect to a broker or submit orders.
 
 The current unified pipeline has 18 required steps. The current release review
 completed with 18/18 steps passing.
+
+## Daily Report Usage
+
+Generate the official user-layer daily research outputs from existing research
+artifacts:
+
+```bash
+python daily_report.py
+```
+
+The command refreshes these presentation artifacts in dependency order:
+
+- `results/risk_alerts.csv`
+- `results/daily_dashboard.html`
+- `results/daily_investment_report.md`
+
+The entry point displays the current project version, release-candidate phase,
+and report date. It only composes existing research results: it does not
+recalculate factors, ranks, signals, or risk metrics, and it does not create
+brokerage orders. Missing or incomplete artifacts remain visible as data-quality
+warnings and require human review.
 
 ## v3.5.0 Scalable Market Universe
 
