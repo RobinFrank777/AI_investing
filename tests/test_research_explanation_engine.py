@@ -16,6 +16,7 @@ def snapshot_data():
             "TrendSignal": ["BULLISH", "BEARISH", "MIXED"],
             "MomentumSignal": ["STRONG", "NORMAL", "NORMAL"],
             "VolatilitySignal": ["LOW", "HIGH", "LOW"],
+            "Signal": ["A", "D", "B"],
             "SnapshotStatus": ["ACTIVE", "ACTIVE", "ACTIVE"],
             "ReportDate": ["2026-08-08"] * 3,
         }

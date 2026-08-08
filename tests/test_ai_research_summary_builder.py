@@ -16,6 +16,7 @@ def explanation_data():
             "TrendSignal": ["BULLISH", "BEARISH", "MIXED"],
             "MomentumSignal": ["STRONG", "NORMAL", "NORMAL"],
             "VolatilitySignal": ["LOW", "HIGH", "LOW"],
+            "Signal": ["A", "D", "B"],
             "ResearchTone": ["POSITIVE", "CAUTION", "NEUTRAL"],
             "ResearchSummary": ["Existing A", "Existing B", "Existing C"],
             "ReportDate": ["2026-08-08"] * 3,

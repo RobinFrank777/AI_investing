@@ -6,6 +6,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from research_schema import normalize_research_schema
+
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 DEFAULT_INPUT_PATH = (
@@ -21,6 +23,7 @@ REQUIRED_COLUMNS = (
     "TrendSignal",
     "MomentumSignal",
     "VolatilitySignal",
+    "Signal",
     "ResearchTone",
     "ResearchSummary",
     "ReportDate",
@@ -29,6 +32,7 @@ OUTPUT_COLUMNS = (
     "Ticker",
     "Rank",
     "CompositeScore",
+    "Signal",
     "ResearchTone",
     "ResearchSummary",
     "AIResearchSummary",
@@ -84,18 +88,19 @@ def build_ai_research_summaries(explanations):
     """Build local summaries while preserving supplied values and row sequence."""
     if not isinstance(explanations, pd.DataFrame):
         raise TypeError("explanations must be a pandas DataFrame")
-    missing = [column for column in REQUIRED_COLUMNS if column not in explanations]
+    explanation_source = normalize_research_schema(explanations)
+    missing = [column for column in REQUIRED_COLUMNS if column not in explanation_source]
     if missing:
         raise ValueError(
             "research explanations are missing required columns: "
             + ", ".join(missing)
         )
-    if explanations.empty:
+    if explanation_source.empty:
         return empty_ai_summaries()
 
     rows = []
     text_columns = REQUIRED_COLUMNS[3:]
-    for _, source in explanations.iterrows():
+    for _, source in explanation_source.iterrows():
         ticker = "" if pd.isna(source["Ticker"]) else str(source["Ticker"]).strip()
         rank = _finite_number(source["Rank"])
         score = _finite_number(source["CompositeScore"])
@@ -117,6 +122,7 @@ def build_ai_research_summaries(explanations):
                 "Ticker": ticker,
                 "Rank": rank,
                 "CompositeScore": score,
+                "Signal": source["Signal"],
                 "ResearchTone": tone,
                 "ResearchSummary": source["ResearchSummary"],
                 "AIResearchSummary": build_template_summary(tone),

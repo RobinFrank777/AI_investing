@@ -29,6 +29,14 @@ class DailyResearchPipelineTests(unittest.TestCase):
             def run(step_name=name):
                 if calls is not None:
                     calls.append(step_name)
+                if step_name == "ResearchDatasetValidator":
+                    return pd.DataFrame(
+                        {
+                            "CheckItem": ["OverallStatus"],
+                            "Value": ["PASS"],
+                            "Status": ["PASS"],
+                        }
+                    )
                 return {"ok": True}
 
             functions[name] = run
@@ -92,13 +100,20 @@ class DailyResearchPipelineTests(unittest.TestCase):
 
     def test_empty_step_results_are_legal_passes(self):
         functions = {name: (lambda: None) for name in subject.STEP_NAMES}
+        functions["ResearchDatasetValidator"] = lambda: pd.DataFrame(
+            {
+                "CheckItem": ["OverallStatus"],
+                "Value": ["PASS"],
+                "Status": ["PASS"],
+            }
+        )
         status = subject.run_daily_research_pipeline(
             output_path=self.output, step_functions=functions
         )["status"]
         self.assertEqual(len(status), 13)
         self.assertTrue((status["Status"] == "PASS").all())
-        self.assertTrue(
-            (status["Message"] == "completed with empty result").all()
+        self.assertEqual(
+            int((status["Message"] == "completed with empty result").sum()), 12
         )
 
     def test_default_functions_call_existing_public_entries(self):
@@ -119,7 +134,18 @@ class DailyResearchPipelineTests(unittest.TestCase):
             (subject.research_report_composer, "generate_research_report"),
         )
         for module, name in targets:
-            patches.append(mock.patch.object(module, name, return_value={"ok": True}))
+            return_value = (
+                pd.DataFrame(
+                    {
+                        "CheckItem": ["OverallStatus"],
+                        "Value": ["PASS"],
+                        "Status": ["PASS"],
+                    }
+                )
+                if name == "validate_research_dataset"
+                else {"ok": True}
+            )
+            patches.append(mock.patch.object(module, name, return_value=return_value))
         mocks = [patch.start() for patch in patches]
         self.addCleanup(lambda: [patch.stop() for patch in patches])
         status = subject.run_daily_research_pipeline(output_path=self.output)["status"]
@@ -132,6 +158,21 @@ class DailyResearchPipelineTests(unittest.TestCase):
                 output_path=self.output,
                 step_functions={"UnknownStep": lambda: None},
             )
+
+    def test_failed_validator_blocks_remaining_steps(self):
+        functions = self.successful_steps()
+        functions["ResearchDatasetValidator"] = lambda: pd.DataFrame(
+            {
+                "CheckItem": ["OverallStatus"],
+                "Value": ["FAILED"],
+                "Status": ["FAILED"],
+            }
+        )
+        status = subject.run_daily_research_pipeline(
+            output_path=self.output, step_functions=functions
+        )["status"]
+        self.assertEqual(status.loc[6, "Status"], "FAILED")
+        self.assertTrue((status.loc[7:, "Status"] == "SKIPPED").all())
 
     def test_existing_modules_are_not_modified_by_pipeline(self):
         source = Path(subject.__file__).read_text(encoding="utf-8")

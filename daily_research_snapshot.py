@@ -7,6 +7,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from research_schema import normalize_research_schema
+
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 DEFAULT_INPUT_PATH = PROJECT_ROOT / "results" / "universe150_candidate_report.csv"
@@ -21,6 +23,7 @@ REQUIRED_COLUMNS = (
     "MomentumSignal",
     "VolatilitySignal",
     "CompositeSignal",
+    "Signal",
     "RiskStatus",
     "CandidateStatus",
     "ResearchPriority",
@@ -78,12 +81,13 @@ def build_daily_snapshot(candidate_report, generation_date=None):
     """Build snapshot rows while preserving saved values and row sequence."""
     if not isinstance(candidate_report, pd.DataFrame):
         raise TypeError("candidate report must be a pandas DataFrame")
-    missing = [column for column in REQUIRED_COLUMNS if column not in candidate_report]
+    report_source = normalize_research_schema(candidate_report)
+    missing = [column for column in REQUIRED_COLUMNS if column not in report_source]
     if missing:
         raise ValueError(
             "candidate report is missing required columns: " + ", ".join(missing)
         )
-    if candidate_report.empty:
+    if report_source.empty:
         return empty_snapshot()
 
     fallback_date = (
@@ -91,10 +95,10 @@ def build_daily_snapshot(candidate_report, generation_date=None):
         if generation_date is None
         else _formatted_date(generation_date, date.today().isoformat())
     )
-    has_report_date = "ReportDate" in candidate_report.columns
+    has_report_date = "ReportDate" in report_source.columns
     text_columns = REQUIRED_COLUMNS[3:]
     rows = []
-    for _, source in candidate_report.iterrows():
+    for _, source in report_source.iterrows():
         ticker = "" if pd.isna(source["Ticker"]) else str(source["Ticker"]).strip()
         rank = _finite_number(source["Rank"])
         score = _finite_number(source["CompositeScore"])

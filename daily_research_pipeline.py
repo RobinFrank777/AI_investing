@@ -84,6 +84,22 @@ def _save_status(status, output_path):
     return path
 
 
+def _validation_failure(result):
+    if not isinstance(result, pd.DataFrame):
+        return "validator returned an invalid result"
+    required = {"CheckItem", "Value", "Status"}
+    if not required.issubset(result.columns):
+        return "validator result is missing required fields"
+    overall = result.loc[result["CheckItem"] == "OverallStatus"]
+    if overall.empty:
+        return "validator result is missing OverallStatus"
+    value = str(overall.iloc[0]["Value"]).strip().upper()
+    status = str(overall.iloc[0]["Status"]).strip().upper()
+    if value == "FAILED" or status == "FAILED":
+        return "research dataset validation failed"
+    return None
+
+
 def run_daily_research_pipeline(
     *, output_path=None, run_date=None, step_functions=None
 ):
@@ -125,15 +141,33 @@ def run_daily_research_pipeline(
             )
             blocked_by = step_name
         else:
-            message = "completed" if result is not None else "completed with empty result"
-            rows.append(
-                {
-                    "StepName": step_name,
-                    "Status": "PASS",
-                    "Message": message,
-                    "RunDate": current_date,
-                }
+            validation_error = (
+                _validation_failure(result)
+                if step_name == "ResearchDatasetValidator"
+                else None
             )
+            if validation_error is not None:
+                rows.append(
+                    {
+                        "StepName": step_name,
+                        "Status": "FAILED",
+                        "Message": validation_error,
+                        "RunDate": current_date,
+                    }
+                )
+                blocked_by = step_name
+            else:
+                message = (
+                    "completed" if result is not None else "completed with empty result"
+                )
+                rows.append(
+                    {
+                        "StepName": step_name,
+                        "Status": "PASS",
+                        "Message": message,
+                        "RunDate": current_date,
+                    }
+                )
 
     status = pd.DataFrame(rows, columns=STATUS_COLUMNS)
     path = _save_status(status, output_path)

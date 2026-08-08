@@ -17,6 +17,7 @@ def research_data():
             "MomentumSignal": ["POSITIVE", "POSITIVE", "NEUTRAL"],
             "VolatilitySignal": ["LOW", "LOW", "NORMAL"],
             "CompositeSignal": ["B", "A", "B"],
+            "Signal": ["B", "A", "B"],
             "RiskStatus": ["PASS", "PASS", "PARTIAL"],
             "ResearchStatus": ["PASS", "PASS", "PASS"],
         }

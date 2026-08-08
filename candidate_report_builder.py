@@ -7,6 +7,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from research_schema import normalize_research_schema
+
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 DEFAULT_INPUT_PATH = PROJECT_ROOT / "results" / "universe150_research_candidates.csv"
@@ -19,6 +21,7 @@ SOURCE_COLUMNS = (
     "MomentumSignal",
     "VolatilitySignal",
     "CompositeSignal",
+    "Signal",
     "RiskStatus",
     "CandidateStatus",
 )
@@ -75,12 +78,13 @@ def build_candidate_report(candidates, generation_date=None):
     """Build display rows without changing saved ranks, scores, or signals."""
     if not isinstance(candidates, pd.DataFrame):
         raise TypeError("candidates must be a pandas DataFrame")
-    missing = [column for column in SOURCE_COLUMNS if column not in candidates]
+    candidate_source = normalize_research_schema(candidates)
+    missing = [column for column in SOURCE_COLUMNS if column not in candidate_source]
     if missing:
         raise ValueError(
             "candidate data is missing required columns: " + ", ".join(missing)
         )
-    if candidates.empty:
+    if candidate_source.empty:
         return empty_candidate_report()
 
     fallback_date = (
@@ -88,9 +92,9 @@ def build_candidate_report(candidates, generation_date=None):
         if generation_date is None
         else _formatted_date(generation_date, date.today().isoformat())
     )
-    has_report_date = "ReportDate" in candidates.columns
+    has_report_date = "ReportDate" in candidate_source.columns
     rows = []
-    for _, source in candidates.iterrows():
+    for _, source in candidate_source.iterrows():
         ticker = "" if pd.isna(source["Ticker"]) else str(source["Ticker"]).strip()
         rank = _finite_number(source["Rank"])
         score = _finite_number(source["CompositeScore"])

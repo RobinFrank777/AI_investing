@@ -6,6 +6,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from research_schema import normalize_research_schema
+
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 DEFAULT_INPUT_PATH = (
@@ -14,7 +16,7 @@ DEFAULT_INPUT_PATH = (
 DEFAULT_OUTPUT_PATH = PROJECT_ROOT / "results" / "universe150_research_report.md"
 REQUIRED_COLUMNS = (
     "Rank",
-    "Symbol",
+    "Ticker",
     "CompositeScore",
     "Signal",
     "ResearchTone",
@@ -61,22 +63,23 @@ def compose_research_report(summaries):
     """Render valid summary rows in their supplied sequence."""
     if not isinstance(summaries, pd.DataFrame):
         raise TypeError("summaries must be a pandas DataFrame")
-    missing = [column for column in REQUIRED_COLUMNS if column not in summaries]
+    summary_source = normalize_research_schema(summaries)
+    missing = [column for column in REQUIRED_COLUMNS if column not in summary_source]
     if missing:
         raise ValueError(
             "AI research summary is missing required columns: " + ", ".join(missing)
         )
-    if summaries.empty:
+    if summary_source.empty:
         return EMPTY_REPORT
 
     candidates = []
-    for _, source in summaries.iterrows():
+    for _, source in summary_source.iterrows():
         rank = _finite_number(source["Rank"])
         score = _finite_number(source["CompositeScore"])
         fields = {
             column: _text(source[column])
             for column in (
-                "Symbol",
+                "Ticker",
                 "Signal",
                 "ResearchTone",
                 "ResearchSummary",
@@ -103,7 +106,7 @@ def compose_research_report(summaries):
     for index, (rank, score, fields) in enumerate(candidates):
         lines.extend(
             (
-                f"### Rank {_display_number(rank)} - {fields['Symbol']}",
+                f"### Rank {_display_number(rank)} - {fields['Ticker']}",
                 "",
                 "Composite Score:",
                 _display_number(score),

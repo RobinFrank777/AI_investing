@@ -34,6 +34,33 @@ def risk_data(statuses=("PASS", "PASS"), tickers=("A", "B")):
     )
 
 
+def ranking_data(tickers=("A", "B")):
+    size = len(tickers)
+    return pd.DataFrame(
+        {
+            "Ticker": list(tickers),
+            "TrendScore": [0.8] * size,
+            "MomentumScore": [0.7] * size,
+            "LowVolScore": [0.6] * size,
+            "CompositeScore": [0.71] * size,
+            "Rank": list(range(1, size + 1)),
+        }
+    )
+
+
+def signal_data(tickers=("A", "B")):
+    size = len(tickers)
+    return pd.DataFrame(
+        {
+            "Ticker": list(tickers),
+            "TrendSignal": ["STRONG"] * size,
+            "MomentumSignal": ["POSITIVE"] * size,
+            "VolatilitySignal": ["LOW"] * size,
+            "CompositeSignal": ["B"] * size,
+        }
+    )
+
+
 class RiskFactorMergeTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -117,16 +144,28 @@ class RiskFactorMergeTests(unittest.TestCase):
     def test_run_saves_expected_artifact(self):
         factor_path = self.write_csv(factor_data(), "factor.csv")
         risk_path = self.write_csv(risk_data(), "risk.csv")
+        self.write_csv(
+            ranking_data(), subject.DEFAULT_RANKING_PATH.name
+        )
+        self.write_csv(signal_data(), subject.DEFAULT_SIGNAL_PATH.name)
         output = self.root / "results" / "universe150_research_raw.csv"
         result = subject.run_risk_factor_merge(factor_path, risk_path, output)
         self.assertEqual(result["output_path"], str(output))
         self.assertEqual(result["summary"], {"total": 2, "pass": 2, "partial": 0, "failed": 0})
         self.assertTrue(output.is_file())
 
+    def test_enriched_merge_preserves_ranking_and_signal_contract(self):
+        result = subject.merge_research_artifacts(
+            factor_data(), risk_data(), ranking_data(), signal_data()
+        )
+        self.assertEqual(result["Rank"].tolist(), [1, 2])
+        self.assertEqual(result["CompositeScore"].tolist(), [0.71, 0.71])
+        self.assertEqual(result["Signal"].tolist(), ["B", "B"])
+        self.assertEqual(result["ResearchStatus"].tolist(), ["PASS", "PASS"])
+
     def test_no_forbidden_dependencies(self):
         source = Path(subject.__file__).read_text(encoding="utf-8")
         forbidden_references = (
-            "factor_ranking",
             "factor_normalization",
             "import portfolio",
             "import watchlist",

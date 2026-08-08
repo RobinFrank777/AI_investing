@@ -6,6 +6,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from research_schema import normalize_research_schema
+
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 DEFAULT_INPUT_PATH = PROJECT_ROOT / "results" / "universe150_research_raw.csv"
@@ -18,6 +20,7 @@ REQUIRED_COLUMNS = (
     "MomentumSignal",
     "VolatilitySignal",
     "CompositeSignal",
+    "Signal",
     "RiskStatus",
     "ResearchStatus",
 )
@@ -67,16 +70,17 @@ def select_research_candidates(research):
     """Filter valid candidates and preserve their existing scores and ranks."""
     if not isinstance(research, pd.DataFrame):
         raise TypeError("research data must be a pandas DataFrame")
-    missing = [column for column in REQUIRED_COLUMNS if column not in research]
+    research_source = normalize_research_schema(research)
+    missing = [column for column in REQUIRED_COLUMNS if column not in research_source]
     if missing:
         raise ValueError(
             "research data is missing required columns: " + ", ".join(missing)
         )
-    if research.empty:
+    if research_source.empty:
         return empty_candidates()
 
     rows = []
-    for _, source in research.iterrows():
+    for _, source in research_source.iterrows():
         ticker = "" if pd.isna(source["Ticker"]) else str(source["Ticker"]).strip()
         rank = _finite_number(source["Rank"])
         score = _finite_number(source["CompositeScore"])

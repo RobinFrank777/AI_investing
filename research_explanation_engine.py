@@ -6,6 +6,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from research_schema import normalize_research_schema
+
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 DEFAULT_INPUT_PATH = (
@@ -21,6 +23,7 @@ REQUIRED_COLUMNS = (
     "TrendSignal",
     "MomentumSignal",
     "VolatilitySignal",
+    "Signal",
     "SnapshotStatus",
     "ReportDate",
 )
@@ -31,6 +34,7 @@ OUTPUT_COLUMNS = (
     "TrendSignal",
     "MomentumSignal",
     "VolatilitySignal",
+    "Signal",
     "ResearchTone",
     "ResearchSummary",
     "ReportDate",
@@ -88,16 +92,17 @@ def build_research_explanations(snapshot):
     """Build explanations while preserving the supplied row sequence and values."""
     if not isinstance(snapshot, pd.DataFrame):
         raise TypeError("snapshot must be a pandas DataFrame")
-    missing = [column for column in REQUIRED_COLUMNS if column not in snapshot]
+    snapshot_source = normalize_research_schema(snapshot)
+    missing = [column for column in REQUIRED_COLUMNS if column not in snapshot_source]
     if missing:
         raise ValueError(
             "daily snapshot is missing required columns: " + ", ".join(missing)
         )
-    if snapshot.empty:
+    if snapshot_source.empty:
         return empty_explanations()
 
     rows = []
-    for _, source in snapshot.iterrows():
+    for _, source in snapshot_source.iterrows():
         ticker = "" if pd.isna(source["Ticker"]) else str(source["Ticker"]).strip()
         rank = _finite_number(source["Rank"])
         score = _finite_number(source["CompositeScore"])
@@ -133,6 +138,7 @@ def build_research_explanations(snapshot):
                 "TrendSignal": signals[0],
                 "MomentumSignal": signals[1],
                 "VolatilitySignal": signals[2],
+                "Signal": source["Signal"],
                 "ResearchTone": tone,
                 "ResearchSummary": research_summary(tone),
                 "ReportDate": report_date,
