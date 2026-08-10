@@ -212,7 +212,65 @@ moat_score
 成本优势
 数据优势
 生态系统
-9. 增长驱动
+9. 估值类型
+
+字段：
+
+valuation_type
+
+定义：
+
+公司当前适用的长期估值分析方法类型。
+
+用于未来：
+
+价值投资分析
+估值模型选择
+投资阶段判断
+
+标准类型：
+
+Growth
+
+适用于高速成长型公司。
+
+例如：
+
+NVDA
+AI产业增长驱动，主要关注未来盈利增长。
+
+
+Value
+
+适用于成熟价值型公司。
+
+例如：
+
+BRK.B
+主要关注内在价值、现金流和资产质量。
+
+
+Cyclical
+
+适用于周期型公司。
+
+例如：
+
+MU
+需要结合行业周期和盈利周期分析。
+
+
+Asset-Based
+
+适用于资产价值驱动型公司。
+
+
+Not Applicable
+
+暂不适合使用传统估值模型的公司。
+
+
+10. 增长驱动
 
 字段：
 
@@ -237,7 +295,7 @@ Robotaxi
 FSD
 Energy Storage
 Optimus
-10. 风险因素
+11. 风险因素
 
 字段：
 
@@ -260,7 +318,7 @@ RKLB：
 发射失败风险
 盈利周期较长
 商业航天竞争
-11. 投资阶段
+12. 投资阶段
 
 字段：
 
@@ -282,7 +340,7 @@ MSFT	Mature Growth
 NVDA	Growth
 RKLB	Early Growth
 ASTS	Speculative
-12. 投资者评分
+13. 投资者评分
 
 字段：
 
@@ -314,7 +372,7 @@ NVDA
 RKLB
 
 70
-13. 更新时间
+14. 更新时间
 
 字段：
 
@@ -328,7 +386,7 @@ YYYY-MM-DD
 
 跟踪研究有效期。
 
-14. 完整 Schema
+15. 完整 Schema
 
 最终：
 
@@ -347,7 +405,7 @@ business_model
 investment_thesis
 
 moat_score
-
+valuation_type
 growth_driver
 
 risk_factor
@@ -358,8 +416,8 @@ investor_rating
 
 last_update
 
-15. 数据维护规则
-15.1 更新频率
+16. 数据维护规则
+16.1 更新频率
 
 不是每日更新。
 
@@ -372,7 +430,7 @@ last_update
 财报
 管理层变化
 行业变化
-15.2 重大事件更新
+16.2 重大事件更新
 
 以下情况立即更新：
 
@@ -381,7 +439,7 @@ CEO变化
 重大收购
 技术路线变化
 竞争格局变化
-16. 与现有系统连接
+17. 与现有系统连接
 
 V3.8.0之后：
 
@@ -418,7 +476,7 @@ Risk
 
 形成完整研究卡片。
 
-17. 与AI模块连接
+18. 与AI模块连接
 
 未来：
 
@@ -450,7 +508,7 @@ news
 
 AI Analyst Summary
 
-18. 第一阶段范围控制
+19. 第一阶段范围控制
 
 V3.8.0 Phase 1：
 
@@ -472,7 +530,7 @@ V3.8.0 Phase 1：
 
 先建立稳定基础。
 
-19. Phase 1 文件规划
+20. Phase 1 文件规划
 
 新增：
 
@@ -495,7 +553,7 @@ tests/
 
     test_company_profile.py
 
-20. 开发流程
+21. 开发流程
 
 严格按照 AI_investing 原流程：
 
