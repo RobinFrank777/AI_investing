@@ -25,6 +25,16 @@ SECTION_CONFIG = (
     ("MODEL_PORTFOLIO", "model_portfolio", "No matching Model Portfolio record."),
     ("ORDER_REVIEW", "order_review", "No matching Order Review record."),
 )
+INVESTMENT_PROFILE_DISPLAY_FIELDS = (
+    ("Company", "company_name"),
+    ("Business Model", "business_model"),
+    ("Investment Thesis", "investment_thesis"),
+    ("Moat Score", "moat_score"),
+    ("Growth Driver", "growth_driver"),
+    ("Risk Factor", "risk_factor"),
+    ("Investment Stage", "investment_stage"),
+    ("Investor Rating", "investor_rating"),
+)
 
 
 def _display_value(value):
@@ -74,6 +84,18 @@ def _build_research_list(items, css_class, empty_message):
     return f'<ul class="{css_class}">{list_items}</ul>'
 
 
+def _build_investment_profile(profile):
+    if profile is None:
+        return '<p class="empty">Investment Profile unavailable.</p>'
+    return "\n".join(
+        "<p>"
+        f"<strong>{escape(label, quote=True)}:</strong> "
+        f"{_display_value(profile.get(field))}"
+        "</p>"
+        for label, field in INVESTMENT_PROFILE_DISPLAY_FIELDS
+    )
+
+
 def generate_stock_card_report(symbol):
     normalized_symbol = str(symbol).strip().upper() if symbol is not None else ""
     if not normalized_symbol:
@@ -106,6 +128,9 @@ def generate_stock_card_report(symbol):
             "No additional rule-based risks were identified.",
         ),
         "{{RESEARCH_SUMMARY}}": _display_value(research_summary.get("summary")),
+        "{{INVESTMENT_PROFILE}}": _build_investment_profile(
+            stock_card.get("investment_profile")
+        ),
         "{{MANUAL_REVIEW_WARNING}}": (
             '<p class="manual-review-warning">'
             "Manual review is required before any real trade."

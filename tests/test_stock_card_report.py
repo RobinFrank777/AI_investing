@@ -105,6 +105,45 @@ class StockCardReportTests(unittest.TestCase):
         ):
             self.assertIn(expected, html)
 
+    def test_displays_valid_investment_profile(self):
+        self.stock_card["investment_profile"] = {
+            "company_name": "Alphabet",
+            "business_model": "Digital advertising and cloud services",
+            "investment_thesis": "AI and cloud growth",
+            "moat_score": 5,
+            "growth_driver": "AI adoption",
+            "risk_factor": "Regulation",
+            "investment_stage": "MATURE",
+            "investor_rating": 90,
+        }
+
+        html = self.read_report(
+            stock_card_report.generate_stock_card_report("GOOGL")
+        )
+
+        for expected in (
+            "Investment Profile",
+            "Alphabet",
+            "Digital advertising and cloud services",
+            "AI and cloud growth",
+            "Moat Score:</strong> 5",
+            "AI adoption",
+            "Regulation",
+            "MATURE",
+            "Investor Rating:</strong> 90",
+        ):
+            self.assertIn(expected, html)
+
+    def test_unavailable_profile_does_not_break_report(self):
+        self.stock_card["investment_profile"] = None
+
+        output_path = stock_card_report.generate_stock_card_report("GOOGL")
+        html = self.read_report(output_path)
+
+        self.assertTrue(output_path.exists())
+        self.assertIn("Investment Profile unavailable.", html)
+        self.assertIn("Combined Score", html)
+
     def test_empty_strengths_show_explanation(self):
         self.research_summary["strengths"] = []
         html = self.read_report(

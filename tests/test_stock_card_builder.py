@@ -41,10 +41,17 @@ class StockCardBuilderTests(unittest.TestCase):
             "CARD_SOURCES",
             self.sources,
         )
+        self.profile_patch = mock.patch.object(
+            stock_card_builder,
+            "load_company_profile",
+            return_value=None,
+        )
+        self.mock_profile_loader = self.profile_patch.start()
         self.sources_patch.start()
 
     def tearDown(self):
         self.sources_patch.stop()
+        self.profile_patch.stop()
         self.temp_directory.cleanup()
 
     def test_normal_symbol_matches_available_sources(self):
@@ -109,6 +116,51 @@ class StockCardBuilderTests(unittest.TestCase):
         self.assertEqual(card["model_portfolio"]["Ticker"], "GOOGL")
         self.assertEqual(card["order_review"]["Ticker"], "GOOGL")
         self.assertEqual(card["combined_score"]["Ticker"], "GOOGL")
+
+    def test_valid_investment_profile_is_mapped(self):
+        self.mock_profile_loader.return_value = {
+            "ticker": "GOOGL",
+            "company": "Alphabet",
+            "business_model": "Digital advertising and cloud services",
+            "investment_thesis": "AI and cloud growth",
+            "moat_score": 5,
+            "growth_driver": "AI adoption",
+            "risk_factor": "Regulation",
+            "investment_stage": "MATURE",
+            "investor_rating": 90,
+        }
+
+        card = stock_card_builder.build_stock_card("GOOGL")
+
+        self.assertEqual(
+            card["investment_profile"],
+            {
+                "company_name": "Alphabet",
+                "business_model": "Digital advertising and cloud services",
+                "investment_thesis": "AI and cloud growth",
+                "moat_score": 5,
+                "growth_driver": "AI adoption",
+                "risk_factor": "Regulation",
+                "investment_stage": "MATURE",
+                "investor_rating": 90,
+            },
+        )
+
+    def test_ticker_without_profile_returns_none(self):
+        card = stock_card_builder.build_stock_card("GOOGL")
+        self.assertIsNone(card["investment_profile"])
+
+    def test_missing_profile_file_does_not_break_card(self):
+        self.mock_profile_loader.side_effect = FileNotFoundError("missing")
+        card = stock_card_builder.build_stock_card("GOOGL")
+        self.assertIsNone(card["investment_profile"])
+        self.assertIsNotNone(card["combined_score"])
+
+    def test_invalid_profile_data_does_not_break_card(self):
+        self.mock_profile_loader.side_effect = ValueError("validation failed")
+        card = stock_card_builder.build_stock_card("GOOGL")
+        self.assertIsNone(card["investment_profile"])
+        self.assertIsNotNone(card["combined_score"])
 
 
 if __name__ == "__main__":
