@@ -296,7 +296,9 @@ Growth
 
 Value
 
-Dividend
+Cyclical
+
+Asset-Based
 
 Not Applicable
 
@@ -329,6 +331,8 @@ GROWTH
 EARLY_GROWTH
 
 SPECULATIVE
+
+CYCLICAL
 
 Validator 应检查 investment_stage 是否属于允许集合。
 
