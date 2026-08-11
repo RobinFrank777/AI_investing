@@ -6,6 +6,7 @@ from urllib.parse import quote
 import pandas as pd
 
 from config import PROJECT_VERSION
+from investment_profile_loader import load_company_profiles
 from research_summary import build_research_summary
 
 
@@ -13,6 +14,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 RESULTS_DIR = PROJECT_ROOT / "results"
 OUTPUT_PATH = PROJECT_ROOT / "reports" / "ai_terminal_report.html"
 PIPELINE_STATUS = "PASS"
+PROFILE_TEXT_LIMIT = 180
 
 REPORT_SECTIONS = [
     ("Top Opportunities", RESULTS_DIR / "top10.csv"),
@@ -67,6 +69,57 @@ def _stance_class(stance):
     }.get(stance, "stance-insufficient")
 
 
+def _load_profile_lookup():
+    try:
+        profiles = load_company_profiles()
+    except (OSError, ValueError):
+        return {}
+
+    lookup = {}
+    for _, profile in profiles.iterrows():
+        symbol = _normalized_symbol(profile.get("ticker"))
+        if symbol:
+            lookup[symbol] = profile.to_dict()
+    return lookup
+
+
+def _profile_display_value(value, *, truncate=False):
+    if value is None or pd.isna(value):
+        return "N/A"
+    text = str(value).strip()
+    if not text:
+        return "N/A"
+    if truncate and len(text) > PROFILE_TEXT_LIMIT:
+        shortened = text[:PROFILE_TEXT_LIMIT].rsplit(" ", 1)[0].rstrip()
+        text = (shortened or text[:PROFILE_TEXT_LIMIT].rstrip()) + "…"
+    return escape(text, quote=True)
+
+
+def _investment_profile_html(profile):
+    if not isinstance(profile, dict):
+        return """
+        <div class="long-term-context">
+            <h4>Long-Term Context</h4>
+            <p class="profile-unavailable">Investment Profile unavailable.</p>
+        </div>
+        """
+
+    return f"""
+        <div class="long-term-context">
+            <h4>Long-Term Context</h4>
+            <p><strong>Company:</strong> {_profile_display_value(profile.get("company"))}</p>
+            <div class="profile-meta">
+                <span><strong>Investment Stage:</strong> {_profile_display_value(profile.get("investment_stage"))}</span>
+                <span><strong>Moat Score:</strong> {_profile_display_value(profile.get("moat_score"))}</span>
+                <span><strong>Investor Rating:</strong> {_profile_display_value(profile.get("investor_rating"))}</span>
+            </div>
+            <p><strong>Investment Thesis:</strong> {_profile_display_value(profile.get("investment_thesis"), truncate=True)}</p>
+            <p><strong>Risk Factor:</strong> {_profile_display_value(profile.get("risk_factor"), truncate=True)}</p>
+            <p class="profile-note">Qualitative context only; not used in score or stance.</p>
+        </div>
+    """
+
+
 def _table_with_card_links(dataframe):
     display_dataframe = dataframe.copy()
     replacements = {}
@@ -91,7 +144,10 @@ def _table_with_card_links(dataframe):
     return table_html
 
 
-def _build_top_opportunity_research(dataframe, combined_scores=None):
+def _build_top_opportunity_research(
+    dataframe, combined_scores=None, profile_lookup=None
+):
+    profiles = {} if profile_lookup is None else profile_lookup
     research_items = []
     for row_number, ticker in enumerate(dataframe.get("Ticker", [])):
         symbol = _normalized_symbol(ticker)
@@ -117,6 +173,7 @@ def _build_top_opportunity_research(dataframe, combined_scores=None):
                 "summary": summary,
                 "combined_score": score,
                 "href": href,
+                "investment_profile": profiles.get(symbol),
             }
         )
     return research_items
@@ -178,6 +235,7 @@ def _top_opportunities_content(dataframe, research_items):
         stance = item["stance"]
         summary = item["summary"]
         score = item["combined_score"]
+        investment_profile = item.get("investment_profile")
         escaped_href = escape(item["href"], quote=True)
         score_text = f"{score:.2f}" if score is not None else "N/A"
         cards.append(
@@ -189,6 +247,7 @@ def _top_opportunities_content(dataframe, research_items):
                 </div>
                 <div class="score"><strong>Combined Score:</strong> {escape(score_text)}</div>
                 <p class="summary">{escape(summary, quote=True)}</p>
+                {_investment_profile_html(investment_profile)}
                 <a class="card-link" href="{escaped_href}">View Card</a>
             </article>
             """
@@ -235,6 +294,7 @@ def _dashboard_html(metrics, generated_time):
 
 def build_html(report_data):
     generated_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    profile_lookup = _load_profile_lookup()
     top_opportunities = next(
         (dataframe for title, dataframe in report_data if title == "Top Opportunities"),
         pd.DataFrame(),
@@ -254,6 +314,7 @@ def build_html(report_data):
     research_items = _build_top_opportunity_research(
         top_opportunities,
         combined_scores,
+        profile_lookup,
     )
     dashboard_metrics = build_dashboard_metrics(research_items, model_portfolio)
     dashboard_html = _dashboard_html(dashboard_metrics, generated_time)
@@ -345,6 +406,22 @@ def build_html(report_data):
         .stance-insufficient {{ background: #e4e7eb; color: #52606d; }}
         .score {{ margin-top: 14px; }}
         .opportunity-card .summary {{ color: #3e4c59; line-height: 1.5; }}
+        .long-term-context {{
+            margin: 16px 0;
+            padding: 14px;
+            border-left: 4px solid #829ab1;
+            background: #ffffff;
+        }}
+        .long-term-context h4 {{ margin: 0 0 10px; color: #334e68; }}
+        .long-term-context p {{ margin: 8px 0; line-height: 1.45; }}
+        .profile-meta {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 16px;
+            color: #334e68;
+        }}
+        .profile-note {{ color: #7b8794; font-size: 12px; }}
+        .profile-unavailable {{ color: #7b8794; font-style: italic; }}
         .card-link {{ color: #145da0; font-weight: bold; }}
         .dashboard-grid {{
             display: grid;
