@@ -12,6 +12,7 @@ Thumbs.db
 # Runtime data and generated outputs
 data/*.csv
 !data/company_profile.csv
+!data/company_profile_tiers.csv
 !data/AI_investing_universe_150_V2.csv
 !data/watchlist.example.csv
 !data/fundamentals.example.csv

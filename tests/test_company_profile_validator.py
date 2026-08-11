@@ -47,9 +47,10 @@ class CompanyProfileValidatorTests(unittest.TestCase):
         self.assertTrue(any(error in item for item in result["errors"]))
 
     def test_current_seed_data_passes(self):
+        current_data = pd.read_csv(subject.DEFAULT_FILEPATH)
         result = subject.validate_company_profile()
         self.assertEqual(result["status"], "PASS")
-        self.assertEqual(result["companies"], 3)
+        self.assertEqual(result["companies"], len(current_data))
 
     def test_missing_field_fails(self):
         self.assert_fails(valid_data().drop(columns=["company"]), "missing columns")

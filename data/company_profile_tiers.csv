@@ -1,0 +1,85 @@
+ticker,tier,priority,reason
+MSFT,Tier1,A,Cloud and AI ecosystem
+NVDA,Tier1,A,AI computing infrastructure leader
+GOOGL,Tier1,A,Search cloud and AI platform
+AMZN,Tier1,A,Cloud and digital commerce platform
+META,Tier1,A,Global social and AI platform
+AAPL,Tier1,A,Consumer technology ecosystem
+AVGO,Tier1,A,AI networking and semiconductor infrastructure
+AMD,Tier1,A,AI accelerators and data center compute
+TSM,Tier1,A,Strategic semiconductor foundry
+MU,Tier1,A,AI memory supply chain
+ARM,Tier1,A,Compute architecture platform
+PLTR,Tier1,A,Enterprise AI software platform
+SNOW,Tier1,A,Cloud data platform
+CRM,Tier1,A,Enterprise software and AI applications
+ORCL,Tier1,A,Enterprise database and cloud platform
+ADBE,Tier1,A,Creative software platform
+NET,Tier1,A,Cloud network and security platform
+CRWD,Tier1,A,Cybersecurity platform
+APP,Tier1,A,Digital advertising software platform
+RKLB,Tier1,A,Commercial space platform
+ASTS,Tier1,A,Satellite communications platform
+LMT,Tier1,A,Strategic aerospace and defense company
+IRDM,Tier1,A,Satellite communications network
+GSAT,Tier1,A,Satellite connectivity platform
+RDDT,Tier1,A,Community content platform
+TEM,Tier1,A,Healthcare data and AI platform
+FIG,Tier1,A,Collaborative design software platform
+SHOP,Tier1,A,Digital commerce platform
+UBER,Tier1,A,Global mobility platform
+RBLX,Tier1,A,Interactive digital platform
+ISRG,Tier1,A,Robotic surgery leader
+LLY,Tier1,A,Healthcare innovation leader
+REGN,Tier1,A,Biotechnology research leader
+UNH,Tier1,A,Integrated healthcare platform
+SKHY,Tier2,B,AI memory and semiconductor supply chain
+ZETA,Tier2,B,Enterprise AI application software
+QUBT,Tier2,B,Quantum computing research candidate
+NOW,Tier2,B,Enterprise workflow software platform
+OKTA,Tier2,B,Identity and access platform
+DUOL,Tier2,B,AI enabled consumer learning platform
+SOUN,Tier2,B,Voice AI application platform
+MRVL,Tier2,B,Data center semiconductor supplier
+CRDO,Tier2,B,AI data center connectivity supplier
+CSCO,Tier2,B,Enterprise network infrastructure
+WDC,Tier2,B,AI data center storage supplier
+STX,Tier2,B,Data storage infrastructure supplier
+SNDK,Tier2,B,Flash storage infrastructure supplier
+INTC,Tier2,B,Semiconductor manufacturing and compute
+QCOM,Tier2,B,Wireless and edge compute platform
+AMBA,Tier2,B,Edge AI semiconductor supplier
+TXN,Tier2,B,Analog semiconductor platform
+NXPI,Tier2,B,Automotive and industrial semiconductors
+ADSK,Tier2,B,Industrial design software platform
+AAOI,Tier2,B,Data center optical connectivity supplier
+NBIS,Tier2,B,GPU cloud and AI infrastructure
+CRWV,Tier2,B,GPU cloud infrastructure platform
+IONQ,Tier2,B,Quantum computing platform
+IBM,Tier2,B,Enterprise cloud and AI platform
+MAZE,Tier2,B,Early stage biotechnology research
+GPCR,Tier2,B,Metabolic biotechnology research
+TSHA,Tier2,B,Gene therapy research platform
+PACS,Tier2,B,Healthcare services platform
+UHS,Tier2,B,Healthcare services operator
+HIMS,Tier2,B,Digital healthcare platform
+EDIT,Tier2,B,Gene editing research platform
+PFE,Tier2,B,Global pharmaceutical research
+BMY,Tier2,B,Biopharmaceutical research platform
+MRK,Tier2,B,Global medicines and biotechnology
+JNJ,Tier2,B,Diversified healthcare platform
+GILD,Tier2,B,Biopharmaceutical research platform
+DHR,Tier2,B,Life science tools platform
+ONDS,Tier2,B,Autonomous systems and defense technology
+BA,Tier2,B,Aerospace manufacturing platform
+KTOS,Tier2,B,Defense technology platform
+SPCX,Tier2,B,Launch and satellite infrastructure
+RDW,Tier2,B,Space infrastructure systems
+NOC,Tier2,B,Strategic aerospace and defense platform
+LHX,Tier2,B,Defense communications technology
+AVAV,Tier2,B,Autonomous defense systems
+PL,Tier2,B,Earth observation data platform
+LUNR,Tier2,B,Lunar infrastructure platform
+RTX,Tier2,B,Aerospace and defense systems
+BKSY,Tier2,B,Space based intelligence platform
+SPIR,Tier2,B,Satellite data and analytics platform
