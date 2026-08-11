@@ -1,5 +1,73 @@
 # Version History
 
+## V3.8.0
+
+**Release theme:** Investment Profile & Research Context Enhancement
+
+### Added features
+
+#### Investment Profile system
+
+V3.8.0 adds a validated qualitative company-research foundation:
+
+- Company Profile master data layer
+- Company Profile schema and data validation
+- reusable Investment Profile loader
+- profile coverage-audit framework
+- Tier1/Tier2 coverage-management system
+
+Core files:
+
+- `data/company_profile.csv`
+- `company_profile_validator.py`
+- `investment_profile_loader.py`
+- `investment_profile_coverage.py`
+- `data/company_profile_tiers.csv`
+
+#### Coverage expansion
+
+Current Universe150 research-metadata coverage:
+
+| Scope | Covered | Total | Coverage |
+|---|---:|---:|---:|
+| Tier1 | 34 | 34 | 100% |
+| Tier2 | 30 | 50 | 60% |
+| Universe150 | 66 | 150 | 44% |
+
+Coverage is a research metadata expansion metric only. It does not affect
+scoring, ranking, signals, portfolio construction, or order review.
+
+### Research layer enhancement
+
+Stock Research Cards add an Investment Profile section displaying:
+
+- Company
+- Business Model
+- Investment Thesis
+- Moat Score
+- Investment Stage
+- Investor Rating
+- Risk Factor
+
+The Research Terminal adds an optional Long-Term Context section for Top
+Opportunities. This qualitative context is display-only.
+
+### Architecture boundary
+
+Investment Profile belongs to the **Qualitative Research Layer**, not the
+**Quantitative Decision Layer**. It does not participate in:
+
+- Combined Score
+- trading signals
+- position sizing
+- portfolio construction
+- order review
+
+### Validation
+
+- Full regression: 863 tests passed
+- Runtime version: `v3.8.0`
+
 ## V3.7.0-rc2
 
 User-layer refinement clarifies research status, separates investment-research

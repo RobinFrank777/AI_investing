@@ -1,16 +1,27 @@
 # Research Roadmap
 
-## V3.6.0 release gate
+## Current release line
 
-Before release review:
+`V3.8.0`
 
-- document the Phase 8B JSON artifact contract;
-- protect required sections, types, missing-field behavior, HTML escaping, and
-  deterministic rendering with regression tests;
-- run the full unit-test and Python compilation checks;
-- confirm `PROJECT_VERSION = "v3.5.0"`, `UNIVERSE_MODE = "single"`, and 18
-  production pipeline steps; and
-- confirm that protected production modules are unchanged.
+Runtime version metadata is controlled by `config.PROJECT_VERSION`.
+
+## V3.8.0 — Investment Profile & Research Context Enhancement
+
+### Completed
+
+- Investment Profile foundation
+- Company Profile master-data validation
+- reusable validated Profile loader
+- Universe150 and tier-level coverage audit
+- Tier1/Tier2 coverage management
+- Stock Research Card Investment Profile display
+- Research Terminal Long-Term Context
+- runtime version synchronization to `v3.8.0`
+
+These capabilities add qualitative research context and coverage governance.
+They do not change scoring, ranking, signals, position sizing, portfolio
+construction, order review, or the production pipeline.
 
 ## Next phase: research governance and reproducibility
 
@@ -23,6 +34,11 @@ Recommended future work:
 5. Add transaction-cost, liquidity, and market-impact sensitivity as separate
    research diagnostics.
 6. Define objective gates for any future research-to-production promotion.
+7. Expand Company Profile coverage beyond the completed Tier1 set.
+8. Improve qualitative research presentation while preserving the separation
+   from quantitative decision logic.
+9. Evaluate a future AI-assisted analysis layer only through a separate design,
+   validation, and approval phase. This capability is not currently implemented.
 
 ## Explicitly out of scope
 

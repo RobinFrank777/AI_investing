@@ -11,11 +11,46 @@ The project documentation is organized as follows:
 - **[module_catalog.md](docs/module_catalog.md)** — Module classification, module status, and system inventory.
 - **[development_rules.md](docs/development_rules.md)** — Development workflow, validation requirements, Git workflow, release process, and project governance.
 
-Current stable release: `AI_investing v3.7.0`
+Current stable release: `AI_investing v3.8.0`
 
 These documents should be read together.
 When documentation conflicts, the precedence defined in
 docs/development_rules.md applies.
+
+## V3.8.0 Release Overview
+
+AI_investing V3.8.0 introduces an Investment Profile research layer for
+validated, qualitative company context alongside the existing quantitative
+research system.
+
+### Investment Profile Layer
+
+The Investment Profile system provides:
+
+- Company Profile master data in `data/company_profile.csv`
+- schema and data-contract validation through `company_profile_validator.py`
+- reusable validated access through `investment_profile_loader.py`
+- profile-coverage reporting through `investment_profile_coverage.py`
+- tier-based coverage management, with Tier1 coverage completed at 100% and a
+  Tier2 expansion framework
+- qualitative context covering company business model, investment thesis, moat
+  assessment, investment stage, investor rating, growth drivers, and risk factors
+
+### Research presentation enhancement
+
+- Stock Research Cards include a dedicated Investment Profile section.
+- Top Opportunity cards in the Research Terminal include a compact Long-Term
+  Context section.
+
+Investment Profile is a qualitative research presentation layer. It is
+independent of the quantitative decision engine and does not affect:
+
+- scoring
+- ranking
+- signal generation
+- portfolio construction
+- order review
+- risk control
 
 ## V3.7.0-rc2 system status
 
@@ -58,6 +93,7 @@ The system supports:
 - risk-aware position sizing
 - draft-only order review
 - human-readable decision reports
+- validated Investment Profile research and tier-based coverage management
 
 ## Safety boundary
 
@@ -377,6 +413,7 @@ The Research Terminal contains:
 - Today's Research Dashboard
 - Top Opportunities table
 - Top Opportunity Research Summary cards
+- Long-Term Context within Top Opportunity cards
 - Model Portfolio with Research Card links
 - Order Review
 - Combined Score
@@ -384,6 +421,12 @@ The Research Terminal contains:
 The Dashboard displays Pipeline Status, Top Opportunities, counts for all four
 stances, Average Combined Score, Highest Score, Model Portfolio Count, Research
 Card Links, and Generated Time.
+
+Long-Term Context provides optional company information, investment thesis,
+moat score, investor rating, investment stage, and risk factors for research
+review. This information is display-only and does not participate in scoring,
+ranking, stance, signals, portfolio construction, order review, or other
+quantitative decision logic.
 
 The resulting data flow is:
 
@@ -415,10 +458,15 @@ AI_investing/
 ├── universe_scale_test.py
 ├── research_summary.py
 ├── report_terminal.py
+├── company_profile_validator.py
+├── investment_profile_loader.py
+├── investment_profile_coverage.py
 ├── stock_card_builder.py
 ├── stock_card_report.py
 ├── generate_stock_cards.py
 ├── data/
+│   ├── company_profile.csv
+│   ├── company_profile_tiers.csv
 │   ├── watchlist.example.csv
 │   ├── universe_config.example.csv
 │   └── universes/
@@ -442,6 +490,8 @@ AI_investing/
 - `reports/cards/`: runtime-generated stock cards; not tracked by Git
 - `templates/`: offline HTML templates and CSS
 - `tests/`: unittest test modules
+- `data/company_profile.csv` and `data/company_profile_tiers.csv`: tracked
+  Investment Profile metadata used by the qualitative research layer
 
 ### Research Terminal tests
 
@@ -453,11 +503,15 @@ python -m unittest tests.test_stock_card_builder -v
 python -m unittest tests.test_stock_card_report -v
 python -m unittest tests.test_generate_stock_cards -v
 python -m unittest tests.test_report_terminal -v
+python -m unittest discover -s tests
 ```
 
 The unified `run_all.py` pipeline is currently 18/18 PASS, and all Research
 Center unittest modules pass. These statuses confirm research-system validation
 only; they are not investment approval.
+
+Current V3.8.0 regression baseline: **863 tests passed** with
+`python -m unittest discover -s tests`.
 
 The v3.5.0 Universe features retain the same safety boundary: Scale50 is a
 technical validation Universe, a successful data download is not an investment
@@ -930,6 +984,10 @@ results/
 reports/daily_trading_report_*.txt
 logs/
 ```
+
+Runtime market-data CSV files remain ignored by default. Core version-controlled
+metadata is explicitly excepted from that rule, including
+`data/company_profile.csv` and `data/company_profile_tiers.csv`.
 
 Code files should still be committed.
 

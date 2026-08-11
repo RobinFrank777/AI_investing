@@ -2,7 +2,9 @@
 
 ## Document status
 
-This document describes the AI_investing V3.2.x architecture baseline. It is a documentation proposal, not a specification for automatic trading and not evidence that every planned capability has been implemented.
+This document describes the current AI_investing V3.8.0 architecture. It is not
+a specification for automatic trading, and any future-looking sections are not
+evidence that a planned capability has been implemented.
 
 AI_investing is a personal, AI-assisted investing research system. It produces screening results, backtest summaries, model-portfolio research, draft-only order reviews, and human-readable reports. It does not connect to a brokerage account or place trades. Any result intended to inform a real trade requires manual review.
 
@@ -591,13 +593,130 @@ This sequence is a research workflow. It is not an instruction to place a trade.
 
 ---
 
-## V3.6.0 Research Architecture
+## V3.8.0 Investment Profile & Research Presentation Architecture
 
-V3.6.0 retains the V3.5.0 production foundation. During release review,
-`PROJECT_VERSION` remains `v3.5.0`, `UNIVERSE_MODE` remains `single`, and
-the production pipeline remains 18 steps. Release preparation does not change
-the production universe, trading workflow, portfolio construction, or order
-flow.
+V3.8.0 adds a validated qualitative research layer without changing the
+quantitative decision engine or the production pipeline.
+
+### Investment Profile data flow
+
+```text
+data/company_profile.csv
+        |
+        v
+company_profile_validator.py
+        |
+        v
+investment_profile_loader.py
+        |
+        +--> stock_card_builder.py
+        |           |
+        |           v
+        |    stock_card_report.py
+        |           |
+        |           v
+        |    Stock Research Card Investment Profile
+        |
+        +--> report_terminal.py
+                    |
+                    v
+             Research Terminal Long-Term Context
+```
+
+The components have deliberately narrow responsibilities:
+
+- `data/company_profile.csv` stores the qualitative Company Profile master data.
+- `company_profile_validator.py` enforces the schema, required values, numeric
+  ranges, allowed classifications, ticker uniqueness, and update-date contract.
+- `investment_profile_loader.py` is the reusable validated access path. Display
+  modules do not read the Company Profile CSV directly.
+- `stock_card_builder.py` attaches optional Profile data to existing Stock Card
+  data without changing scores, stance, or other quantitative fields.
+- `stock_card_report.py` renders the complete Investment Profile as an
+  independent Stock Research Card section.
+- `report_terminal.py` loads validated profiles once and renders compact
+  Long-Term Context within Top Opportunity cards.
+
+The Terminal does not read generated Stock Card HTML. Both presentation surfaces
+reuse the validated loader independently, so missing cards cannot block Terminal
+generation.
+
+### Layer boundary
+
+```text
+Quantitative Decision Layer                 Qualitative Research Layer
+
+Market Data                                 Company Profile Metadata
+    |                                               |
+Technical and Factor Calculations                   v
+    |                                       Validation and Loader
+Scoring and Ranking                                  |
+    |                                               v
+Signals and Risk Controls                    Research Presentation
+    |
+Position Sizing, Portfolio, Order Review
+
+                     Presentation only
+```
+
+Investment Profile belongs to the **Qualitative Research Layer**. It is
+independent from the **Quantitative Decision Layer**. The layers meet only in
+human-readable presentation, where quantitative results and qualitative context
+are displayed as separate sections.
+
+Investment Profile does not provide inputs to:
+
+- technical indicators
+- factor calculations
+- scoring
+- ranking
+- signal generation
+- position sizing
+- portfolio construction
+- order review
+- trading decisions
+
+### Coverage management
+
+`investment_profile_coverage.py` measures Company Profile coverage for the
+Universe150 and for the research-priority tiers defined in
+`data/company_profile_tiers.csv`. Tier metadata supports coverage governance and
+future profile-expansion planning; it does not classify investments or create
+signals.
+
+Current coverage is:
+
+| Scope | Covered | Total | Coverage |
+|---|---:|---:|---:|
+| Tier1 | 34 | 34 | 100% |
+| Tier2 | 30 | 50 | 60% |
+| Universe150 | 66 | 150 | 44% |
+
+Coverage is a research metadata metric only. Profile availability does not alter
+trading logic, candidate eligibility, rank, stance, portfolio membership, or
+order-review status.
+
+### Failure and partial-coverage behavior
+
+Investment Profile is an optional presentation dependency. Expected behavior is:
+
+- A missing ticker Profile displays `Investment Profile unavailable.`
+- A missing or invalid Profile file does not block Stock Card or Terminal output.
+- Partial coverage displays context for covered tickers and unavailable context
+  for uncovered tickers.
+- Research and trading pipelines continue normally in all three cases.
+
+Profile failures are not converted into quantitative data-quality failures and
+do not change Pipeline Status, scores, signals, or downstream trading artifacts.
+
+---
+
+## Historical V3.6.0 Research Architecture
+
+At the V3.6.0 release-review stage, the system retained the V3.5.0 production
+foundation and an 18-step production pipeline. This section records that
+historical research architecture; the current runtime version is documented in
+`config.PROJECT_VERSION`.
 
 The research dependency direction is:
 
