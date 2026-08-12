@@ -1,9 +1,13 @@
 import pandas as pd
 
 
+SCORE_MODEL_VERSION = "technical-score-v3.8.1-r1"
+
+
 SCORE_DIAGNOSTIC_COLUMNS = (
     "Ticker",
     "Date",
+    "ScoreModelVersion",
     "TrendScore",
     "MomentumScore",
     "MACDContribution",
@@ -15,6 +19,20 @@ SCORE_DIAGNOSTIC_COLUMNS = (
     "NearHighScore",
     "FinalScore",
 )
+
+
+def calculate_raw_score(
+    trend_score,
+    momentum_score,
+    volume_score,
+    risk_score=None,
+):
+    """Calculate RawScore; legacy RiskScore input is intentionally inactive."""
+    return (
+        trend_score * 0.40
+        + momentum_score * 0.25
+        + volume_score * 0.20
+    )
 
 
 def calculate_rank_score_diagnostics(
@@ -30,7 +48,7 @@ def calculate_rank_score_diagnostics(
     latest_macd_signal,
     latest_hist,
 ):
-    """Return the existing raw-score formula and its unweighted components."""
+    """Return the active raw-score formula and its unweighted components."""
     trend_score = 0
     volume_score = 0
     risk_score = 0
@@ -81,17 +99,17 @@ def calculate_rank_score_diagnostics(
         volume_score += 10
         confidence += 8
 
-    # Risk Score
-    risk_score += 50
-
-    raw_score = (
-        trend_score * 0.40
-        + momentum_score * 0.25
-        + volume_score * 0.20
-        + risk_score * 0.15
+    # RiskScore is retained as a zero-valued diagnostic placeholder for future
+    # extensibility. It is not an active component of this score model.
+    raw_score = calculate_raw_score(
+        trend_score,
+        momentum_score,
+        volume_score,
+        risk_score,
     )
 
     return {
+        "ScoreModelVersion": SCORE_MODEL_VERSION,
         "TrendScore": trend_score,
         "MomentumScore": momentum_score,
         "MACDContribution": macd_contribution,
@@ -175,6 +193,7 @@ def build_score_diagnostic_table(rank_df):
     source_columns = {
         "Ticker": "Ticker",
         "Date": "MarketDataDate",
+        "ScoreModelVersion": "ScoreModelVersion",
         "TrendScore": "TrendScore",
         "MomentumScore": "MomentumScore",
         "MACDContribution": "MACDContribution",

@@ -5,10 +5,12 @@ from pandas.testing import assert_series_equal
 
 from score import (
     SCORE_DIAGNOSTIC_COLUMNS,
+    SCORE_MODEL_VERSION,
     build_score_diagnostic_table,
     calculate_final_score,
     calculate_rank_score,
     calculate_rank_score_diagnostics,
+    calculate_raw_score,
 )
 from trade_signal import generate_signals
 
@@ -22,7 +24,7 @@ class ScoreDiagnosticsTests(unittest.TestCase):
 
         expected_return = 0.10 * 70 + 0.20 * 30
         expected_momentum = expected_return + 40
-        expected_score = 110 * 0.40 + expected_momentum * 0.25 + 20 * 0.20 + 50 * 0.15
+        expected_score = 110 * 0.40 + expected_momentum * 0.25 + 20 * 0.20
         self.assertEqual(diagnostics["TrendScore"], 110)
         self.assertEqual(diagnostics["MACDContribution"], 40)
         self.assertAlmostEqual(
@@ -30,7 +32,8 @@ class ScoreDiagnosticsTests(unittest.TestCase):
         )
         self.assertAlmostEqual(diagnostics["MomentumScore"], expected_momentum)
         self.assertEqual(diagnostics["VolumeScore"], 20)
-        self.assertEqual(diagnostics["RiskScore"], 50)
+        self.assertEqual(diagnostics["RiskScore"], 0)
+        self.assertEqual(diagnostics["ScoreModelVersion"], SCORE_MODEL_VERSION)
         self.assertAlmostEqual(diagnostics["RawScore"], expected_score)
         self.assertAlmostEqual(score, expected_score)
         self.assertEqual(confidence, diagnostics["Confidence"])
@@ -49,11 +52,12 @@ class ScoreDiagnosticsTests(unittest.TestCase):
         )
 
     def test_missing_component_is_reported_explicitly(self):
-        frame = self._fixed_rank_fixture().drop(columns=["RiskScore"])
+        frame = self._fixed_rank_fixture().drop(columns=["ScoreModelVersion"])
         scored = calculate_final_score(frame)
 
         with self.assertRaisesRegex(
-            ValueError, "score diagnostics missing required components: RiskScore"
+            ValueError,
+            "score diagnostics missing required components: ScoreModelVersion",
         ):
             build_score_diagnostic_table(scored)
 
@@ -69,14 +73,48 @@ class ScoreDiagnosticsTests(unittest.TestCase):
 
         self.assertEqual(before_order, ["AAA", "BBB", "CCC"])
         self.assertEqual(
-            before_final.round(6).tolist(), [80.0, 60.133333, 20.666667]
+            before_final.round(6).tolist(), [74.75, 54.883333, 15.416667]
         )
-        self.assertEqual(before_signal.tolist(), ["BUY", "WATCH", "IGNORE"])
+        self.assertEqual(before_signal.tolist(), ["WATCH", "IGNORE", "IGNORE"])
         assert_series_equal(
             diagnostics["FinalScore"], before_final, check_names=False
         )
         self.assertEqual(ranked["Ticker"].tolist(), before_order)
         assert_series_equal(ranked["TradeSignal"], before_signal)
+
+    def test_risk_score_value_does_not_change_final_score(self):
+        first = self._fixed_rank_fixture()
+        second = self._fixed_rank_fixture()
+        first["RiskScore"] = [-100, 0, 50]
+        second["RiskScore"] = [50, 500, 10_000]
+
+        first_scored = calculate_final_score(first)
+        second_scored = calculate_final_score(second)
+
+        assert_series_equal(
+            first_scored["FinalScore"],
+            second_scored["FinalScore"],
+            check_names=False,
+        )
+        self.assertEqual(calculate_raw_score(90, 40, 20, 0), 50.0)
+        self.assertEqual(calculate_raw_score(90, 40, 20, 10_000), 50.0)
+
+    def test_score_ordering_is_deterministic(self):
+        frame = self._fixed_rank_fixture()
+        first = calculate_final_score(frame.copy()).sort_values(
+            ["FinalScore", "Ticker"], ascending=[False, True]
+        )
+        second = calculate_final_score(frame.sample(frac=1, random_state=8)).sort_values(
+            ["FinalScore", "Ticker"], ascending=[False, True]
+        )
+        self.assertEqual(first["Ticker"].tolist(), second["Ticker"].tolist())
+
+    def test_score_model_version_is_accessible(self):
+        self.assertEqual(SCORE_MODEL_VERSION, "technical-score-v3.8.1-r1")
+        diagnostics = calculate_rank_score_diagnostics(
+            110, 100, 90, 0.10, 0.20, 1.6, 105, 0.97, 2, 1, 0.5
+        )
+        self.assertEqual(diagnostics["ScoreModelVersion"], SCORE_MODEL_VERSION)
 
     @staticmethod
     def _fixed_rank_fixture():
@@ -84,14 +122,15 @@ class ScoreDiagnosticsTests(unittest.TestCase):
             {
                 "Ticker": ["AAA", "BBB", "CCC"],
                 "MarketDataDate": ["2026-08-11"] * 3,
+                "ScoreModelVersion": [SCORE_MODEL_VERSION] * 3,
                 "TrendScore": [90, 60, 20],
                 "MomentumScore": [40, 20, -10],
                 "MACDContribution": [40, None, 0],
                 "ReturnMomentumContribution": [0, 20, -10],
                 "VolumeScore": [20, 10, 0],
-                "RiskScore": [50, 50, 50],
-                "RawScore": [80, 64, 20],
-                "Score": [80, 64, 20],
+                "RiskScore": [0, 0, 0],
+                "RawScore": [72.5, 56.5, 12.5],
+                "Score": [72.5, 56.5, 12.5],
                 "60Day_Return": [0.30, 0.20, 0.10],
                 "DistanceToHigh": [1.00, 0.95, 0.80],
                 "Volume_Ratio": [1.1, 0.9, 0.5],
