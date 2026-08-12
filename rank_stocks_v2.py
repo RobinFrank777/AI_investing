@@ -11,7 +11,11 @@ from watchlist import load_watchlist
 from stock_loader import load_stock
 from indicators import calculate_indicators
 from position import calculate_position_size
-from score import calculate_rank_score, calculate_final_score
+from score import (
+    build_score_diagnostic_table,
+    calculate_final_score,
+    calculate_rank_score_diagnostics,
+)
 from trade_signal import generate_signals
 from config import (
     ACCOUNT_SIZE,
@@ -20,6 +24,8 @@ from config import (
     STOCK_RANK_OUTPUT_PATH,
     TOP10_OUTPUT_PATH,
 )
+
+SCORE_DIAGNOSTIC_OUTPUT_PATH = STOCK_RANK_OUTPUT_PATH.parent / "score_diagnostics.csv"
 
 
 def process_single_stock(ticker):
@@ -67,7 +73,7 @@ def process_single_stock(ticker):
         df["Close"].iloc[-60]
     ) - 1
 
-    score, confidence = calculate_rank_score(
+    score_diagnostics = calculate_rank_score_diagnostics(
         latest_close,
         latest_ma20,
         latest_ma60,
@@ -107,8 +113,9 @@ def process_single_stock(ticker):
         "60Day_Return": return_60d,
         "Volume_Ratio": volume_ratio,
         "DistanceToHigh": distance_to_high,
-        "Score": score,
-        "Confidence": confidence
+        **score_diagnostics,
+        "Score": score_diagnostics["RawScore"],
+        "Confidence": score_diagnostics["Confidence"],
     }
     
     
@@ -222,6 +229,9 @@ def run_ranking_pipeline():
         STOCK_RANK_OUTPUT_PATH,
         index=False,
     )
+
+    score_diagnostics = build_score_diagnostic_table(rank_df)
+    score_diagnostics.to_csv(SCORE_DIAGNOSTIC_OUTPUT_PATH, index=False)
 
     top10_df.to_csv(
         TOP10_OUTPUT_PATH,
