@@ -9,9 +9,9 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from pathlib import Path
+from stock_loader import load_stock
 
 tickers = ["AAPL", "NVDA", "TSLA", "AMD", "GOOGL"]
-data_dir = Path("data")
 charts_dir = Path("charts")
 charts_dir.mkdir(exist_ok=True)
 
@@ -19,11 +19,7 @@ summary_list = []
 for ticker in tickers:
     print(f"\n===== {ticker} =====")
 
-    file_path = data_dir / f"{ticker}.csv"
-    df = pd.read_csv(file_path, skiprows=1)
-
-    # 重命名列
-    df.columns = ["Date", "Close", "High", "Low", "Open", "Volume"]
+    df = load_stock(ticker)
 
     # 转换数据类型
     df["Date"] = pd.to_datetime(df["Date"])

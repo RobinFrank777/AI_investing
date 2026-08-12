@@ -1,21 +1,14 @@
 import pandas as pd
-from pathlib import Path
+
+from stock_loader import load_stock
 
 tickers = ["AAPL", "NVDA", "TSLA", "AMD", "GOOGL"]
-
-data_dir = Path("data")
 
 results = []
 
 for ticker in tickers:
 
-    file_path = data_dir / f"{ticker}.csv"
-
-    df = pd.read_csv(file_path, skiprows=1)
-
-    df.columns = ["Date", "Close", "High", "Low", "Open", "Volume"]
-
-    df["Close"] = pd.to_numeric(df["Close"])
+    df = load_stock(ticker)
 
     # 计算均线
     df["MA20"] = df["Close"].rolling(window=20).mean()

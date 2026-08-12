@@ -1,10 +1,10 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 from pathlib import Path
+from stock_loader import load_stock
 
 tickers = ["AAPL", "NVDA", "TSLA", "AMD", "GOOGL"]
 
-data_dir = Path("data")
 charts_dir = Path("charts")
 charts_dir.mkdir(exist_ok=True)
 
@@ -12,11 +12,7 @@ combined_df = pd.DataFrame()
 
 for ticker in tickers:
 
-    file_path = data_dir / f"{ticker}.csv"
-
-    df = pd.read_csv(file_path, skiprows=1)
-
-    df.columns = ["Date", "Close", "High", "Low", "Open", "Volume"]
+    df = load_stock(ticker)
 
     df["Date"] = pd.to_datetime(df["Date"])
     df["Close"] = pd.to_numeric(df["Close"])

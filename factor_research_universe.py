@@ -55,11 +55,6 @@ def load_research_universe(universe_path, *, expected_symbol_count=50):
 def _read_market_file(path):
     try:
         frame = pd.read_csv(path)
-        if not {"Date", "Close"}.issubset(frame.columns):
-            legacy = pd.read_csv(path, skiprows=1)
-            if len(legacy.columns) == 6:
-                legacy.columns = ["Date", "Close", "High", "Low", "Open", "Volume"]
-                frame = legacy
         if "Date" not in frame or "Close" not in frame:
             raise ValueError("Missing Date or Close column")
         dates = pd.to_datetime(frame["Date"], errors="coerce")
