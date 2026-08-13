@@ -66,7 +66,12 @@ MAX_SINGLE_ORDER_VALUE = 10_000
 ALLOWED_ACTIONS = ["BUY"]
 ALLOWED_ORDER_STATUS = ["DRAFT_ONLY"]
 ALLOWED_REVIEW_STATUS = ["PASS", "REVIEW", "BLOCKED"]
-ALLOWED_PORTFOLIO_REVIEW_FLAG = ["PASS", "REVIEW"]
+ALLOWED_PORTFOLIO_REVIEW_FLAG = [
+    "PASS",
+    "REVIEW_REQUIRED",
+    "BLOCKED",
+    "NOT_APPLICABLE",
+]
 
 # ============================================================
 # Output directories

@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 from pathlib import Path
 
 from config import (
@@ -15,6 +16,10 @@ MODEL_PORTFOLIO_INPUT = MODEL_PORTFOLIO_OUTPUT_PATH
 POSITION_SIZING_OUTPUT = POSITION_SIZING_OUTPUT_PATH
 COMBINED_SCORE_INPUT = COMBINED_SCORE_OUTPUT_PATH
 STOCK_DATA_DIR = DATA_DIR_PATH
+POSITION_READY = "POSITION_READY"
+NO_SIZABLE_POSITION = "NO_SIZABLE_POSITION"
+INVALID_PRICE = "INVALID_PRICE"
+INVALID_SIZING_INPUT = "INVALID_SIZING_INPUT"
 
 def add_combined_scores(portfolio_df):
     combined_df = pd.read_csv(COMBINED_SCORE_INPUT)
@@ -101,27 +106,40 @@ def get_latest_close(ticker):
             f"No valid Close price for {ticker}: {stock_path}"
         )
 
-    return close_series.iloc[-1]
+    price = float(close_series.iloc[-1])
+    if not np.isfinite(price) or price <= 0:
+        raise ValueError(f"Invalid latest Close price for {ticker}: {price}")
+    return price
 
-def add_target_dollar_amount(portfolio_df):
+def add_target_dollar_amount(portfolio_df, capital=ACCOUNT_VALUE):
     portfolio_df = portfolio_df.copy()
-
-    portfolio_df["AccountValue"] = ACCOUNT_VALUE
+    if not np.isfinite(capital) or capital < 0:
+        raise ValueError("portfolio capital must be finite and non-negative")
+    weights = pd.to_numeric(portfolio_df.get("TargetWeight"), errors="coerce")
+    valid = weights.notna() & np.isfinite(weights) & (weights >= 0)
+    portfolio_df["SizingStatus"] = np.where(valid, POSITION_READY, INVALID_SIZING_INPUT)
+    portfolio_df["AccountValue"] = capital
 
     portfolio_df["TargetDollarAmount"] = (
-        portfolio_df["TargetWeight"] * ACCOUNT_VALUE
+        weights.where(valid) * capital
     ).round(2)
 
     return portfolio_df
 
 def add_share_sizing(position_df):
     position_df = position_df.copy()
-
-    position_df["LatestClose"] = position_df["Ticker"].apply(get_latest_close)
-
-    position_df["TargetShares"] = (
-        position_df["TargetDollarAmount"] / position_df["LatestClose"]
-    ).astype(int)
+    prices = []
+    for ticker in position_df.get("Ticker", []):
+        try: prices.append(get_latest_close(ticker))
+        except (FileNotFoundError, ValueError, OSError): prices.append(np.nan)
+    position_df["LatestClose"] = prices
+    valid_price = position_df["LatestClose"].notna() & np.isfinite(position_df["LatestClose"]) & (position_df["LatestClose"] > 0)
+    valid_value = position_df["TargetDollarAmount"].notna() & np.isfinite(position_df["TargetDollarAmount"]) & (position_df["TargetDollarAmount"] >= 0)
+    ready = position_df["SizingStatus"].eq(POSITION_READY) & valid_price & valid_value
+    raw_shares = (position_df["TargetDollarAmount"] / position_df["LatestClose"]).where(ready)
+    position_df["TargetShares"] = raw_shares.fillna(0).astype(int)
+    position_df.loc[~valid_price, "SizingStatus"] = INVALID_PRICE
+    position_df.loc[ready & (position_df["TargetShares"] == 0), "SizingStatus"] = NO_SIZABLE_POSITION
 
     position_df["EstimatedPositionValue"] = (
         position_df["TargetShares"] * position_df["LatestClose"]

@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pandas as pd
+import numpy as np
 
 from config import (
     POSITION_SIZING_OUTPUT_PATH,
@@ -16,6 +17,8 @@ ORDER_DRAFT_OUTPUT = ORDER_DRAFT_OUTPUT_PATH
 
 DEFAULT_ACTION = ALLOWED_ACTIONS[0]
 DEFAULT_ORDER_STATUS = ALLOWED_ORDER_STATUS[0]
+DRAFT_READY = "DRAFT_READY"
+NO_DRAFT_ORDERS = "NO_DRAFT_ORDERS"
 
 REQUIRED_COLUMNS = [
     "Ticker",
@@ -74,10 +77,19 @@ def load_position_sizing():
     return df
 
 
-def build_order_draft():
-    position_df = load_position_sizing()
-
-    order_df = position_df[position_df["TargetShares"] > 0].copy()
+def build_order_draft(position_df=None):
+    position_df = load_position_sizing() if position_df is None else position_df.copy()
+    missing = [column for column in REQUIRED_COLUMNS if column not in position_df]
+    if missing: raise ValueError(f"Missing required columns: {missing}")
+    shares = pd.to_numeric(position_df["TargetShares"], errors="coerce")
+    prices = pd.to_numeric(position_df["LatestClose"], errors="coerce")
+    values = pd.to_numeric(position_df["TargetDollarAmount"], errors="coerce")
+    valid = (shares.notna() & np.isfinite(shares) & (shares > 0) & (shares % 1 == 0)
+             & prices.notna() & np.isfinite(prices) & (prices > 0)
+             & values.notna() & np.isfinite(values) & (values >= 0))
+    if "SizingStatus" in position_df:
+        valid &= position_df["SizingStatus"].eq("POSITION_READY")
+    order_df = position_df.loc[valid].copy()
 
     order_df["Action"] = DEFAULT_ACTION
 
@@ -90,7 +102,7 @@ def build_order_draft():
     order_df["OrderStatus"] = DEFAULT_ORDER_STATUS
 
     order_df = order_df[ORDER_COLUMNS]
-
+    order_df.attrs["OrderDraftStatus"] = DRAFT_READY if not order_df.empty else NO_DRAFT_ORDERS
     return order_df
 
 

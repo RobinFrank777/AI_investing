@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pandas as pd
+import numpy as np
 
 from config import (
     ORDER_DRAFT_OUTPUT_PATH,
@@ -17,6 +18,8 @@ from config import (
 
 ORDER_DRAFT_INPUT = ORDER_DRAFT_OUTPUT_PATH
 ORDER_REVIEW_OUTPUT = ORDER_REVIEW_OUTPUT_PATH
+REVIEW_COMPLETE = "REVIEW_COMPLETE"
+NO_ORDERS_TO_REVIEW = "NO_ORDERS_TO_REVIEW"
 
 
 
@@ -61,6 +64,11 @@ def load_order_draft():
 
 
 def assign_review_status(row):
+    numeric = [row.get("TargetShares"), row.get("LatestClose"), row.get("EstimatedOrderValue")]
+    try: valid_numeric = np.isfinite([float(value) for value in numeric]).all()
+    except (TypeError, ValueError): valid_numeric = False
+    if not valid_numeric or float(row.get("TargetShares", 0)) <= 0 or float(row.get("LatestClose", 0)) <= 0 or float(row.get("EstimatedOrderValue", 0)) <= 0:
+        return "BLOCKED"
     if row["Action"] not in ALLOWED_ACTIONS:
         return "BLOCKED"
 
@@ -78,12 +86,19 @@ def assign_review_status(row):
 
     if row["RiskLevel"] == "High":
         return "REVIEW"
+    if pd.isna(row.get("FundamentalRating")) or str(row.get("FundamentalRating", "")).strip().upper() in ("", "MISSING"):
+        return "REVIEW"
 
     return "PASS"
 
 
 def assign_review_reason(row):
     reasons = []
+    numeric_fields = ("TargetShares", "LatestClose", "EstimatedOrderValue")
+    for field in numeric_fields:
+        try: valid = np.isfinite(float(row.get(field)))
+        except (TypeError, ValueError): valid = False
+        if not valid: reasons.append(f"{field} must be finite")
 
     if row["Action"] not in ALLOWED_ACTIONS:
         reasons.append("action not allowed")
@@ -102,6 +117,8 @@ def assign_review_reason(row):
 
     if row["RiskLevel"] == "High":
         reasons.append("high risk level")
+    if pd.isna(row.get("FundamentalRating")) or str(row.get("FundamentalRating", "")).strip().upper() in ("", "MISSING"):
+        reasons.append("fundamental rating missing; manual review required")
 
     if not reasons:
         return "no issue"
@@ -109,8 +126,10 @@ def assign_review_reason(row):
     return "; ".join(reasons)
 
 
-def build_order_review():
-    order_df = load_order_draft().copy()
+def build_order_review(order_df=None):
+    order_df = load_order_draft().copy() if order_df is None else order_df.copy()
+    missing = [column for column in REQUIRED_COLUMNS if column not in order_df]
+    if missing: raise ValueError(f"Missing required columns: {missing}")
 
     order_df["ReviewStatus"] = order_df.apply(
         assign_review_status,
@@ -133,15 +152,27 @@ def build_order_review():
     if total_order_value > MAX_TOTAL_ORDER_VALUE:
         portfolio_level_warnings.append("total order value above limit")
 
-    if portfolio_level_warnings:
-        order_df["PortfolioReviewFlag"] = "REVIEW"
+    blocked_count = int((order_df["ReviewStatus"] == "BLOCKED").sum())
+    review_count = int((order_df["ReviewStatus"] == "REVIEW").sum())
+
+    if order_df.empty:
+        order_df["PortfolioReviewFlag"] = pd.Series(dtype="object")
+        order_df["PortfolioReviewReason"] = pd.Series(dtype="object")
+        order_df.attrs["ReviewStatus"] = NO_ORDERS_TO_REVIEW
+        order_df.attrs["PortfolioReviewFlag"] = "NOT_APPLICABLE"
+    elif blocked_count:
+        order_df["PortfolioReviewFlag"] = "BLOCKED"
+        order_df["PortfolioReviewReason"] = "one or more orders failed validation"
+    elif review_count or portfolio_level_warnings:
+        order_df["PortfolioReviewFlag"] = "REVIEW_REQUIRED"
         order_df["PortfolioReviewReason"] = "; ".join(
-            portfolio_level_warnings
+            (["one or more orders require manual review"] if review_count else [])
+            + portfolio_level_warnings
         )
     else:
         order_df["PortfolioReviewFlag"] = "PASS"
         order_df["PortfolioReviewReason"] = "portfolio level checks passed"
-
+    if not order_df.empty: order_df.attrs["ReviewStatus"] = REVIEW_COMPLETE
     return order_df
 
 
@@ -190,7 +221,8 @@ def print_order_review():
     print(f"PASS Count            : {pass_count}")
     print(f"REVIEW Count          : {review_count}")
     print(f"BLOCKED Count         : {blocked_count}")
-    print(f"Portfolio Flag        : {review_df['PortfolioReviewFlag'].iloc[0]}")
+    portfolio_flag = review_df.attrs.get("PortfolioReviewFlag", review_df["PortfolioReviewFlag"].iloc[0] if not review_df.empty else "NOT_APPLICABLE")
+    print(f"Portfolio Flag        : {portfolio_flag}")
     print(f"Saved Order Review To : {display_path(output_path)}")
 
 

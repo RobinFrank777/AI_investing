@@ -180,6 +180,9 @@ def check_portfolio_level_rules(df):
         if column not in df.columns:
             return errors
 
+    if df.empty:
+        return errors
+
     total_order_value = df["EstimatedOrderValue"].sum()
     order_count = len(df)
 
@@ -190,14 +193,16 @@ def check_portfolio_level_rules(df):
 
     portfolio_flag = df["PortfolioReviewFlag"].iloc[0]
 
-    if portfolio_review_required and portfolio_flag != "REVIEW":
+    blocked = (df["ReviewStatus"] == "BLOCKED").any()
+    review = (df["ReviewStatus"] == "REVIEW").any()
+    expected = (
+        "BLOCKED" if blocked
+        else "REVIEW_REQUIRED" if review or portfolio_review_required
+        else "PASS"
+    )
+    if portfolio_flag != expected:
         errors.append(
-            "portfolio level review required but PortfolioReviewFlag is not REVIEW"
-        )
-
-    if not portfolio_review_required and portfolio_flag != "PASS":
-        errors.append(
-            "portfolio level checks passed but PortfolioReviewFlag is not PASS"
+            f"PortfolioReviewFlag must be {expected} for current row severity"
         )
 
     return errors
@@ -236,7 +241,7 @@ def validate_order_review_outputs():
     print("- required columns exist")
     print("- numeric columns stay numeric")
     print("- ReviewStatus is PASS / REVIEW / BLOCKED")
-    print("- PortfolioReviewFlag is PASS / REVIEW")
+    print("- PortfolioReviewFlag is PASS / REVIEW_REQUIRED / BLOCKED")
     print("- hard rule violations become BLOCKED")
     print("- High risk or oversized orders are not PASS")
     print("- portfolio level review flag is correct")
