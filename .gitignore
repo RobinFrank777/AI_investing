@@ -25,3 +25,17 @@ reports/daily_decision_report_*.txt
 reports/*.html
 logs/
 reports/cards/
+
+# Legacy root-level generated analysis outputs (writers remain for compatibility)
+/stock_rank.csv
+/summary.csv
+/sharpe_analysis.csv
+/risk_analysis.csv
+
+# Generated charts; documentation/static source images use separate explicit paths
+charts/*_chart.png
+charts/*_line.png
+charts/allocation.png
+charts/compare_chart.png
+charts/heatmap.png
+charts/top10_scores.png
