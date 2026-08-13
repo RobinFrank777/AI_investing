@@ -7,6 +7,7 @@ from config import (
     PORTFOLIO_ACTION_REPORT_OUTPUT_PATH,
     display_path,
 )
+from report_artifact_consistency import NO_ACTION, PASS, assess_current_report
 
 ORDER_REVIEW_OUTPUT = ORDER_REVIEW_OUTPUT_PATH
 ACTION_REPORT_OUTPUT = PORTFOLIO_ACTION_REPORT_OUTPUT_PATH
@@ -31,8 +32,9 @@ def load_order_review():
     return pd.read_csv(ORDER_REVIEW_OUTPUT)
 
 
-def build_action_report_text(order_df):
+def build_action_report_text(order_df, assessment=None):
     generated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    assessment = assess_current_report() if assessment is None else assessment
 
     orders_count = len(order_df)
     pass_count = (order_df["ReviewStatus"] == "PASS").sum()
@@ -46,6 +48,9 @@ def build_action_report_text(order_df):
     lines.append("AI INVESTING PORTFOLIO ACTION REPORT")
     lines.append("=" * 70)
     lines.append(f"Generated At           : {generated_at}")
+    lines.append(f"Report Status          : {assessment.status}")
+    for field in ("RunId", "AsOfDate", "UniverseVersion", "ScoreModelVersion", "RiskModelVersion"):
+        lines.append(f"{field:<22} : {assessment.metadata.get(field, 'MISSING')}")
     lines.append(f"Source File            : {ORDER_REVIEW_OUTPUT}")
     lines.append(f"Orders Count           : {orders_count}")
     lines.append(f"PASS Count             : {pass_count}")
@@ -54,7 +59,11 @@ def build_action_report_text(order_df):
     lines.append(f"Total Estimated Value  : ${total_estimated_value:,.2f}")
     lines.append("")
 
-    if blocked_count > 0:
+    if assessment.status not in {PASS, NO_ACTION}:
+        portfolio_decision = "NO CURRENT PRODUCTION ACTION - ARTIFACT EVIDENCE UNVERIFIED"
+    elif orders_count == 0 or assessment.status == NO_ACTION:
+        portfolio_decision = "NO_ACTION"
+    elif blocked_count > 0:
         portfolio_decision = "DO NOT EXECUTE - BLOCKED ORDER EXISTS"
     elif review_count > 0:
         portfolio_decision = "MANUAL REVIEW REQUIRED"
@@ -62,10 +71,15 @@ def build_action_report_text(order_df):
         portfolio_decision = "READY FOR MANUAL CONFIRMATION"
 
     lines.append(f"Portfolio Decision     : {portfolio_decision}")
+    if assessment.reasons:
+        lines.append("Evidence Issues        : " + "; ".join(assessment.reasons))
     lines.append("")
 
     lines.append("=" * 70)
-    lines.append("ORDER DETAILS")
+    lines.append(
+        "ORDER DETAILS" if assessment.status in {PASS, NO_ACTION}
+        else "UNVERIFIED ORDER ARTIFACT — NOT CURRENT PRODUCTION AUTHORITY"
+    )
     lines.append("=" * 70)
 
     display_df = order_df[DISPLAY_COLUMNS].copy()

@@ -7,28 +7,41 @@ import pandas as pd
 
 from config import PROJECT_VERSION
 from investment_profile_loader import load_company_profiles
+from report_artifact_consistency import (
+    NO_ACTION,
+    PASS,
+    ReportAssessment,
+    assess_current_report,
+)
 from research_summary import build_research_summary
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 RESULTS_DIR = PROJECT_ROOT / "results"
 OUTPUT_PATH = PROJECT_ROOT / "reports" / "ai_terminal_report.html"
-PIPELINE_STATUS = "PASS"
 PROFILE_TEXT_LIMIT = 180
 
 REPORT_SECTIONS = [
-    ("Top Opportunities", RESULTS_DIR / "top10.csv"),
+    ("Research Opportunities — RESEARCH_ONLY", RESULTS_DIR / "top10.csv"),
     ("Model Portfolio", RESULTS_DIR / "model_portfolio.csv"),
     ("Order Review", RESULTS_DIR / "order_review.csv"),
-    ("Combined Score", RESULTS_DIR / "combined_score.csv"),
+    ("Combined Score — OPTIONAL RESEARCH DISPLAY", RESULTS_DIR / "combined_score.csv"),
 ]
 
 
 def load_report_data():
-    return [
-        (section_title, pd.read_csv(csv_path))
-        for section_title, csv_path in REPORT_SECTIONS
-    ]
+    loaded = []
+    for section_title, csv_path in REPORT_SECTIONS:
+        try:
+            frame = pd.read_csv(csv_path)
+        except (FileNotFoundError, pd.errors.EmptyDataError, pd.errors.ParserError):
+            frame = pd.DataFrame()
+        loaded.append((section_title, frame))
+    return loaded
+
+
+def report_context_label(*, archived=False):
+    return "HISTORICAL ARCHIVED REPORT — NOT CURRENT" if archived else "CURRENT REPORT"
 
 
 def _normalized_symbol(value):
@@ -182,7 +195,7 @@ def _build_top_opportunity_research(
 def build_dashboard_metrics(
     research_items,
     model_portfolio,
-    pipeline_status=PIPELINE_STATUS,
+    pipeline_status="UNKNOWN",
 ):
     stance_counts = {
         "BUY CANDIDATE": 0,
@@ -259,7 +272,7 @@ def _top_opportunities_content(dataframe, research_items):
 
 def _dashboard_html(metrics, generated_time):
     metric_rows = (
-        ("Pipeline Status", metrics["pipeline_status"], "metric-pass"),
+        ("Report Status / Pipeline Status", metrics["pipeline_status"], "metric-status"),
         ("Top Opportunities", metrics["top_opportunities_count"], ""),
         ("BUY CANDIDATE", metrics["buy_candidate_count"], "metric-buy"),
         ("HOLD / REVIEW", metrics["hold_review_count"], "metric-hold"),
@@ -292,11 +305,21 @@ def _dashboard_html(metrics, generated_time):
     """
 
 
-def build_html(report_data):
+def build_html(report_data, assessment=None, *, archived=False):
     generated_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    if assessment is None:
+        assessment = ReportAssessment(
+            "UNKNOWN",
+            {
+                "RunId": "MISSING", "AsOfDate": "MISSING",
+                "UniverseVersion": "MISSING", "ScoreModelVersion": "MISSING",
+                "RiskModelVersion": "MISSING",
+            },
+            {}, ("Current artifact evidence was not supplied",), False,
+        )
     profile_lookup = _load_profile_lookup()
     top_opportunities = next(
-        (dataframe for title, dataframe in report_data if title == "Top Opportunities"),
+        (dataframe for title, dataframe in report_data if "Opportunities" in title),
         pd.DataFrame(),
     )
     model_portfolio = next(
@@ -307,7 +330,7 @@ def build_html(report_data):
         (
             dataframe
             for section_title, dataframe in report_data
-            if section_title == "Combined Score"
+            if "Combined Score" in section_title
         ),
         None,
     )
@@ -316,7 +339,12 @@ def build_html(report_data):
         combined_scores,
         profile_lookup,
     )
-    dashboard_metrics = build_dashboard_metrics(research_items, model_portfolio)
+    current_model_portfolio = (
+        model_portfolio if assessment.status == PASS else pd.DataFrame()
+    )
+    dashboard_metrics = build_dashboard_metrics(
+        research_items, current_model_portfolio, assessment.status
+    )
     dashboard_html = _dashboard_html(dashboard_metrics, generated_time)
     sections_html = "\n".join(
         f"""
@@ -325,7 +353,7 @@ def build_html(report_data):
             <div class="table-container">
                 {
                     _top_opportunities_content(dataframe, research_items)
-                    if section_title == "Top Opportunities"
+                    if "Opportunities" in section_title
                     else (
                         _table_with_card_links(dataframe)
                         if section_title == "Model Portfolio"
@@ -450,6 +478,10 @@ def build_html(report_data):
         <h2>System Status</h2>
         <div class="status-grid">
             <div>
+                <div class="status-label">Report Context</div>
+                <div class="status-value">{escape(report_context_label(archived=archived), quote=True)}</div>
+            </div>
+            <div>
                 <div class="status-label">Version</div>
                 <div class="status-value">{escape(PROJECT_VERSION, quote=True)}</div>
             </div>
@@ -458,10 +490,12 @@ def build_html(report_data):
                 <div class="status-value">{generated_time}</div>
             </div>
             <div>
-                <div class="status-label">Pipeline Status</div>
-                <div class="status-value pass">{escape(PIPELINE_STATUS, quote=True)}</div>
+                <div class="status-label">Report Status</div>
+                <div class="status-value">{escape(assessment.status, quote=True)}</div>
             </div>
+            {''.join(f'''<div><div class="status-label">{escape(field, quote=True)}</div><div class="status-value">{escape(str(assessment.metadata.get(field, "MISSING")), quote=True)}</div></div>''' for field in ("RunId", "AsOfDate", "UniverseVersion", "ScoreModelVersion", "RiskModelVersion"))}
         </div>
+        <p><strong>Evidence:</strong> {escape('; '.join(assessment.reasons) if assessment.reasons else 'All required production artifact checks passed.', quote=True)}</p>
     </section>
 
     {dashboard_html}
@@ -475,8 +509,19 @@ def build_html(report_data):
 
 def generate_terminal_report():
     report_data = load_report_data()
+    assessment = assess_current_report()
+    if assessment.status not in {PASS, NO_ACTION}:
+        report_data = [
+            (
+                title + " — UNVERIFIED, NOT CURRENT PRODUCTION",
+                frame,
+            ) if title in {"Model Portfolio", "Order Review"} else (title, frame)
+            for title, frame in report_data
+        ]
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    OUTPUT_PATH.write_text(build_html(report_data), encoding="utf-8")
+    OUTPUT_PATH.write_text(
+        build_html(report_data, assessment), encoding="utf-8"
+    )
     return OUTPUT_PATH
 
 

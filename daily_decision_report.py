@@ -41,6 +41,7 @@ def build_daily_decision_report():
     lines.append("AI INVESTING DAILY DECISION REPORT")
     lines.append("=" * 80)
     lines.append(f"Generated At        : {generated_at}")
+    lines.append("Report Context      : CURRENT REPORT")
     lines.append(f"Daily Report Source : {latest_daily_report}")
     lines.append(f"Action Report Source: {ACTION_REPORT_INPUT}")
     lines.append("")
@@ -49,13 +50,13 @@ def build_daily_decision_report():
     lines.append("")
 
     lines.append("=" * 80)
-    lines.append("PART 1 - DAILY TECHNICAL SCREENING REPORT")
+    lines.append("PART 1 - RESEARCH_ONLY DAILY TECHNICAL SCREENING REPORT")
     lines.append("=" * 80)
     lines.append(daily_report_text)
     lines.append("")
 
     lines.append("=" * 80)
-    lines.append("PART 2 - PORTFOLIO ACTION REPORT")
+    lines.append("PART 2 - EVIDENCE-VALIDATED PORTFOLIO ACTION REPORT")
     lines.append("=" * 80)
     lines.append(action_report_text)
     lines.append("")
