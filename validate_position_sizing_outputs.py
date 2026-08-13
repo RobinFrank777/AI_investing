@@ -211,12 +211,13 @@ def validate_position_sizing_outputs():
     errors = []
 
     errors.extend(check_required_columns(df))
-    errors.extend(check_numeric_columns(df))
-    errors.extend(check_target_dollar_amount(df))
-    errors.extend(check_target_shares(df))
-    errors.extend(check_estimated_position_value(df))
-    errors.extend(check_position_cash_remainder(df))
-    errors.extend(check_total_exposure(df))
+    if not df.empty:
+        errors.extend(check_numeric_columns(df))
+        errors.extend(check_target_dollar_amount(df))
+        errors.extend(check_target_shares(df))
+        errors.extend(check_estimated_position_value(df))
+        errors.extend(check_position_cash_remainder(df))
+        errors.extend(check_total_exposure(df))
 
     print("=" * 70)
     print("POSITION SIZING OUTPUT VALIDATION")
@@ -224,6 +225,8 @@ def validate_position_sizing_outputs():
 
     print(f"Position sizing file : {POSITION_SIZING_OUTPUT}")
     print(f"Rows                 : {len(df)}")
+    if df.empty:
+        print("Sizing Status        : NO_ACTION")
 
     print("\nNumeric columns checked:")
     for column in NUMERIC_COLUMNS:

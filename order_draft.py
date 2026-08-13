@@ -81,6 +81,10 @@ def build_order_draft(position_df=None):
     position_df = load_position_sizing() if position_df is None else position_df.copy()
     missing = [column for column in REQUIRED_COLUMNS if column not in position_df]
     if missing: raise ValueError(f"Missing required columns: {missing}")
+    if position_df.empty:
+        order_df = pd.DataFrame(columns=ORDER_COLUMNS)
+        order_df.attrs["OrderDraftStatus"] = NO_DRAFT_ORDERS
+        return order_df
     shares = pd.to_numeric(position_df["TargetShares"], errors="coerce")
     prices = pd.to_numeric(position_df["LatestClose"], errors="coerce")
     values = pd.to_numeric(position_df["TargetDollarAmount"], errors="coerce")

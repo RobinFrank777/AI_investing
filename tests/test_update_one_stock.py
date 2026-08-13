@@ -49,6 +49,21 @@ class UpdateOneStockTests(unittest.TestCase):
         )
         self.assertTrue((self.data_dir / "AAPL.csv").is_file())
 
+    @patch("update_data.completed_daily_bars")
+    @patch("update_data.yf.download")
+    def test_downloader_saves_only_completed_daily_bars(
+        self, mock_download, mock_completed
+    ):
+        raw = self.market_data()
+        mock_download.return_value = raw
+        mock_completed.return_value = raw.iloc[:1]
+
+        result = update_data.update_one_stock("AAPL")
+
+        mock_completed.assert_called_once()
+        self.assertEqual(result["rows"], 1)
+        self.assertEqual(result["latest_date"], "2026-08-04")
+
     @patch("update_data.yf.download", return_value=pd.DataFrame())
     def test_empty_contract_does_not_write_csv(self, _):
         result = update_data.update_one_stock("EMPTY")

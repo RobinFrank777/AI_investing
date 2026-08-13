@@ -7,6 +7,7 @@ from pathlib import Path
 
 from backtest_engine import backtest_watchlist
 from combined_scoring import print_combined_score
+from current_run_status import finish_current_run, start_current_run
 from config import (
     BACKTEST_ALL_TRADES_20D_OUTPUT_PATH,
     BACKTEST_QUALIFIED_20D_OUTPUT_PATH,
@@ -27,6 +28,7 @@ from config import (
     display_path,
 )
 from daily_decision_report import print_daily_decision_report
+from data_readiness import build_data_readiness
 from data_validator import print_validation_summary, validate_watchlist
 from fundamental_scoring import print_fundamental_score
 from order_draft import print_order_draft
@@ -231,17 +233,63 @@ def validate_market_data():
     results, universe_latest_date = validate_watchlist()
     print_validation_summary(results, universe_latest_date)
 
-    invalid_tickers = [result["Ticker"] for result in results if not result["IsValid"]]
-    if invalid_tickers:
+    readiness_exclusions = []
+    fatal_tickers = []
+    for result in results:
+        if result["IsValid"]:
+            if result.get("Warnings"):
+                fatal_tickers.append(result["Ticker"])
+            continue
+        errors = result.get("Errors", [])
+        if errors and all(
+            str(error).startswith("Insufficient history:") for error in errors
+        ):
+            readiness_exclusions.append(result["Ticker"])
+        else:
+            fatal_tickers.append(result["Ticker"])
+
+    if fatal_tickers:
         raise RuntimeError(
-            "Market data validation failed for: " + ", ".join(invalid_tickers)
+            "Market data validation failed for: " + ", ".join(fatal_tickers)
         )
+    if readiness_exclusions:
+        print(
+            "Market data readiness exclusions (insufficient history; "
+            "Universe membership unchanged): " + ", ".join(readiness_exclusions)
+        )
+
+    readiness = build_data_readiness()
+    readiness_failures = readiness.loc[
+        (~readiness["Ready"])
+        & (~readiness["Reason"].eq("INSUFFICIENT_HISTORY"))
+    ]
+    if not readiness_failures.empty:
+        details = ", ".join(
+            f"{row.Ticker} ({row.Reason})"
+            for row in readiness_failures.itertuples(index=False)
+        )
+        raise RuntimeError("Market data readiness failed for: " + details)
 
 
 def market_data_artifacts():
     from config import DATA_DIR_PATH
 
     return tuple(DATA_DIR_PATH / f"{ticker}.csv" for ticker in load_watchlist())
+
+
+def update_market_data():
+    """Attempt refresh; the following validator decides data usability."""
+    result = update_all_stocks()
+    print(
+        "Market data update attempts: "
+        f"{result['succeeded']} succeeded, {result['failed']} failed"
+    )
+    if result["failed_symbols"]:
+        print(
+            "Refresh failures pending validation of existing local data: "
+            + ", ".join(result["failed_symbols"])
+        )
+    return result
 
 
 def daily_report_path():
@@ -264,8 +312,7 @@ def build_pipeline_steps():
         {"name": "Manual input readiness", "action": validate_manual_inputs},
         {
             "name": "Market data update",
-            "action": update_all_stocks,
-            "artifacts": market_data_artifacts,
+            "action": update_market_data,
         },
         {"name": "Market data validation", "action": validate_market_data},
         {
@@ -375,12 +422,75 @@ def print_summary(results, started_at, finished_at):
     return status
 
 
+def _successful_candidate_identity():
+    try:
+        import pandas as pd
+
+        frame = pd.read_csv(PRODUCTION_CANDIDATE_OUTPUT_PATH)
+        if frame.empty:
+            return None, None
+        run_ids = frame["RunId"].dropna().astype(str).str.strip().unique()
+        as_of_dates = frame["AsOfDate"].dropna().astype(str).str.strip().unique()
+        if len(run_ids) == 1 and len(as_of_dates) == 1:
+            return run_ids[0], as_of_dates[0]
+    except (KeyError, OSError, UnicodeError, pd.errors.ParserError):
+        pass
+    return None, None
+
+
+def write_failed_current_reports(context):
+    """Make current report paths explicitly represent the latest failed run."""
+    failed_stage = context.get("FailedStage") or "UNKNOWN"
+    reason = context.get("FailureReason") or "Required pipeline stage failed"
+    run_id = context.get("CurrentRunId") or "MISSING"
+    as_of_date = context.get("AsOfDate") or "MISSING"
+    failure = (
+        "Report Status          : FAILED\n"
+        f"RunId                 : {run_id}\n"
+        f"AsOfDate              : {as_of_date}\n"
+        f"Failed Stage          : {failed_stage}\n"
+        f"Failure Reason        : {reason}\n"
+        "Prior artifacts are historical and are not current production evidence.\n"
+        "No brokerage order was submitted.\n"
+    )
+    PORTFOLIO_ACTION_REPORT_OUTPUT_PATH.write_text(failure, encoding="utf-8")
+    decision_path = daily_decision_report_path()
+    decision_path.write_text(
+        "AI INVESTING DAILY DECISION REPORT\n"
+        "Report Context: LATEST PIPELINE ATTEMPT FAILED\n\n"
+        "PART 1 - RESEARCH_ONLY DAILY TECHNICAL SCREENING REPORT\n"
+        "Not produced for the failed latest attempt.\n\n"
+        "PART 2 - EVIDENCE-VALIDATED PORTFOLIO ACTION REPORT\n"
+        + failure
+        + "\nFINAL REMINDER\nAll trades must be reviewed before execution.\n",
+        encoding="utf-8",
+    )
+
+
 def run_pipeline(steps=None):
+    context = start_current_run()
     started_at = datetime.now()
     steps = build_pipeline_steps() if steps is None else steps
     results = execute_steps(steps)
     finished_at = datetime.now()
     status = print_summary(results, started_at, finished_at)
+    if status == "PASS":
+        candidate_run_id, candidate_as_of = _successful_candidate_identity()
+        finish_current_run(
+            context, status="PASS", current_run_id=candidate_run_id,
+            as_of_date=candidate_as_of,
+        )
+    else:
+        failed = next(
+            (result for result in results if result["status"] == "FAIL"), None
+        )
+        context = finish_current_run(
+            context,
+            status="FAILED",
+            failed_stage=failed["name"] if failed else "UNKNOWN",
+            reason=failed["error"] if failed else "Required pipeline stage failed",
+        )
+        write_failed_current_reports(context)
     return 0 if status == "PASS" else 1
 
 

@@ -2,6 +2,7 @@ import pandas as pd
 import yfinance as yf
 
 from config import DATA_DIR_PATH, display_path
+from market_session import completed_daily_bars
 from universe_source import load_active_universe
 
 
@@ -42,6 +43,10 @@ def update_one_stock(ticker):
         # 处理多层列名
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = [col[0] for col in df.columns]
+
+        df = completed_daily_bars(df)
+        if df.empty:
+            raise ValueError("Downloaded data contains no completed daily session.")
 
         # 日期在 index 里，先强制命名为 Date
         df.index.name = "Date"

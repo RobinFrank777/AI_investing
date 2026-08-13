@@ -219,12 +219,13 @@ def validate_order_review_outputs():
     errors = []
 
     errors.extend(check_required_columns(df))
-    errors.extend(check_numeric_columns(df))
-    errors.extend(check_review_status_values(df))
-    errors.extend(check_portfolio_review_flag_values(df))
-    errors.extend(check_block_rules(df))
-    errors.extend(check_review_rules(df))
-    errors.extend(check_portfolio_level_rules(df))
+    if not df.empty:
+        errors.extend(check_numeric_columns(df))
+        errors.extend(check_review_status_values(df))
+        errors.extend(check_portfolio_review_flag_values(df))
+        errors.extend(check_block_rules(df))
+        errors.extend(check_review_rules(df))
+        errors.extend(check_portfolio_level_rules(df))
 
     print("=" * 70)
     print("ORDER REVIEW OUTPUT VALIDATION")
@@ -232,6 +233,8 @@ def validate_order_review_outputs():
 
     print(f"Order review file : {ORDER_REVIEW_OUTPUT}")
     print(f"Rows              : {len(df)}")
+    if df.empty:
+        print("Portfolio Flag    : NOT_APPLICABLE")
 
     print("\nNumeric columns checked:")
     for column in NUMERIC_COLUMNS:

@@ -12,6 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest.mock import patch
 
+from config import PROJECT_VERSION
 from historical_shadow_publisher import (
     ARCHIVE_CONTRACT_VERSION,
     PUBLISHER_VERSION,
@@ -159,7 +160,7 @@ class HistoricalShadowPublisherTest(unittest.TestCase):
         self.assertEqual(manifest["PublisherVersion"], PUBLISHER_VERSION)
         self.assertEqual(manifest["ValidatorVersion"], VALIDATOR_VERSION)
         self.assertEqual(manifest["ValidatorResult"], "PASS")
-        self.assertEqual(manifest["ProjectVersion"], "v3.8.0")
+        self.assertEqual(manifest["ProjectVersion"], PROJECT_VERSION)
         self.assertRegex(manifest["RepositoryCommit"], r"^[0-9a-f]{40}$")
         expected = json.dumps(
             manifest,

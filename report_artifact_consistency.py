@@ -9,6 +9,7 @@ from pathlib import Path
 import pandas as pd
 
 from config import PRIMARY_UNIVERSE_VERSION
+from current_run_status import load_current_run_status
 from production_candidate_builder import MAX_STALENESS_DAYS
 from universe_metadata import MATCH, MISMATCH, dataframe_universe_compatibility
 
@@ -251,7 +252,46 @@ def load_current_report_artifacts(paths=None):
     return loaded
 
 
-def assess_current_report(paths=None, *, report_date=None):
-    return evaluate_report_artifacts(
+def assess_current_report(paths=None, *, report_date=None, run_status_path=None):
+    context = (
+        load_current_run_status()
+        if run_status_path is None
+        else load_current_run_status(run_status_path)
+    )
+    if context and context.get("OverallRunStatus") == FAILED:
+        metadata = {field: "MISSING" for field in METADATA_FIELDS}
+        metadata["RunId"] = context.get("CurrentRunId") or "MISSING"
+        metadata["AsOfDate"] = context.get("AsOfDate") or "MISSING"
+        metadata["UniverseVersionExpected"] = PRIMARY_UNIVERSE_VERSION
+        stage = context.get("FailedStage") or "UNKNOWN"
+        reason = context.get("FailureReason") or "Required pipeline stage failed"
+        return ReportAssessment(
+            FAILED, metadata, {},
+            (f"Latest pipeline attempt failed at {stage}: {reason}",
+             "Prior production artifacts are historical, not current"),
+            False,
+        )
+
+    assessment = evaluate_report_artifacts(
         load_current_report_artifacts(paths), report_date=report_date
     )
+    if context and context.get("OverallRunStatus") == PASS:
+        current_id = str(context.get("CurrentRunId") or "").strip()
+        artifact_id = assessment.metadata.get("RunId", "MISSING")
+        if not current_id or artifact_id != current_id:
+            return ReportAssessment(
+                INCOMPATIBLE, assessment.metadata, assessment.artifact_statuses,
+                tuple((*assessment.reasons,
+                       "Latest successful pipeline RunId does not match report artifacts")),
+                assessment.action_required,
+            )
+        current_as_of = str(context.get("AsOfDate") or "").strip()
+        artifact_as_of = assessment.metadata.get("AsOfDate", "MISSING")
+        if not current_as_of or artifact_as_of != current_as_of:
+            return ReportAssessment(
+                STALE, assessment.metadata, assessment.artifact_statuses,
+                tuple((*assessment.reasons,
+                       "Latest successful pipeline AsOfDate does not match report artifacts")),
+                assessment.action_required,
+            )
+    return assessment

@@ -167,12 +167,13 @@ def validate_order_draft_outputs():
     errors = []
 
     errors.extend(check_required_columns(df))
-    errors.extend(check_numeric_columns(df))
-    errors.extend(check_action_values(df))
-    errors.extend(check_order_status_values(df))
-    errors.extend(check_target_shares(df))
-    errors.extend(check_estimated_order_value(df))
-    errors.extend(check_order_value_not_above_target(df))
+    if not df.empty:
+        errors.extend(check_numeric_columns(df))
+        errors.extend(check_action_values(df))
+        errors.extend(check_order_status_values(df))
+        errors.extend(check_target_shares(df))
+        errors.extend(check_estimated_order_value(df))
+        errors.extend(check_order_value_not_above_target(df))
 
     print("=" * 70)
     print("ORDER DRAFT OUTPUT VALIDATION")
@@ -180,6 +181,8 @@ def validate_order_draft_outputs():
 
     print(f"Order draft file : {ORDER_DRAFT_OUTPUT}")
     print(f"Rows             : {len(df)}")
+    if df.empty:
+        print("Draft Status     : NO_ACTION")
 
     print("\nNumeric columns checked:")
     for column in NUMERIC_COLUMNS:

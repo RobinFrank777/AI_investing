@@ -44,6 +44,7 @@ class OrderDraftHardeningTests(unittest.TestCase):
     def test_normal_and_empty_schema(self):
         result=draft.build_order_draft(sized()); self.assertEqual(len(result),1); self.assertEqual(result.attrs["OrderDraftStatus"],draft.DRAFT_READY)
         empty=draft.build_order_draft(sized().iloc[:0]); self.assertTrue(empty.empty); self.assertEqual(empty.columns.tolist(),draft.ORDER_COLUMNS); self.assertEqual(empty.attrs["OrderDraftStatus"],draft.NO_DRAFT_ORDERS)
+        csv_empty=draft.build_order_draft(pd.DataFrame(columns=draft.REQUIRED_COLUMNS)); self.assertTrue(csv_empty.empty); self.assertEqual(csv_empty.columns.tolist(),draft.ORDER_COLUMNS); self.assertEqual(csv_empty.attrs["OrderDraftStatus"],draft.NO_DRAFT_ORDERS)
 
     def test_invalid_rows_do_not_become_orders(self):
         for field,value in (("TargetShares",0),("TargetShares",-1),("TargetShares",np.nan),("TargetShares",np.inf),("LatestClose",0),("LatestClose",np.nan),("LatestClose",np.inf)):

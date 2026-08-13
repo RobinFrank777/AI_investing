@@ -4,6 +4,7 @@ import tempfile
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
+from unittest.mock import patch
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -13,10 +14,34 @@ if str(REPO_ROOT) not in sys.path:
 import run_all
 
 
+def ready_market_data():
+    import pandas as pd
+
+    return pd.DataFrame(
+        [{"Ticker": "READY", "Ready": True, "Reason": "READY"}]
+    )
+
+
 class RunAllOrchestrationTests(unittest.TestCase):
     def run_silently(self, steps):
         output = io.StringIO()
-        with redirect_stdout(output):
+        context = {
+            "CurrentRunId": "test-attempt", "AsOfDate": "2026-08-12",
+            "OverallRunStatus": "RUNNING",
+        }
+        with (
+            redirect_stdout(output),
+            patch.object(run_all, "start_current_run", return_value=context),
+            patch.object(
+                run_all, "finish_current_run",
+                side_effect=lambda current, **changes: {**current, **changes},
+            ),
+            patch.object(run_all, "write_failed_current_reports"),
+            patch.object(
+                run_all, "_successful_candidate_identity",
+                return_value=("test-candidate", "2026-08-12"),
+            ),
+        ):
             exit_code = run_all.run_pipeline(steps)
         return exit_code, output.getvalue()
 
@@ -133,6 +158,111 @@ class RunAllOrchestrationTests(unittest.TestCase):
         self.assertIn("research outputs only", output)
         self.assertIn("not investment approval", output)
         self.assertIn("No brokerage order was submitted", output)
+
+    def test_known_insufficient_history_is_excluded_without_blocking_pipeline(self):
+        results = [
+            {
+                "Ticker": "READY",
+                "IsValid": True,
+                "Errors": [],
+                "Warnings": [],
+                "LatestDate": "2026-08-13",
+            },
+            {
+                "Ticker": "SKHY",
+                "IsValid": False,
+                "Errors": [
+                    "Insufficient history: 25 rows; at least 252 required."
+                ],
+                "Warnings": [],
+                "LatestDate": "2026-08-13",
+            },
+        ]
+        output = io.StringIO()
+        with (
+            patch.object(
+                run_all, "validate_watchlist", return_value=(results, "2026-08-13")
+            ),
+            patch.object(run_all, "print_validation_summary"),
+            patch.object(run_all, "build_data_readiness", side_effect=ready_market_data),
+            redirect_stdout(output),
+        ):
+            run_all.validate_market_data()
+        self.assertIn("SKHY", output.getvalue())
+        self.assertIn("Universe membership unchanged", output.getvalue())
+
+    def test_structural_market_data_failure_still_blocks_pipeline(self):
+        results = [
+            {
+                "Ticker": "BROKEN",
+                "IsValid": False,
+                "Errors": ["Missing required columns: ['Close']"],
+                "Warnings": [],
+                "LatestDate": "2026-08-13",
+            }
+        ]
+        with (
+            patch.object(
+                run_all, "validate_watchlist", return_value=(results, "2026-08-13")
+            ),
+            patch.object(run_all, "print_validation_summary"),
+            patch.object(run_all, "build_data_readiness", side_effect=ready_market_data),
+            self.assertRaisesRegex(RuntimeError, "BROKEN"),
+        ):
+            run_all.validate_market_data()
+
+    def test_stale_market_data_warning_blocks_pipeline(self):
+        results = [
+            {
+                "Ticker": "STALE",
+                "IsValid": True,
+                "Errors": [],
+                "Warnings": [
+                    "Latest date 2026-08-12 is behind universe latest date 2026-08-13."
+                ],
+                "LatestDate": "2026-08-12",
+            }
+        ]
+        with (
+            patch.object(
+                run_all, "validate_watchlist", return_value=(results, "2026-08-13")
+            ),
+            patch.object(run_all, "print_validation_summary"),
+            patch.object(run_all, "build_data_readiness", side_effect=ready_market_data),
+            self.assertRaisesRegex(RuntimeError, "STALE"),
+        ):
+            run_all.validate_market_data()
+
+    def test_refresh_failure_defers_to_following_validation(self):
+        with patch.object(
+            run_all,
+            "update_all_stocks",
+            return_value={
+                "succeeded": 149,
+                "failed": 1,
+                "failed_symbols": ["OXY"],
+            },
+        ):
+            result = run_all.update_market_data()
+        self.assertEqual(result["failed_symbols"], ["OXY"])
+
+    def test_readiness_structural_failure_blocks_pipeline(self):
+        import pandas as pd
+
+        results = [{
+            "Ticker": "KR", "IsValid": True, "Errors": [], "Warnings": [],
+            "LatestDate": "2026-08-13",
+        }]
+        readiness = pd.DataFrame([{
+            "Ticker": "KR", "Ready": False, "Reason": "INVALID_OHLC",
+        }])
+        with (
+            patch.object(run_all, "validate_watchlist", return_value=(results, "2026-08-13")),
+            patch.object(run_all, "print_validation_summary"),
+            patch.object(run_all, "build_data_readiness", return_value=readiness),
+            self.assertRaisesRegex(RuntimeError, "KR \\(INVALID_OHLC\\)"),
+        ):
+            run_all.validate_market_data()
 
     def test_sanitizer_hides_repository_and_home_paths(self):
         repo_message = f"input: {run_all.REPO_ROOT}/data/watchlist.csv"
