@@ -10,6 +10,7 @@ from config import (
     FUNDAMENTAL_SCORE_WEIGHT,
     display_path,
 )
+from universe_metadata import tag_current_universe
 
 
 REQUIRED_MODEL_COLUMNS = [
@@ -107,8 +108,7 @@ def calculate_combined_score(model_df, fundamental_df):
         by="CombinedScore",
         ascending=False,
     )
-
-    return result_df
+    return tag_current_universe(result_df)
 
 
 def print_combined_score():

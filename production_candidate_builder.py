@@ -9,6 +9,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from config import PRIMARY_UNIVERSE_VERSION
+from universe_metadata import MATCH, dataframe_universe_compatibility
+
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 DEFAULT_INPUT_PATH = PROJECT_ROOT / "results" / "stock_rank.csv"
@@ -24,6 +27,7 @@ SOURCE_COLUMNS = (
     "NearHighScore",
     "Confidence",
     "ScoreModelVersion",
+    "UniverseVersion",
 )
 OUTPUT_COLUMNS = (
     "Ticker",
@@ -37,6 +41,7 @@ OUTPUT_COLUMNS = (
     "NearHighScore",
     "Confidence",
     "ScoreModelVersion",
+    "UniverseVersion",
 )
 NUMERIC_COLUMNS = (
     "FinalScore",
@@ -89,6 +94,12 @@ def _validate_and_normalize(source: pd.DataFrame, reference_date, max_staleness_
         return source.loc[:, SOURCE_COLUMNS].copy(), None
 
     frame = source.loc[:, SOURCE_COLUMNS].copy()
+    compatibility = dataframe_universe_compatibility(frame)
+    if compatibility != MATCH:
+        raise ValueError(
+            "production stock rank UniverseVersion is "
+            f"{compatibility}; expected {PRIMARY_UNIVERSE_VERSION}"
+        )
     frame["Ticker"] = frame["Ticker"].fillna("").astype(str).str.strip().str.upper()
     if (frame["Ticker"] == "").any():
         raise ValueError("production stock rank contains missing Ticker metadata")
@@ -176,6 +187,7 @@ def build_production_candidates(
             "NearHighScore": frame["NearHighScore"],
             "Confidence": frame["Confidence"],
             "ScoreModelVersion": frame["ScoreModelVersion"],
+            "UniverseVersion": frame["UniverseVersion"],
         }
     )
     return output.loc[:, OUTPUT_COLUMNS]

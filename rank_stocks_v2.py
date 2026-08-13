@@ -17,6 +17,7 @@ from score import (
     calculate_rank_score_diagnostics,
 )
 from trade_signal import generate_signals
+from universe_metadata import tag_current_universe
 from config import (
     ACCOUNT_SIZE,
     RISK_PER_TRADE,
@@ -137,6 +138,8 @@ def rank_stocks(tickers):
 
     rank_df = generate_signals(rank_df)
     rank_df["Reason"] = rank_df.apply(generate_reason, axis=1)
+
+    rank_df = tag_current_universe(rank_df)
 
     rank_df = rank_df.sort_values(
         by="FinalScore",

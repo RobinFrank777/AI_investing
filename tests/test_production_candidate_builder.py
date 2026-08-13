@@ -5,6 +5,7 @@ from pathlib import Path
 import pandas as pd
 
 import production_candidate_builder as subject
+from config import PRIMARY_UNIVERSE_VERSION
 
 
 def stock_rank():
@@ -18,6 +19,7 @@ def stock_rank():
             "NearHighScore": [30.0, 20.0, 10.0],
             "Confidence": [85.0, 75.0, 65.0],
             "ScoreModelVersion": ["technical-score-v3.8.1-r1"] * 3,
+            "UniverseVersion": [PRIMARY_UNIVERSE_VERSION] * 3,
         }
     )
 
@@ -35,6 +37,7 @@ class ProductionCandidateBuilderTests(unittest.TestCase):
         for field in (
             "FinalScore", "TradeSignal", "RS_Score", "NearHighScore",
             "Confidence", "ScoreModelVersion",
+            "UniverseVersion",
         ):
             expected = stock_rank().set_index("Ticker").loc[result["Ticker"], field].tolist()
             self.assertEqual(result[field].tolist(), expected)
@@ -74,6 +77,15 @@ class ProductionCandidateBuilderTests(unittest.TestCase):
         mixed_version.loc[1, "ScoreModelVersion"] = "other"
         with self.assertRaisesRegex(ValueError, "mixed ScoreModelVersion"):
             subject.build_production_candidates(mixed_version, reference_date="2026-08-12")
+
+    def test_missing_or_mismatched_universe_version_is_rejected(self):
+        missing = stock_rank().drop(columns=["UniverseVersion"])
+        with self.assertRaisesRegex(ValueError, "UniverseVersion"):
+            subject.build_production_candidates(missing, reference_date="2026-08-12")
+        mismatch = stock_rank()
+        mismatch["UniverseVersion"] = "legacy-19"
+        with self.assertRaisesRegex(ValueError, "MISMATCH"):
+            subject.build_production_candidates(mismatch, reference_date="2026-08-12")
 
     def test_stale_and_future_data_are_rejected(self):
         with self.assertRaisesRegex(ValueError, "is stale"):
