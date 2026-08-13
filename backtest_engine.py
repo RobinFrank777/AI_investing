@@ -4,6 +4,12 @@ from config import RESULTS_DIR_PATH, display_path
 from stock_loader import load_stock
 from indicators import calculate_indicators
 from watchlist import load_watchlist
+
+BACKTEST_AUTHORITY = "RESEARCH_ONLY"
+BACKTEST_AUTHORITY_NOTICE = (
+    "RESEARCH_ONLY — NOT PRODUCTION BUY AUTHORITY"
+)
+
 MIN_COMPLETED_TRADES = 10
 MIN_AVERAGE_RETURN = 0
 MIN_WIN_RATE = 0.5
@@ -537,7 +543,8 @@ def backtest_watchlist(holding_days=20):
     all_trades = []
 
     print("\n" + "=" * 70)
-    print(f"BATCH BACKTEST: {holding_days}D FIXED HOLDING")
+    print(f"RESEARCH ONLY — BATCH BACKTEST: {holding_days}D FIXED HOLDING")
+    print(f"Authority: {BACKTEST_AUTHORITY_NOTICE}")
     print("=" * 70)
 
     for ticker in tickers:
@@ -701,6 +708,7 @@ def backtest_watchlist(holding_days=20):
     print("\n" + "=" * 70)
     print("BATCH BACKTEST SUMMARY")
     print("=" * 70)
+    print(f"Authority          : {BACKTEST_AUTHORITY}")
 
     print(f"Stocks Tested      : {len(summary_df)}")
     print(f"Qualified Stocks   : {len(qualified_df)}")

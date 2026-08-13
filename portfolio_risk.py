@@ -1,5 +1,6 @@
 """Build a risk-ready model portfolio with fail-safe allocation boundaries."""
 
+from datetime import date
 from pathlib import Path
 
 import numpy as np
@@ -13,13 +14,18 @@ from config import (
     MEDIUM_RISK_WEIGHT_MULTIPLIER,
     HIGH_RISK_WEIGHT_MULTIPLIER,
     UNKNOWN_RISK_WEIGHT_MULTIPLIER,
-    BACKTEST_QUALIFIED_20D_OUTPUT_PATH,
     MODEL_PORTFOLIO_OUTPUT_PATH,
     display_path,
 )
+from portfolio_candidate_adapter import (
+    DEFAULT_INPUT_PATH as PRODUCTION_CANDIDATE_OUTPUT_PATH,
+    build_validated_portfolio_candidates,
+    load_production_candidates,
+)
+from production_candidate_builder import MAX_STALENESS_DAYS
 
 
-QUALIFIED_BACKTEST_OUTPUT = BACKTEST_QUALIFIED_20D_OUTPUT_PATH
+PRODUCTION_CANDIDATE_OUTPUT = PRODUCTION_CANDIDATE_OUTPUT_PATH
 MODEL_PORTFOLIO_OUTPUT = MODEL_PORTFOLIO_OUTPUT_PATH
 MAX_POSITION_WEIGHT = MAX_SINGLE_POSITION_WEIGHT
 ALLOCATION_TOLERANCE = 1e-12
@@ -27,6 +33,11 @@ ALLOCATION_TOLERANCE = 1e-12
 NO_QUALIFIED_CANDIDATES = "NO_QUALIFIED_CANDIDATES"
 NO_RISK_READY_CANDIDATES = "NO_RISK_READY_CANDIDATES"
 NO_SIZABLE_POSITIONS = "NO_SIZABLE_POSITIONS"
+PRODUCTION_CANDIDATES_MISSING = "PRODUCTION_CANDIDATES_MISSING_NO_ACTION"
+PRODUCTION_CANDIDATES_EMPTY = "PRODUCTION_CANDIDATES_EMPTY_NO_ACTION"
+PRODUCTION_CANDIDATES_STALE = "PRODUCTION_CANDIDATES_STALE_NO_ACTION"
+PRODUCTION_CANDIDATES_INCOMPATIBLE = "PRODUCTION_CANDIDATES_INCOMPATIBLE_NO_ACTION"
+PRODUCTION_RISK_INPUTS_NOT_READY = "PRODUCTION_RISK_INPUTS_NOT_READY_NO_ACTION"
 PORTFOLIO_READY = "PORTFOLIO_READY"
 
 RISK_LEVEL_WEIGHT_MULTIPLIERS = {
@@ -60,8 +71,38 @@ def _empty_portfolio(status):
 
 
 def load_qualified_candidates():
-    """Load the existing qualified-backtest artifact without selecting slots."""
-    return pd.read_csv(QUALIFIED_BACKTEST_OUTPUT)
+    """Load the sole production candidate authority; never use backtest fallback."""
+    try:
+        source = load_production_candidates(PRODUCTION_CANDIDATE_OUTPUT)
+        validated = build_validated_portfolio_candidates(source)
+    except FileNotFoundError:
+        return _empty_portfolio(PRODUCTION_CANDIDATES_MISSING)
+    except (TypeError, ValueError):
+        return _empty_portfolio(PRODUCTION_CANDIDATES_INCOMPATIBLE)
+
+    if validated.empty:
+        return _empty_portfolio(PRODUCTION_CANDIDATES_EMPTY)
+
+    try:
+        as_of_date = pd.to_datetime(
+            validated["AsOfDate"].iloc[0], errors="raise"
+        ).date()
+    except (TypeError, ValueError, OverflowError):
+        return _empty_portfolio(PRODUCTION_CANDIDATES_INCOMPATIBLE)
+    age = (date.today() - as_of_date).days
+    if age < 0:
+        return _empty_portfolio(PRODUCTION_CANDIDATES_INCOMPATIBLE)
+    if age > MAX_STALENESS_DAYS:
+        return _empty_portfolio(PRODUCTION_CANDIDATES_STALE)
+
+    eligible = validated.loc[validated["PortfolioEligible"]].copy()
+    if eligible.empty:
+        return _empty_portfolio(PRODUCTION_CANDIDATES_EMPTY)
+
+    # B1 removes legacy authority but does not force the pending production
+    # candidate-to-risk allocation cutover. Until that contract is complete,
+    # valid candidates fail closed instead of borrowing legacy backtest metrics.
+    return _empty_portfolio(PRODUCTION_RISK_INPUTS_NOT_READY)
 
 
 def assign_risk_level(row):
@@ -116,7 +157,8 @@ def build_model_portfolio(candidates_df=None):
     if not isinstance(candidates, pd.DataFrame):
         raise TypeError("qualified candidates must be a pandas DataFrame")
     if candidates.empty:
-        return _empty_portfolio(NO_QUALIFIED_CANDIDATES)
+        status = candidates.attrs.get("PortfolioStatus", NO_QUALIFIED_CANDIDATES)
+        return _empty_portfolio(status)
 
     prepared = _prepare_candidates(candidates)
     eligible = prepared.loc[prepared["RiskReady"]].copy()

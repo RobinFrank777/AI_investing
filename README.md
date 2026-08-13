@@ -555,7 +555,8 @@ This command will automatically run:
 1. `backtest_watchlist(holding_days=20)`
 2. `validate_backtest_outputs()`
 
-The backtest pipeline will:
+The backtest pipeline is `RESEARCH_ONLY` and is not production BUY, portfolio,
+position-sizing, or order authority. It will:
 
 1. generate historical BUY / WATCH / IGNORE signals
 2. detect EntrySignal days
@@ -790,7 +791,11 @@ Python version, core modules, and validation modules.
 
 `results/model_portfolio.csv`
 
-This file contains the highest-ranked qualified backtest candidates together with historical return metrics, risk classifications, risk multipliers, target weights, and portfolio roles.
+The production entry point accepts only the validated production-candidate
+authority. Until production risk inputs complete their formal cutover, it fails
+closed with a `NO_ACTION` portfolio status. It never falls back to the legacy
+qualified-backtest list. Injected historical metric frames remain available for
+isolated policy tests and research compatibility only.
 
 ### Fundamental score
 
@@ -890,7 +895,9 @@ These reports summarize recommended portfolio actions and final daily decisions 
 - `results/backtest_qualified_20d.csv`
 - `results/backtest_all_trades_20d.csv`
 
-These files contain the historical backtest summary, qualified candidates, and all simulated trades.
+These `RESEARCH_ONLY` files contain the historical backtest summary, historical
+qualified setups, and simulated trades. They are not Production BUY, Current
+Action, Portfolio Recommendation, sizing, or order authority.
 
 Current risk level rules:
 

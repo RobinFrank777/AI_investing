@@ -69,8 +69,9 @@ def validate_backtest_outputs():
     )
 
     print("=" * 70)
-    print("BACKTEST OUTPUT VALIDATION")
+    print("BACKTEST OUTPUT VALIDATION — RESEARCH ONLY")
     print("=" * 70)
+    print("Authority       : RESEARCH_ONLY — NOT PRODUCTION BUY AUTHORITY")
     print(f"Summary file    : {SUMMARY_OUTPUT}")
     print(f"Qualified file  : {QUALIFIED_OUTPUT}")
     print(f"All trades file : {ALL_TRADES_OUTPUT}")

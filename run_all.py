@@ -32,6 +32,10 @@ from fundamental_scoring import print_fundamental_score
 from order_draft import print_order_draft
 from order_review import print_order_review
 from portfolio_action_report import print_portfolio_action_report
+from production_candidate_builder import (
+    DEFAULT_OUTPUT_PATH as PRODUCTION_CANDIDATE_OUTPUT_PATH,
+    run_production_candidate_builder,
+)
 from portfolio_risk import print_model_portfolio
 from position_sizing import print_position_sizing
 from rank_stocks_v2 import run_ranking_pipeline
@@ -283,6 +287,11 @@ def build_pipeline_steps():
             ),
         },
         {"name": "Backtest validation", "action": validate_backtest_outputs},
+        {
+            "name": "Production candidate build",
+            "action": run_production_candidate_builder,
+            "artifacts": (PRODUCTION_CANDIDATE_OUTPUT_PATH,),
+        },
         {
             "name": "Model portfolio",
             "action": print_model_portfolio,

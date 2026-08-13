@@ -13,7 +13,8 @@ def print_section(title):
 def main():
     started_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    print_section("AI INVESTING BACKTEST PIPELINE")
+    print_section("AI INVESTING BACKTEST PIPELINE — RESEARCH ONLY")
+    print("Authority: RESEARCH_ONLY — NOT PRODUCTION BUY AUTHORITY")
     print(f"Started At: {started_at}")
 
     print_section("Running: Batch backtest")
