@@ -1,46 +1,37 @@
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import pandas as pd
 
+import config
 import data_readiness
-from universe_loader import REQUIRED_COLUMNS
+from universe_loader import REQUIRED_COLUMNS as UNIVERSE_COLUMNS
 
 
-def universe_frame(symbols, statuses=None):
-    statuses = statuses or ["ACTIVE"] * len(symbols)
+def universe_frame(symbols):
     rows = []
-    for index, (ticker, status) in enumerate(zip(symbols, statuses), start=1):
-        rows.append(
-            {
-                "order": index,
-                "ticker": ticker,
-                "company": f"Company {ticker}",
-                "sector": "Technology",
-                "industry": "Software",
-                "theme": "Research",
-                "layer": "A",
-                "priority": index,
-                "status": status,
-                "asset_type": "Equity",
-                "notes": "",
-            }
-        )
-    return pd.DataFrame(rows, columns=REQUIRED_COLUMNS)
+    for index, ticker in enumerate(symbols, start=1):
+        rows.append({
+            "order": index, "ticker": ticker, "company": f"Company {ticker}",
+            "sector": "Technology", "industry": "Software", "theme": "Research",
+            "layer": "A", "priority": index, "status": "ACTIVE",
+            "asset_type": "Equity", "notes": "",
+        })
+    return pd.DataFrame(rows, columns=UNIVERSE_COLUMNS)
 
 
 def price_frame(rows=252):
-    return pd.DataFrame(
-        {
-            "Date": pd.date_range("2024-01-01", periods=rows, freq="B"),
-            "Close": range(rows),
-            "High": range(rows),
-            "Low": range(rows),
-            "Open": range(rows),
-            "Volume": [1_000_000] * rows,
-        }
-    )
+    values = pd.Series(range(rows), dtype=float) + 100.0
+    return pd.DataFrame({
+        "Date": pd.date_range("2024-01-01", periods=rows, freq="B"),
+        "Open": values,
+        "High": values + 2,
+        "Low": values - 1,
+        "Close": values + 1,
+        "Volume": [1_000_000] * rows,
+    })
 
 
 class DataReadinessTests(unittest.TestCase):
@@ -51,9 +42,9 @@ class DataReadinessTests(unittest.TestCase):
         self.data_dir = self.root / "data"
         self.data_dir.mkdir()
 
-    def write_universe(self, symbols, statuses=None):
+    def write_universe(self, symbols):
         path = self.root / "universe.csv"
-        universe_frame(symbols, statuses).to_csv(path, index=False)
+        universe_frame(symbols).to_csv(path, index=False)
         return path
 
     def write_prices(self, ticker, frame):
@@ -61,62 +52,101 @@ class DataReadinessTests(unittest.TestCase):
         frame.to_csv(path, index=False)
         return path
 
-    def test_normal_data_is_ready(self):
-        universe_path = self.write_universe(["GOOD"])
-        self.write_prices("GOOD", price_frame(252))
-        result = data_readiness.build_data_readiness(universe_path, self.data_dir)
-        row = result.iloc[0]
-        self.assertTrue(row["FileExists"])
-        self.assertTrue(row["RequiredColumnsPresent"])
-        self.assertEqual(row["HistoryRows"], 252)
-        self.assertTrue(row["HistorySufficient"])
+    def audit(self, symbols):
+        return data_readiness.build_data_readiness(self.write_universe(symbols), self.data_dir)
+
+    def test_valid_canonical_data_is_ready_and_versioned(self):
+        self.write_prices("GOOD", price_frame())
+        row = self.audit(["GOOD"]).iloc[0]
         self.assertTrue(row["Ready"])
-        self.assertEqual(row["Error"], "")
+        self.assertEqual(row["Reason"], "READY")
+        self.assertEqual(row["UniverseVersion"], config.PRIMARY_UNIVERSE_VERSION)
+        self.assertEqual((row["Rows"], row["FirstDate"], row["LastDate"]), (252, "2024-01-01", "2024-12-17"))
 
-    def test_missing_file_is_not_ready(self):
-        result = data_readiness.build_data_readiness(
-            self.write_universe(["MISSING"]), self.data_dir
-        )
-        row = result.iloc[0]
-        self.assertFalse(row["FileExists"])
-        self.assertFalse(row["Ready"])
-        self.assertEqual(row["Error"], "Price file not found")
+    def test_missing_file_is_not_ready_without_replacement(self):
+        result = self.audit(["MISSING", "ALSO_MISSING"])
+        self.assertEqual(result["Ticker"].tolist(), ["MISSING", "ALSO_MISSING"])
+        self.assertEqual(result["Reason"].tolist(), ["MISSING_FILE", "MISSING_FILE"])
+        self.assertFalse(result["Ready"].any())
 
-    def test_missing_field_is_not_ready(self):
-        universe_path = self.write_universe(["FIELDS"])
-        self.write_prices("FIELDS", price_frame().drop(columns=["Volume"]))
-        row = data_readiness.build_data_readiness(universe_path, self.data_dir).iloc[0]
-        self.assertFalse(row["RequiredColumnsPresent"])
-        self.assertEqual(row["MissingColumns"], "Volume")
+    def test_duplicate_dates_are_not_ready(self):
+        frame = price_frame()
+        frame.loc[1, "Date"] = frame.loc[0, "Date"]
+        self.write_prices("DUP", frame)
+        row = self.audit(["DUP"]).iloc[0]
         self.assertFalse(row["Ready"])
-        self.assertEqual(row["Error"], "Missing required columns")
+        self.assertEqual(row["DuplicateDates"], 1)
+        self.assertIn("DUPLICATE_DATES", row["Reason"])
+
+    def test_invalid_numeric_is_not_ready(self):
+        frame = price_frame()
+        frame["Close"] = frame["Close"].astype(object)
+        frame.loc[2, "Close"] = "bad"
+        self.write_prices("NUM", frame)
+        row = self.audit(["NUM"]).iloc[0]
+        self.assertEqual(row["InvalidNumeric"], 1)
+        self.assertIn("INVALID_NUMERIC", row["Reason"])
+
+    def test_invalid_ohlc_is_not_ready(self):
+        frame = price_frame()
+        frame.loc[2, "High"] = 1.0
+        self.write_prices("OHLC", frame)
+        row = self.audit(["OHLC"]).iloc[0]
+        self.assertEqual(row["InvalidOHLC"], 1)
+        self.assertIn("INVALID_OHLC", row["Reason"])
 
     def test_insufficient_history_is_not_ready(self):
-        universe_path = self.write_universe(["SHORT"])
         self.write_prices("SHORT", price_frame(251))
-        row = data_readiness.build_data_readiness(universe_path, self.data_dir).iloc[0]
-        self.assertEqual(row["HistoryRows"], 251)
-        self.assertFalse(row["HistorySufficient"])
-        self.assertFalse(row["Ready"])
-        self.assertEqual(row["Error"], "Insufficient history")
+        row = self.audit(["SHORT"]).iloc[0]
+        self.assertFalse(row["MinimumHistoryPass"])
+        self.assertIn("INSUFFICIENT_HISTORY", row["Reason"])
 
-    def test_only_active_symbols_are_checked(self):
-        universe_path = self.write_universe(["ACTIVE1", "WATCH1"], ["ACTIVE", "WATCH"])
-        self.write_prices("ACTIVE1", price_frame())
-        result = data_readiness.build_data_readiness(universe_path, self.data_dir)
-        self.assertEqual(result["Ticker"].tolist(), ["ACTIVE1"])
+    def test_one_failure_does_not_reduce_configured_count(self):
+        self.write_prices("GOOD", price_frame())
+        result = self.audit(["GOOD", "MISSING"])
+        summary = data_readiness.readiness_summary(result)
+        self.assertEqual(summary["configured"], 2)
+        self.assertEqual((summary["ready"], summary["not_ready"]), (1, 1))
 
-    def test_output_is_saved_without_index(self):
+    def test_empty_file_fails_safely(self):
+        (self.data_dir / "EMPTY.csv").touch()
+        row = self.audit(["EMPTY"]).iloc[0]
+        self.assertEqual(row["Reason"], "PARSE_ERROR")
+        self.assertIn("empty", row["ParseError"])
+
+    def test_parse_exception_does_not_abort_batch(self):
+        self.write_prices("BAD", price_frame())
+        self.write_prices("GOOD", price_frame())
+        real_read_csv = pd.read_csv
+
+        def read_csv(path, *args, **kwargs):
+            if str(path).endswith("BAD.csv"):
+                raise pd.errors.ParserError("broken")
+            return real_read_csv(path, *args, **kwargs)
+
+        with patch("data_readiness.pd.read_csv", side_effect=read_csv):
+            result = self.audit(["BAD", "GOOD"])
+        self.assertEqual(result["Reason"].tolist(), ["PARSE_ERROR", "READY"])
+
+    def test_default_audit_uses_primary_universe(self):
+        universe = universe_frame(["PRIMARY"])
+        self.write_prices("PRIMARY", price_frame())
+        with patch("data_readiness.load_universe", return_value=universe) as loader:
+            result = data_readiness.build_data_readiness(data_dir=self.data_dir)
+        loader.assert_called_once_with(config.PRIMARY_UNIVERSE_PATH)
+        self.assertEqual(result["Ticker"].tolist(), ["PRIMARY"])
+
+    def test_audit_does_not_modify_universe_and_output_schema_is_stable(self):
         universe_path = self.write_universe(["GOOD"])
         self.write_prices("GOOD", price_frame())
-        output_path = self.root / "results" / "readiness.csv"
-        result = data_readiness.run_data_readiness(
-            universe_path, self.data_dir, output_path
-        )
-        self.assertEqual(result["output_path"], str(output_path))
-        saved = pd.read_csv(output_path)
+        before = universe_path.read_bytes()
+        output = self.root / "results" / "quality.csv"
+        result = data_readiness.run_data_readiness(universe_path, self.data_dir, output)
+        self.assertEqual(universe_path.read_bytes(), before)
+        saved = pd.read_csv(output)
         self.assertEqual(saved.columns.tolist(), list(data_readiness.READINESS_COLUMNS))
-        self.assertEqual(saved["Ticker"].tolist(), ["GOOD"])
+        self.assertEqual(len(saved), 1)
+        self.assertEqual(result["summary"]["configured"], 1)
 
 
 if __name__ == "__main__":
