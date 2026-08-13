@@ -1,7 +1,8 @@
-import pandas as pd
-from config import WATCHLIST_INPUT_PATH
+"""Legacy API name backed by the canonical primary-universe loader."""
+
+from universe_loader import get_primary_tickers
 
 
 def load_watchlist():
-    df = pd.read_csv(WATCHLIST_INPUT_PATH)
-    return df["Ticker"].tolist()
+    """Return the primary universe; retained for caller API compatibility."""
+    return get_primary_tickers()

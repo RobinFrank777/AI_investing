@@ -8,6 +8,7 @@ from unittest.mock import patch
 import pandas as pd
 
 import universe_loader
+import config
 
 
 def universe_frame(size=3):
@@ -47,6 +48,22 @@ class UniverseLoaderTests(unittest.TestCase):
         loaded = universe_loader.load_universe(self.write_universe(universe_frame(150)))
         self.assertIsInstance(loaded, pd.DataFrame)
         self.assertEqual(len(loaded), 150)
+
+    def test_primary_path_and_version_contract(self):
+        self.assertEqual(config.PRIMARY_UNIVERSE_PATH, config.DATA_DIR_PATH / "AI_investing_universe_150_V2.csv")
+        self.assertEqual(config.PRIMARY_UNIVERSE_VERSION, "AI_investing_universe_150_V2")
+        self.assertEqual(universe_loader.DEFAULT_UNIVERSE_PATH, config.PRIMARY_UNIVERSE_PATH)
+
+    def test_load_normalizes_tickers_and_preserves_file_order(self):
+        frame = universe_frame(3)
+        frame["ticker"] = [" nvda ", "Aapl", " amd"]
+        loaded = universe_loader.load_universe(self.write_universe(frame))
+        self.assertEqual(loaded["ticker"].tolist(), ["NVDA", "AAPL", "AMD"])
+        self.assertEqual(universe_loader.get_primary_tickers(loaded), ["NVDA", "AAPL", "AMD"])
+
+    def test_primary_membership_does_not_depend_on_market_data(self):
+        loaded = universe_loader.load_universe(self.write_universe(universe_frame(3)))
+        self.assertEqual(len(universe_loader.get_primary_tickers(loaded)), 3)
 
     def test_required_columns_validation(self):
         frame = universe_frame().drop(columns=["industry"])

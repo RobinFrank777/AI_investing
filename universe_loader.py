@@ -1,13 +1,17 @@
-"""Load and validate the standalone AI_investing research universe."""
+"""Load and validate the canonical AI_investing primary universe."""
 
 import sys
 from pathlib import Path
 
 import pandas as pd
 
+from config import PRIMARY_UNIVERSE_PATH, PRIMARY_UNIVERSE_VERSION
+
 
 PROJECT_ROOT = Path(__file__).resolve().parent
-DEFAULT_UNIVERSE_PATH = PROJECT_ROOT / "data" / "AI_investing_universe_150_V2.csv"
+# Compatibility alias for existing research callers.  The configured path is
+# authoritative; this module does not maintain a second universe setting.
+DEFAULT_UNIVERSE_PATH = PRIMARY_UNIVERSE_PATH
 REQUIRED_COLUMNS = (
     "order",
     "ticker",
@@ -47,6 +51,8 @@ def load_universe(input_path=None):
         raise ValueError(f"Research universe file contains no rows: {path}")
 
     validate_universe(universe)
+    universe = universe.copy()
+    universe["ticker"] = _clean_text(universe["ticker"]).str.upper()
     return universe
 
 
@@ -97,7 +103,14 @@ def get_active_symbols(df):
     validate_universe(df)
     tickers = _clean_text(df["ticker"])
     statuses = _clean_text(df["status"])
-    return tickers[statuses.eq("ACTIVE")].tolist()
+    return tickers.str.upper()[statuses.eq("ACTIVE")].tolist()
+
+
+def get_primary_tickers(df=None):
+    """Return every configured primary-universe ticker in source order."""
+    universe = load_universe() if df is None else df
+    validate_universe(universe)
+    return _clean_text(universe["ticker"]).str.upper().tolist()
 
 
 def get_summary(df):

@@ -6,7 +6,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from config import WATCHLIST_INPUT_PATH, display_path
+from config import PRIMARY_UNIVERSE_PATH, display_path
+import universe_loader
 
 
 TICKER_COLUMN = "Ticker"
@@ -48,7 +49,24 @@ def _enabled_state(value):
 
 def validate_universe(file_path=None):
     """Return a stable, serializable validation summary for a universe CSV."""
-    source_path = Path(file_path) if file_path is not None else WATCHLIST_INPUT_PATH
+    if file_path is None:
+        frame = universe_loader.load_universe()
+        symbols = universe_loader.get_primary_tickers(frame)
+        return {
+            "source_path": PRIMARY_UNIVERSE_PATH,
+            "total_rows": len(frame),
+            "enabled_rows": len(frame),
+            "valid_symbols": len(symbols),
+            "duplicate_rows": 0,
+            "invalid_rows": 0,
+            "disabled_rows": 0,
+            "symbols": symbols,
+            "duplicates": [],
+            "invalid_entries": [],
+            "warnings": [],
+        }
+
+    source_path = Path(file_path)
     if not source_path.is_file():
         raise FileNotFoundError(f"Market universe file not found: {source_path}")
 

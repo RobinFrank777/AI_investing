@@ -9,7 +9,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from config import DATA_DIR_PATH, WATCHLIST_INPUT_PATH, display_path
+from config import DATA_DIR_PATH, display_path
+from universe_loader import get_primary_tickers
 
 
 OUTPUT_PATH = DATA_DIR_PATH / "fundamentals.preview.csv"
@@ -70,12 +71,7 @@ def blank_fundamental_row(ticker):
 
 
 def load_tickers():
-    watchlist_df = pd.read_csv(WATCHLIST_INPUT_PATH)
-
-    if "Ticker" not in watchlist_df.columns:
-        raise ValueError("Watchlist input is missing required column: Ticker")
-
-    return watchlist_df["Ticker"].tolist()
+    return get_primary_tickers()
 
 
 def main():

@@ -112,6 +112,10 @@ LOGS_DIR_PATH = REPO_ROOT / LOGS_DIR
 
 WATCHLIST_INPUT_PATH = DATA_DIR_PATH / "watchlist.csv"
 WATCHLIST_EXAMPLE_PATH = DATA_DIR_PATH / "watchlist.example.csv"
+# The sole authority for the production investment universe.  watchlist.csv is
+# retained below for legacy and compatibility workflows only.
+PRIMARY_UNIVERSE_PATH = DATA_DIR_PATH / "AI_investing_universe_150_V2.csv"
+PRIMARY_UNIVERSE_VERSION = "AI_investing_universe_150_V2"
 UNIVERSE_MODE = "single"
 UNIVERSE_CONFIG_PATH = DATA_DIR_PATH / "universe_config.csv"
 FUNDAMENTALS_EXAMPLE_PATH = DATA_DIR_PATH / "fundamentals.example.csv"

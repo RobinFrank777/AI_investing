@@ -1,8 +1,9 @@
 import pandas as pd
 
 from stock_loader import load_stock
+from universe_loader import get_primary_tickers
 
-tickers = ["AAPL", "NVDA", "TSLA", "AMD", "GOOGL"]
+tickers = get_primary_tickers()
 
 results = []
 
