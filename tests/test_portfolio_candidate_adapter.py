@@ -5,6 +5,7 @@ from pathlib import Path
 import pandas as pd
 
 import portfolio_candidate_adapter as subject
+from config import PRIMARY_UNIVERSE_VERSION
 
 
 def candidates():
@@ -13,6 +14,7 @@ def candidates():
             "Ticker": ["AAA", "BBB", "CCC"],
             "AsOfDate": ["2026-08-11"] * 3,
             "RunId": ["candidate-run-1"] * 3,
+            "UniverseVersion": [PRIMARY_UNIVERSE_VERSION] * 3,
             "ScoreModelVersion": ["technical-score-v3.8.1-r1"] * 3,
             "CandidateRank": [1, 2, 3],
             "FinalScore": [80.0, 70.0, 40.0],
@@ -105,6 +107,24 @@ class PortfolioCandidateAdapterTests(unittest.TestCase):
         data = candidates()
         data.loc[1, "ScoreModelVersion"] = "other"
         with self.assertRaisesRegex(ValueError, "mixed ScoreModelVersion"):
+            subject.build_validated_portfolio_candidates(data)
+
+    def test_universe_version_is_preserved(self):
+        result = subject.build_validated_portfolio_candidates(candidates())
+        self.assertEqual(result.UniverseVersion.unique().tolist(), [PRIMARY_UNIVERSE_VERSION])
+
+    def test_missing_universe_version_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "UniverseVersion"):
+            subject.build_validated_portfolio_candidates(candidates().drop(columns=["UniverseVersion"]))
+
+    def test_mismatched_universe_version_is_rejected(self):
+        data = candidates(); data.loc[:, "UniverseVersion"] = "legacy-universe"
+        with self.assertRaisesRegex(ValueError, "incompatible UniverseVersion"):
+            subject.build_validated_portfolio_candidates(data)
+
+    def test_mixed_universe_version_is_rejected(self):
+        data = candidates(); data.loc[1, "UniverseVersion"] = "legacy-universe"
+        with self.assertRaisesRegex(ValueError, "mixed UniverseVersion"):
             subject.build_validated_portfolio_candidates(data)
 
     def test_buy_with_ineligible_source_state_is_not_accepted(self):

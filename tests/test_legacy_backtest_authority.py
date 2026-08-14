@@ -7,6 +7,7 @@ import pandas as pd
 
 import backtest_engine
 import portfolio_risk
+from config import PRIMARY_UNIVERSE_VERSION
 
 
 def production_candidates():
@@ -23,7 +24,7 @@ def production_candidates():
             "NearHighScore": [70.0],
             "Confidence": [0.9],
             "ScoreModelVersion": ["technical-score-v3.8.1-r1"],
-            "UniverseVersion": ["test-universe"],
+            "UniverseVersion": [PRIMARY_UNIVERSE_VERSION],
         }
     )
 

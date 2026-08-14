@@ -5,6 +5,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from config import PRIMARY_UNIVERSE_VERSION
+
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 DEFAULT_INPUT_PATH = PROJECT_ROOT / "results" / "production_candidates.csv"
@@ -16,6 +18,7 @@ SOURCE_COLUMNS = (
     "Ticker",
     "AsOfDate",
     "RunId",
+    "UniverseVersion",
     "ScoreModelVersion",
     "CandidateRank",
     "FinalScore",
@@ -77,7 +80,9 @@ def _validate_and_normalize(candidates):
         return candidates.loc[:, SOURCE_COLUMNS].copy()
 
     frame = candidates.loc[:, SOURCE_COLUMNS].copy()
-    for column in ("Ticker", "AsOfDate", "RunId", "ScoreModelVersion"):
+    for column in (
+        "Ticker", "AsOfDate", "RunId", "UniverseVersion", "ScoreModelVersion",
+    ):
         _normalize_text(frame, column)
 
     frame["Ticker"] = frame["Ticker"].str.upper()
@@ -88,8 +93,14 @@ def _validate_and_normalize(candidates):
             + ", ".join(duplicates)
         )
 
-    for column in ("RunId", "AsOfDate", "ScoreModelVersion"):
+    for column in ("RunId", "AsOfDate", "UniverseVersion", "ScoreModelVersion"):
         _require_single_value(frame, column)
+
+    if frame["UniverseVersion"].iloc[0] != PRIMARY_UNIVERSE_VERSION:
+        raise ValueError(
+            "production candidates contain incompatible UniverseVersion: "
+            + frame["UniverseVersion"].iloc[0]
+        )
 
     try:
         parsed_dates = pd.to_datetime(frame["AsOfDate"], errors="raise")
