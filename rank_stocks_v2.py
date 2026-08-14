@@ -7,6 +7,9 @@ from data_validator import (
     print_validation_summary,
     validate_watchlist,
 )
+from data_readiness import build_data_readiness, save_data_readiness
+from market_session import latest_completed_session_date
+from update_data import get_last_update_results
 from watchlist import load_watchlist
 from stock_loader import load_stock
 from indicators import calculate_indicators
@@ -202,16 +205,29 @@ def get_valid_tickers(validation_results):
 
 
 def run_ranking_pipeline():
-    validation_results, universe_latest_date = (
-        validate_watchlist()
+    readiness = build_data_readiness(
+        required_as_of=latest_completed_session_date(),
+        refresh_results=get_last_update_results(),
     )
+    save_data_readiness(readiness)
+    validation_results = []
+    for row in readiness.itertuples(index=False):
+        validation_results.append({
+            "Ticker": row.Ticker,
+            "IsValid": bool(row.Ready),
+            "LatestDate": row.LatestAcceptedDate or None,
+            "RowCount": row.Rows,
+            "Errors": [] if row.Ready else [row.Status + ": " + row.Reason],
+            "Warnings": [],
+        })
+    universe_latest_date = latest_completed_session_date().isoformat()
 
     print_validation_summary(
         validation_results,
         universe_latest_date,
     )
 
-    tickers = get_valid_tickers(validation_results)
+    tickers = readiness.loc[readiness.Ready, "Ticker"].tolist()
 
     if not tickers:
         raise RuntimeError(

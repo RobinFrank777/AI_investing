@@ -36,6 +36,10 @@ READINESS_COLUMNS = (
     "MinimumHistoryPass",
     "Ready",
     "Reason",
+    "Status",
+    "LatestAcceptedDate",
+    "RequiredAsOfDate",
+    "ProviderRejectedDate",
 )
 
 
@@ -56,6 +60,10 @@ def _base_record(ticker, path):
         "MinimumHistoryPass": False,
         "Ready": False,
         "Reason": "",
+        "Status": "NOT_READY",
+        "LatestAcceptedDate": "",
+        "RequiredAsOfDate": "",
+        "ProviderRejectedDate": "",
     }
 
 
@@ -147,7 +155,8 @@ def inspect_price_file(ticker, data_dir=None):
     return record
 
 
-def build_data_readiness(universe_path=None, data_dir=None):
+def build_data_readiness(universe_path=None, data_dir=None, *, required_as_of=None,
+                         refresh_results=None):
     """Audit every configured Primary Universe member in file order."""
     universe = load_universe(
         PRIMARY_UNIVERSE_PATH if universe_path is None else universe_path
@@ -156,7 +165,34 @@ def build_data_readiness(universe_path=None, data_dir=None):
         inspect_price_file(ticker, data_dir=data_dir)
         for ticker in get_primary_tickers(universe)
     ]
-    return pd.DataFrame(records, columns=READINESS_COLUMNS)
+    readiness = pd.DataFrame(records, columns=READINESS_COLUMNS)
+    valid_dates = pd.to_datetime(readiness["LastDate"], errors="coerce")
+    required = (
+        valid_dates.max() if required_as_of is None
+        else pd.Timestamp(required_as_of).normalize()
+    )
+    readiness["LatestAcceptedDate"] = readiness["LastDate"]
+    readiness["RequiredAsOfDate"] = "" if pd.isna(required) else required.strftime("%Y-%m-%d")
+    stale = readiness["Ready"] & valid_dates.notna() & (valid_dates < required)
+    readiness.loc[stale, "Ready"] = False
+    readiness.loc[stale, "Reason"] = "STALE_MARKET_DATA"
+    readiness["Status"] = "READY"
+    readiness.loc[readiness["Reason"].str.contains("INSUFFICIENT_HISTORY", regex=False), "Status"] = "INSUFFICIENT_HISTORY"
+    readiness.loc[readiness["Reason"].eq("STALE_MARKET_DATA"), "Status"] = "STALE_MARKET_DATA"
+    readiness.loc[~readiness["Ready"] & ~readiness["Status"].isin(
+        {"INSUFFICIENT_HISTORY", "STALE_MARKET_DATA"}
+    ), "Status"] = "INVALID_CANONICAL_DATA"
+    for ticker, result in (refresh_results or {}).items():
+        if result.get("status") != "provider_rejected":
+            continue
+        mask = readiness["Ticker"].eq(str(ticker).strip().upper())
+        quarantinable = mask & ~readiness["Status"].eq("INVALID_CANONICAL_DATA")
+        readiness.loc[quarantinable, "Ready"] = False
+        readiness.loc[quarantinable, "Reason"] = "PROVIDER_REJECTED_CURRENT_SESSION"
+        readiness.loc[quarantinable, "Status"] = "PROVIDER_REJECTED"
+        rejected = result.get("rejected_dates") or []
+        readiness.loc[mask, "ProviderRejectedDate"] = ",".join(rejected)
+    return readiness
 
 
 def readiness_summary(readiness):
@@ -166,7 +202,8 @@ def readiness_summary(readiness):
     contains = lambda value: int(reasons.str.contains(value, regex=False).sum())
     known = (
         reasons.str.contains("MISSING_FILE|PARSE_ERROR|INSUFFICIENT_HISTORY|"
-                             "DUPLICATE_DATES|INVALID_OHLC|INVALID_NUMERIC", regex=True)
+                             "DUPLICATE_DATES|INVALID_OHLC|INVALID_NUMERIC|"
+                             "STALE_MARKET_DATA", regex=True)
     )
     return {
         "configured": int(len(readiness)),
@@ -178,6 +215,8 @@ def readiness_summary(readiness):
         "duplicate_date_failure": contains("DUPLICATE_DATES"),
         "invalid_ohlc": contains("INVALID_OHLC"),
         "invalid_numeric": contains("INVALID_NUMERIC"),
+        "stale_market_data": contains("STALE_MARKET_DATA"),
+        "provider_rejected": int(readiness["Status"].eq("PROVIDER_REJECTED").sum()),
         "other_failure": int(((~readiness["Ready"]) & ~known).sum()),
     }
 
@@ -193,6 +232,36 @@ def save_data_readiness(readiness, output_path=None):
     path.parent.mkdir(parents=True, exist_ok=True)
     readiness.loc[:, READINESS_COLUMNS].to_csv(path, index=False)
     return path
+
+
+def load_readiness_context(path=None):
+    """Return compact disclosure context from the canonical readiness artifact."""
+    source = DEFAULT_OUTPUT_PATH if path is None else Path(path)
+    if not source.is_file():
+        return None
+    try:
+        frame = pd.read_csv(source)
+    except (pd.errors.EmptyDataError, pd.errors.ParserError, OSError, UnicodeError):
+        return None
+    required = {"Ticker", "Ready", "Status", "Reason", "RequiredAsOfDate"}
+    if frame.empty or not required.issubset(frame.columns):
+        return None
+    ready = frame["Ready"]
+    if ready.dtype != bool:
+        ready = ready.astype(str).str.upper().map({"TRUE": True, "FALSE": False}).fillna(False)
+    excluded = frame.loc[~ready]
+    return {
+        "ConfiguredUniverseCount": int(len(frame)),
+        "ResearchReadyCount": int(ready.sum()),
+        "ExcludedUniverseCount": int((~ready).sum()),
+        "ProviderRejectedCount": int(frame["Status"].eq("PROVIDER_REJECTED").sum()),
+        "StaleMarketDataCount": int(frame["Status"].eq("STALE_MARKET_DATA").sum()),
+        "InsufficientHistoryCount": int(frame["Status"].eq("INSUFFICIENT_HISTORY").sum()),
+        "RequiredAsOfDate": str(frame["RequiredAsOfDate"].dropna().iloc[0]) if frame["RequiredAsOfDate"].notna().any() else "MISSING",
+        "ExcludedSymbols": ", ".join(
+            f"{row.Ticker} ({row.Status})" for row in excluded.itertuples(index=False)
+        ) or "None",
+    }
 
 
 def run_data_readiness(universe_path=None, data_dir=None, output_path=None):

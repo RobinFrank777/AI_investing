@@ -91,6 +91,17 @@ class ReportTerminalTests(unittest.TestCase):
         self.assertIn("View Card", html)
         summary_builder.assert_called_once_with("GOOGL")
 
+    def test_terminal_discloses_partial_readiness_counts(self):
+        context = {
+            "ConfiguredUniverseCount": 150, "ResearchReadyCount": 143,
+            "ExcludedUniverseCount": 7, "ProviderRejectedCount": 5,
+            "StaleMarketDataCount": 0, "InsufficientHistoryCount": 2,
+        }
+        with mock.patch.object(report_terminal, "load_readiness_context", return_value=context):
+            html = report_terminal.build_html(self.report_data)
+        for value in ("Configured Universe", "150", "Research Ready", "143", "Excluded", "7", "Provider Rejected", "5", "Stale Market Data", "Insufficient History", "2"):
+            self.assertIn(value, html)
+
     def test_combined_score_is_formatted_to_two_decimal_places(self):
         html, _, _ = self.generate()
         self.assertIn("<strong>Combined Score:</strong> 76.62", html)

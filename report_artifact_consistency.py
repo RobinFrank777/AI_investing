@@ -44,7 +44,7 @@ REQUIRED_SCHEMA = {
         "Ticker", "Eligibility", "TradeSignal",
     },
     "Portfolio Risk": {
-        "Ticker", "RiskValidationStatus",
+        "Ticker", "PortfolioEligible", "RiskStatus", "RiskReadyForPortfolio",
     },
     "Model Portfolio": {
         "Ticker", "PortfolioStatus",
@@ -94,7 +94,6 @@ def _candidate_requires_action(candidate):
 
 def _has_explicit_failure(name, frame):
     checks = {
-        "Portfolio Risk": ("RiskValidationStatus", {"FAILED"}),
         "Order Review": ("ReviewStatus", {"BLOCKED"}),
     }
     column, failed_values = checks.get(name, (None, set()))
@@ -102,6 +101,22 @@ def _has_explicit_failure(name, frame):
         return False
     values = set(frame[column].fillna("").astype(str).str.strip().str.upper())
     return bool(values & failed_values)
+
+
+def _risk_evidence_unavailable(frame):
+    if frame.empty:
+        return False
+    eligible = frame["PortfolioEligible"]
+    ready = frame["RiskReadyForPortfolio"]
+    if eligible.dtype != bool:
+        eligible = eligible.astype(str).str.strip().str.upper().map(
+            {"TRUE": True, "FALSE": False}
+        ).fillna(False)
+    if ready.dtype != bool:
+        ready = ready.astype(str).str.strip().str.upper().map(
+            {"TRUE": True, "FALSE": False}
+        ).fillna(False)
+    return bool(eligible.any() and not ready.any())
 
 
 def _aggregate(states):
@@ -163,6 +178,13 @@ def evaluate_report_artifacts(artifacts, *, report_date=None):
             states.append(FAILED)
             reasons.append(f"{name} contains an explicit validation failure")
             continue
+        if name == "Portfolio Risk" and _risk_evidence_unavailable(frame):
+            artifact_states[name] = FAILED
+            states.append(FAILED)
+            reasons.append(
+                "Portfolio Risk has eligible candidates but no RISK_READY evidence"
+            )
+            continue
 
         if name == "Production Candidate" and frame.empty:
             continue
@@ -174,8 +196,6 @@ def evaluate_report_artifacts(artifacts, *, report_date=None):
             # both so reports can prove end-to-end identity.
             applicable = (
                 field != "RiskModelVersion" or name != "Production Candidate"
-            ) and (
-                field != "UniverseVersion" or name != "Portfolio Risk"
             )
             if not applicable:
                 continue

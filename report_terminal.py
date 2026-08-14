@@ -13,6 +13,7 @@ from report_artifact_consistency import (
     ReportAssessment,
     assess_current_report,
 )
+from data_readiness import load_readiness_context
 from research_summary import build_research_summary
 
 
@@ -307,6 +308,20 @@ def _dashboard_html(metrics, generated_time):
 
 def build_html(report_data, assessment=None, *, archived=False):
     generated_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    readiness = load_readiness_context()
+    readiness_html = ""
+    if readiness:
+        readiness_html = "".join(
+            f'<div><div class="status-label">{escape(label, quote=True)}</div><div class="status-value">{escape(str(readiness[key]), quote=True)}</div></div>'
+            for label, key in (
+                ("Configured Universe", "ConfiguredUniverseCount"),
+                ("Research Ready", "ResearchReadyCount"),
+                ("Excluded", "ExcludedUniverseCount"),
+                ("Provider Rejected", "ProviderRejectedCount"),
+                ("Stale Market Data", "StaleMarketDataCount"),
+                ("Insufficient History", "InsufficientHistoryCount"),
+            )
+        )
     if assessment is None:
         assessment = ReportAssessment(
             "UNKNOWN",
@@ -494,6 +509,7 @@ def build_html(report_data, assessment=None, *, archived=False):
                 <div class="status-value">{escape(assessment.status, quote=True)}</div>
             </div>
             {''.join(f'''<div><div class="status-label">{escape(field, quote=True)}</div><div class="status-value">{escape(str(assessment.metadata.get(field, "MISSING")), quote=True)}</div></div>''' for field in ("RunId", "AsOfDate", "UniverseVersion", "ScoreModelVersion", "RiskModelVersion"))}
+            {readiness_html}
         </div>
         <p><strong>Evidence:</strong> {escape('; '.join(assessment.reasons) if assessment.reasons else 'All required production artifact checks passed.', quote=True)}</p>
     </section>

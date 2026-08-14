@@ -8,6 +8,7 @@ from config import (
     display_path,
 )
 from report_artifact_consistency import NO_ACTION, PASS, assess_current_report
+from data_readiness import load_readiness_context
 
 ORDER_REVIEW_OUTPUT = ORDER_REVIEW_OUTPUT_PATH
 ACTION_REPORT_OUTPUT = PORTFOLIO_ACTION_REPORT_OUTPUT_PATH
@@ -57,6 +58,16 @@ def build_action_report_text(order_df, assessment=None):
     lines.append(f"REVIEW Count           : {review_count}")
     lines.append(f"BLOCKED Count          : {blocked_count}")
     lines.append(f"Total Estimated Value  : ${total_estimated_value:,.2f}")
+    readiness = load_readiness_context()
+    if readiness:
+        lines.append(f"Data Coverage          : {'FULL' if readiness['ExcludedUniverseCount'] == 0 else 'PARTIAL'}")
+        lines.append(f"Configured Universe    : {readiness['ConfiguredUniverseCount']}")
+        lines.append(f"Research Ready         : {readiness['ResearchReadyCount']}")
+        lines.append(f"Excluded               : {readiness['ExcludedUniverseCount']}")
+        lines.append(f"Provider Rejected      : {readiness['ProviderRejectedCount']}")
+        lines.append(f"Stale Market Data      : {readiness['StaleMarketDataCount']}")
+        lines.append(f"Insufficient History   : {readiness['InsufficientHistoryCount']}")
+        lines.append(f"Excluded Symbols       : {readiness['ExcludedSymbols']}")
     lines.append("")
 
     if assessment.status not in {PASS, NO_ACTION}:

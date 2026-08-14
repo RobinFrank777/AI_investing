@@ -101,6 +101,61 @@ class DataReadinessTests(unittest.TestCase):
         self.assertFalse(row["MinimumHistoryPass"])
         self.assertIn("INSUFFICIENT_HISTORY", row["Reason"])
 
+    def test_symbol_behind_universe_latest_date_is_explicitly_stale(self):
+        old = price_frame(); new = price_frame()
+        new["Date"] = pd.to_datetime(new["Date"]) + pd.Timedelta(days=1)
+        self.write_prices("OLD", old); self.write_prices("NEW", new)
+        result = self.audit(["OLD", "NEW"])
+        stale = result.set_index("Ticker").loc["OLD"]
+        self.assertFalse(stale["Ready"])
+        self.assertEqual(stale["Reason"], "STALE_MARKET_DATA")
+        self.assertEqual(data_readiness.readiness_summary(result)["stale_market_data"], 1)
+
+    def test_provider_rejection_is_distinct_and_preserves_latest_accepted_date(self):
+        self.write_prices("REJECT", price_frame())
+        required = pd.Timestamp("2024-12-18")
+        result = data_readiness.build_data_readiness(
+            self.write_universe(["REJECT"]), self.data_dir,
+            required_as_of=required,
+            refresh_results={"REJECT": {
+                "status": "provider_rejected", "rejected_dates": ["2024-12-18"],
+            }},
+        )
+        row = result.iloc[0]
+        self.assertFalse(row["Ready"])
+        self.assertEqual(row["Status"], "PROVIDER_REJECTED")
+        self.assertEqual(row["Reason"], "PROVIDER_REJECTED_CURRENT_SESSION")
+        self.assertEqual(row["LatestAcceptedDate"], "2024-12-17")
+        self.assertEqual(row["ProviderRejectedDate"], "2024-12-18")
+
+    def test_partial_readiness_counts_and_full_universe_version_are_preserved(self):
+        symbols = [f"READY{i:03d}" for i in range(143)] + ["SHORT1", "SHORT2"] + [f"REJECT{i}" for i in range(5)]
+        base = price_frame()
+        current = base.copy()
+        current["Date"] = pd.to_datetime(current["Date"]) + pd.Timedelta(days=1)
+        for ticker in symbols[:143]:
+            self.write_prices(ticker, current)
+        for ticker in symbols[143:145]:
+            self.write_prices(ticker, price_frame(20))
+        for ticker in symbols[145:]:
+            self.write_prices(ticker, base)
+        required = pd.Timestamp("2024-12-18")
+        refresh = {
+            ticker: {"status": "provider_rejected", "rejected_dates": ["2024-12-18"]}
+            for ticker in symbols[145:]
+        }
+        result = data_readiness.build_data_readiness(
+            self.write_universe(symbols), self.data_dir,
+            required_as_of=required, refresh_results=refresh,
+        )
+        self.assertEqual(len(result), 150)
+        self.assertEqual(int(result["Ready"].sum()), 143)
+        self.assertEqual(result["Status"].value_counts().to_dict(), {
+            "READY": 143, "PROVIDER_REJECTED": 5, "INSUFFICIENT_HISTORY": 2,
+        })
+        self.assertEqual(result["UniverseVersion"].nunique(), 1)
+        self.assertEqual(result["UniverseVersion"].iloc[0], config.PRIMARY_UNIVERSE_VERSION)
+
     def test_one_failure_does_not_reduce_configured_count(self):
         self.write_prices("GOOD", price_frame())
         result = self.audit(["GOOD", "MISSING"])

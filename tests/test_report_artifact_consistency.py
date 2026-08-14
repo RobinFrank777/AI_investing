@@ -13,7 +13,7 @@ import report_terminal
 RUN_ID = "candidate-20260813-test"
 AS_OF_DATE = "2026-08-13"
 SCORE_VERSION = "technical-score-v3.8.1-r1"
-RISK_VERSION = "portfolio-risk-v3.8.1-r1"
+RISK_VERSION = "risk-model-v3.8.2-p2"
 
 
 def metadata(*, risk=True):
@@ -41,8 +41,9 @@ def artifacts(*, action=True):
     for name in subject.ACTION_ARTIFACTS:
         frame = pd.DataFrame({**metadata(), "Ticker": ["AAA"]})
         if name == "Portfolio Risk":
-            frame = frame.drop(columns=["UniverseVersion"])
-            frame["RiskValidationStatus"] = "PASS"
+            frame["PortfolioEligible"] = True
+            frame["RiskStatus"] = "RISK_READY"
+            frame["RiskReadyForPortfolio"] = True
         if name == "Model Portfolio":
             frame["PortfolioStatus"] = "PORTFOLIO_READY"
         if name == "Position Sizing":
@@ -128,8 +129,22 @@ class ReportArtifactConsistencyTests(unittest.TestCase):
 
     def test_required_artifact_validation_failure_is_failed(self):
         values = artifacts()
-        values["Portfolio Risk"].loc[:, "RiskValidationStatus"] = "FAILED"
-        self.assertEqual(self.evaluate(values).status, subject.FAILED)
+        values["Portfolio Risk"].loc[:, "RiskStatus"] = "INSUFFICIENT_HISTORY"
+        values["Portfolio Risk"].loc[:, "RiskReadyForPortfolio"] = False
+        result = self.evaluate(values)
+        self.assertEqual(result.status, subject.FAILED)
+        self.assertIn("no RISK_READY evidence", " ".join(result.reasons))
+
+    def test_partial_risk_ready_is_not_failed(self):
+        values = artifacts()
+        extra = values["Portfolio Risk"].copy()
+        extra.loc[:, "Ticker"] = "BBB"
+        extra.loc[:, "RiskStatus"] = "INSUFFICIENT_HISTORY"
+        extra.loc[:, "RiskReadyForPortfolio"] = False
+        values["Portfolio Risk"] = pd.concat(
+            [values["Portfolio Risk"], extra], ignore_index=True
+        )
+        self.assertEqual(self.evaluate(values).status, subject.PASS)
 
     def test_required_artifact_schema_failure_is_failed(self):
         values = artifacts()

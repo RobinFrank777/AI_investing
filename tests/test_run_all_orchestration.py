@@ -6,6 +6,8 @@ from contextlib import redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
+import pandas as pd
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
@@ -18,7 +20,7 @@ def ready_market_data():
     import pandas as pd
 
     return pd.DataFrame(
-        [{"Ticker": "READY", "Ready": True, "Reason": "READY"}]
+        [{"Ticker": "READY", "Ready": True, "Reason": "READY", "Status": "READY"}]
     )
 
 
@@ -184,12 +186,16 @@ class RunAllOrchestrationTests(unittest.TestCase):
                 run_all, "validate_watchlist", return_value=(results, "2026-08-13")
             ),
             patch.object(run_all, "print_validation_summary"),
-            patch.object(run_all, "build_data_readiness", side_effect=ready_market_data),
+            patch.object(run_all, "build_data_readiness", return_value=pd.DataFrame([
+                {"Ticker": "READY", "Ready": True, "Reason": "READY", "Status": "READY"},
+                {"Ticker": "SKHY", "Ready": False, "Reason": "INSUFFICIENT_HISTORY", "Status": "INSUFFICIENT_HISTORY"},
+            ])),
+            patch.object(run_all, "save_data_readiness"),
             redirect_stdout(output),
         ):
             run_all.validate_market_data()
         self.assertIn("SKHY", output.getvalue())
-        self.assertIn("Universe membership unchanged", output.getvalue())
+        self.assertIn("INSUFFICIENT_HISTORY", output.getvalue())
 
     def test_structural_market_data_failure_still_blocks_pipeline(self):
         results = [
@@ -206,12 +212,16 @@ class RunAllOrchestrationTests(unittest.TestCase):
                 run_all, "validate_watchlist", return_value=(results, "2026-08-13")
             ),
             patch.object(run_all, "print_validation_summary"),
-            patch.object(run_all, "build_data_readiness", side_effect=ready_market_data),
+            patch.object(run_all, "build_data_readiness", return_value=pd.DataFrame([{
+                "Ticker": "BROKEN", "Ready": False,
+                "Reason": "MISSING_COLUMNS", "Status": "INVALID_CANONICAL_DATA",
+            }])),
+            patch.object(run_all, "save_data_readiness"),
             self.assertRaisesRegex(RuntimeError, "BROKEN"),
         ):
             run_all.validate_market_data()
 
-    def test_stale_market_data_warning_blocks_pipeline(self):
+    def test_stale_market_data_is_quarantined_without_blocking_ready_subset(self):
         results = [
             {
                 "Ticker": "STALE",
@@ -228,10 +238,15 @@ class RunAllOrchestrationTests(unittest.TestCase):
                 run_all, "validate_watchlist", return_value=(results, "2026-08-13")
             ),
             patch.object(run_all, "print_validation_summary"),
-            patch.object(run_all, "build_data_readiness", side_effect=ready_market_data),
-            self.assertRaisesRegex(RuntimeError, "STALE"),
+            patch.object(run_all, "build_data_readiness", return_value=pd.DataFrame([
+                {"Ticker": "READY", "Ready": True, "Reason": "READY", "Status": "READY"},
+                {"Ticker": "STALE", "Ready": False, "Reason": "STALE_MARKET_DATA", "Status": "STALE_MARKET_DATA"},
+            ])),
+            patch.object(run_all, "save_data_readiness"),
+            redirect_stdout(io.StringIO()) as output,
         ):
             run_all.validate_market_data()
+        self.assertIn("STALE (STALE_MARKET_DATA)", output.getvalue())
 
     def test_refresh_failure_defers_to_following_validation(self):
         with patch.object(
@@ -255,12 +270,30 @@ class RunAllOrchestrationTests(unittest.TestCase):
         }]
         readiness = pd.DataFrame([{
             "Ticker": "KR", "Ready": False, "Reason": "INVALID_OHLC",
+            "Status": "INVALID_CANONICAL_DATA",
         }])
         with (
             patch.object(run_all, "validate_watchlist", return_value=(results, "2026-08-13")),
             patch.object(run_all, "print_validation_summary"),
             patch.object(run_all, "build_data_readiness", return_value=readiness),
+            patch.object(run_all, "save_data_readiness"),
             self.assertRaisesRegex(RuntimeError, "KR \\(INVALID_OHLC\\)"),
+        ):
+            run_all.validate_market_data()
+
+    def test_all_symbols_unavailable_still_blocks_pipeline(self):
+        import pandas as pd
+
+        readiness = pd.DataFrame([{
+            "Ticker": "STALE", "Ready": False,
+            "Reason": "STALE_MARKET_DATA", "Status": "STALE_MARKET_DATA",
+        }])
+        with (
+            patch.object(run_all, "validate_watchlist", return_value=([], None)),
+            patch.object(run_all, "print_validation_summary"),
+            patch.object(run_all, "build_data_readiness", return_value=readiness),
+            patch.object(run_all, "save_data_readiness"),
+            self.assertRaisesRegex(RuntimeError, "no READY symbols"),
         ):
             run_all.validate_market_data()
 

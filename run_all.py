@@ -28,7 +28,7 @@ from config import (
     display_path,
 )
 from daily_decision_report import print_daily_decision_report
-from data_readiness import build_data_readiness
+from data_readiness import build_data_readiness, save_data_readiness
 from data_validator import print_validation_summary, validate_watchlist
 from fundamental_scoring import print_fundamental_score
 from order_draft import print_order_draft
@@ -46,7 +46,8 @@ from portfolio_risk_calculator import (
 from position_sizing import print_position_sizing
 from rank_stocks_v2 import run_ranking_pipeline
 from system_health_check import get_manual_input_readiness, run_system_health_check
-from update_data import load_watchlist, update_all_stocks
+from market_session import latest_completed_session_date
+from update_data import get_last_update_results, load_watchlist, update_all_stocks
 from validate_backtest_outputs import validate_backtest_outputs
 from validate_combined_outputs import validate_combined_outputs
 from validate_config import print_config_validation
@@ -237,42 +238,25 @@ def validate_market_data():
     results, universe_latest_date = validate_watchlist()
     print_validation_summary(results, universe_latest_date)
 
-    readiness_exclusions = []
-    fatal_tickers = []
-    for result in results:
-        if result["IsValid"]:
-            if result.get("Warnings"):
-                fatal_tickers.append(result["Ticker"])
-            continue
-        errors = result.get("Errors", [])
-        if errors and all(
-            str(error).startswith("Insufficient history:") for error in errors
-        ):
-            readiness_exclusions.append(result["Ticker"])
-        else:
-            fatal_tickers.append(result["Ticker"])
-
-    if fatal_tickers:
-        raise RuntimeError(
-            "Market data validation failed for: " + ", ".join(fatal_tickers)
-        )
-    if readiness_exclusions:
-        print(
-            "Market data readiness exclusions (insufficient history; "
-            "Universe membership unchanged): " + ", ".join(readiness_exclusions)
-        )
-
-    readiness = build_data_readiness()
-    readiness_failures = readiness.loc[
-        (~readiness["Ready"])
-        & (~readiness["Reason"].eq("INSUFFICIENT_HISTORY"))
-    ]
-    if not readiness_failures.empty:
+    readiness = build_data_readiness(
+        required_as_of=latest_completed_session_date(),
+        refresh_results=get_last_update_results(),
+    )
+    save_data_readiness(readiness)
+    fatal = readiness.loc[readiness.Status.eq("INVALID_CANONICAL_DATA")]
+    if not fatal.empty:
         details = ", ".join(
-            f"{row.Ticker} ({row.Reason})"
-            for row in readiness_failures.itertuples(index=False)
+            f"{row.Ticker} ({row.Reason})" for row in fatal.itertuples(index=False)
         )
-        raise RuntimeError("Market data readiness failed for: " + details)
+        raise RuntimeError("Market data validation failed for: " + details)
+    ready = readiness.loc[readiness.Ready]
+    if ready.empty:
+        raise RuntimeError("Market data validation failed: no READY symbols")
+    excluded = readiness.loc[~readiness.Ready, ["Ticker", "Status"]]
+    if not excluded.empty:
+        print("Market data partial readiness exclusions: " + ", ".join(
+            f"{row.Ticker} ({row.Status})" for row in excluded.itertuples(index=False)
+        ))
 
 
 def market_data_artifacts():

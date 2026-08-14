@@ -39,6 +39,18 @@ def save_daily_report(
 
     invalid_count = len(invalid_results)
     warning_count = len(warning_results)
+    provider_rejected_count = sum(
+        any("PROVIDER_REJECTED" in str(error) for error in result.get("Errors", []))
+        for result in validation_results
+    )
+    stale_count = sum(
+        any("STALE_MARKET_DATA" in str(error) for error in result.get("Errors", []))
+        for result in validation_results
+    )
+    insufficient_count = sum(
+        any("INSUFFICIENT_HISTORY" in str(error) for error in result.get("Errors", []))
+        for result in validation_results
+    )
 
     universe_latest_display = (
         universe_latest_date
@@ -119,6 +131,13 @@ def save_daily_report(
             f"{'Stocks with Warnings':<22}: "
             f"{warning_count}\n"
         )
+        f.write(f"{'Data Coverage':<22}: {'FULL' if invalid_count == 0 else 'PARTIAL'}\n")
+        f.write(f"{'Configured Universe':<22}: {stocks_checked}\n")
+        f.write(f"{'Research Ready':<22}: {valid_count}\n")
+        f.write(f"{'Excluded':<22}: {invalid_count}\n")
+        f.write(f"{'Provider Rejected':<22}: {provider_rejected_count}\n")
+        f.write(f"{'Stale Market Data':<22}: {stale_count}\n")
+        f.write(f"{'Insufficient History':<22}: {insufficient_count}\n")
 
         f.write("\nExcluded Stocks:\n")
 
