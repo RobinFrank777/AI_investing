@@ -8,6 +8,7 @@ import pandas as pd
 import backtest_engine
 import portfolio_risk
 from config import PRIMARY_UNIVERSE_VERSION
+from portfolio_risk_calculator import RISK_MODEL_VERSION
 
 
 def production_candidates():
@@ -25,13 +26,23 @@ def production_candidates():
             "Confidence": [0.9],
             "ScoreModelVersion": ["technical-score-v3.8.1-r1"],
             "UniverseVersion": [PRIMARY_UNIVERSE_VERSION],
+            "RiskModelVersion": [RISK_MODEL_VERSION],
+            "PortfolioEligible": [True],
+            "RiskStatus": ["RISK_READY"],
+            "RiskReadyForPortfolio": [True],
+            "LatestClose": [100.0],
+            "LatestCloseAsOf": ["2026-08-12"],
+            "MaxDrawdown": [-0.05],
+            "SharpeRatio": [2.5],
+            "RiskLevel": ["Low"],
+            "RiskWeightMultiplier": [1.0],
         }
     )
 
 
 class LegacyBacktestAuthorityTests(unittest.TestCase):
     def run_default_portfolio(self, path):
-        with patch.object(portfolio_risk, "PRODUCTION_CANDIDATE_OUTPUT", path):
+        with patch.object(portfolio_risk, "PRODUCTION_RISK_INPUT", path):
             return portfolio_risk.build_model_portfolio()
 
     def test_legacy_backtest_is_explicitly_research_only(self):
@@ -52,7 +63,7 @@ class LegacyBacktestAuthorityTests(unittest.TestCase):
         self.assertTrue(result.empty)
         self.assertEqual(
             result.attrs["PortfolioStatus"],
-            portfolio_risk.PRODUCTION_CANDIDATES_MISSING,
+            portfolio_risk.PRODUCTION_RISK_INPUTS_MISSING,
         )
 
     def test_empty_production_candidates_return_no_action(self):
@@ -63,7 +74,7 @@ class LegacyBacktestAuthorityTests(unittest.TestCase):
         self.assertTrue(result.empty)
         self.assertEqual(
             result.attrs["PortfolioStatus"],
-            portfolio_risk.PRODUCTION_CANDIDATES_EMPTY,
+            portfolio_risk.NO_QUALIFIED_CANDIDATES,
         )
 
     def test_incompatible_production_candidates_return_no_action(self):
@@ -74,44 +85,32 @@ class LegacyBacktestAuthorityTests(unittest.TestCase):
         self.assertTrue(result.empty)
         self.assertEqual(
             result.attrs["PortfolioStatus"],
-            portfolio_risk.PRODUCTION_CANDIDATES_INCOMPATIBLE,
+            portfolio_risk.PRODUCTION_RISK_INPUTS_INCOMPATIBLE,
         )
 
-    def test_stale_production_candidates_return_no_action(self):
+    def test_future_price_metadata_returns_incompatible_no_action(self):
         with tempfile.TemporaryDirectory() as root:
             path = Path(root) / "production_candidates.csv"
             data = production_candidates()
-            data.loc[:, "AsOfDate"] = "2020-01-01"
+            data.loc[:, "LatestCloseAsOf"] = "2026-08-13"
             data.to_csv(path, index=False)
             result = self.run_default_portfolio(path)
         self.assertTrue(result.empty)
         self.assertEqual(
             result.attrs["PortfolioStatus"],
-            portfolio_risk.PRODUCTION_CANDIDATES_STALE,
+            portfolio_risk.PRODUCTION_RISK_INPUTS_INCOMPATIBLE,
         )
 
-    def test_valid_candidates_wait_for_production_risk_without_backtest(self):
+    def test_valid_production_risk_inputs_allocate_without_backtest(self):
         with tempfile.TemporaryDirectory() as root:
             path = Path(root) / "production_candidates.csv"
             production_candidates().to_csv(path, index=False)
             result = self.run_default_portfolio(path)
-        self.assertTrue(result.empty)
-        self.assertEqual(
-            result.attrs["PortfolioStatus"],
-            portfolio_risk.PRODUCTION_RISK_INPUTS_NOT_READY,
-        )
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result.attrs["PortfolioStatus"], portfolio_risk.PORTFOLIO_READY)
 
     def test_injected_p1_policy_path_remains_available_for_contract_tests(self):
-        injected = pd.DataFrame(
-            {
-                "Ticker": ["AAA"],
-                "BacktestScore": [90.0],
-                "AverageReturn": [0.1],
-                "WinRate": [0.6],
-                "MaxDrawdown": [-0.05],
-                "SharpeRatio": [2.5],
-            }
-        )
+        injected = production_candidates()
         result = portfolio_risk.build_model_portfolio(injected)
         self.assertEqual(result.attrs["PortfolioStatus"], portfolio_risk.PORTFOLIO_READY)
 

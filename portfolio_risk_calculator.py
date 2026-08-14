@@ -63,6 +63,19 @@ def empty_risk_inputs(status=NO_PORTFOLIO_ELIGIBLE_CANDIDATES):
     return result
 
 
+def load_production_risk_inputs(path=DEFAULT_OUTPUT_PATH):
+    """Read the canonical production risk-input artifact without fallback."""
+    path = Path(path)
+    if not path.is_file():
+        raise FileNotFoundError(f"Production risk input file not found: {path}")
+    try:
+        return pd.read_csv(path)
+    except pd.errors.EmptyDataError as error:
+        raise ValueError(f"Production risk input file is empty: {path}") from error
+    except (pd.errors.ParserError, UnicodeError, OSError) as error:
+        raise ValueError(f"Production risk input file cannot be read: {path}") from error
+
+
 def _single(frame, column):
     if frame[column].nunique(dropna=False) != 1:
         raise ValueError(f"validated candidates contain mixed {column}")

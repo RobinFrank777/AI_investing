@@ -8,6 +8,8 @@ import order_draft
 import order_review
 import portfolio_risk
 import position_sizing
+from config import PRIMARY_UNIVERSE_VERSION
+from portfolio_risk_calculator import RISK_MODEL_VERSION
 
 
 CAPITAL = 100_000
@@ -18,11 +20,19 @@ def qualified_candidates(count=3):
     tickers = ["AAPL", "MSFT", "NVDA"] + [f"TEST{i:02d}" for i in range(max(0, count - 3))]
     return pd.DataFrame({
         "Ticker": tickers[:count],
-        "BacktestScore": list(range(100, 100 - count, -1)),
-        "AverageReturn": [0.10] * count,
-        "WinRate": [0.60] * count,
+        "RunId": ["run-1"] * count, "AsOfDate": ["2026-06-18"] * count,
+        "UniverseVersion": [PRIMARY_UNIVERSE_VERSION] * count,
+        "ScoreModelVersion": ["technical-score-v3.8.1-r1"] * count,
+        "RiskModelVersion": [RISK_MODEL_VERSION] * count,
+        "CandidateRank": range(1, count + 1),
+        "FinalScore": list(range(100, 100 - count, -1)),
+        "TradeSignal": ["BUY"] * count, "Eligibility": ["ELIGIBLE"] * count,
+        "PortfolioEligible": [True] * count, "RiskStatus": ["RISK_READY"] * count,
+        "RiskReadyForPortfolio": [True] * count,
+        "LatestClose": [100.0] * count, "LatestCloseAsOf": ["2026-06-18"] * count,
         "MaxDrawdown": [-0.05] * count,
         "SharpeRatio": [2.5] * count,
+        "RiskLevel": ["Low"] * count, "RiskWeightMultiplier": [1.0] * count,
         "FundamentalScore": [75.0] * count,
         "CombinedScore": list(range(100, 100 - count, -1)),
         "FundamentalRating": ["GOOD"] * count,
@@ -108,15 +118,15 @@ class CapitalFlowContractTests(unittest.TestCase):
 
     def test_all_unknown_invalid_and_zero_multiplier_no_action(self):
         unknown = qualified_candidates(3); unknown["SharpeRatio"] = np.nan
-        invalid = qualified_candidates(3); invalid["BacktestScore"] = [np.nan, np.inf, -np.inf]
+        invalid = qualified_candidates(3); invalid["FinalScore"] = [np.nan, np.inf, -np.inf]
         for label, data in (("unknown", unknown), ("invalid", invalid)):
             with self.subTest(label=label):
                 flow = run_flow(data)
                 self.assertTrue(flow[0].empty); self.assertTrue(flow[2].empty)
                 self.assertEqual(flow[3].attrs["PortfolioReviewFlag"], "NOT_APPLICABLE")
-        with patch.dict(portfolio_risk.RISK_LEVEL_WEIGHT_MULTIPLIERS, {"Low": 0.0}):
-            flow = run_flow(qualified_candidates(2))
-        self.assertEqual(flow[0].attrs["PortfolioStatus"], portfolio_risk.NO_SIZABLE_POSITIONS)
+        zero = qualified_candidates(2); zero["RiskWeightMultiplier"] = 0.0
+        flow = run_flow(zero)
+        self.assertEqual(flow[0].attrs["PortfolioStatus"], portfolio_risk.NO_RISK_READY_CANDIDATES)
 
     def test_unknown_high_rank_does_not_occupy_slots(self):
         data = qualified_candidates(portfolio_risk.MAX_HOLDINGS + 2)

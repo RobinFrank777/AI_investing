@@ -13,9 +13,15 @@ MODEL_PORTFOLIO_OUTPUT = MODEL_PORTFOLIO_OUTPUT_PATH
 
 REQUIRED_COLUMNS = [
     "Ticker",
-    "BacktestScore",
-    "AverageReturn",
-    "WinRate",
+    "RunId",
+    "AsOfDate",
+    "UniverseVersion",
+    "ScoreModelVersion",
+    "RiskModelVersion",
+    "CandidateRank",
+    "FinalScore",
+    "LatestClose",
+    "LatestCloseAsOf",
     "MaxDrawdown",
     "SharpeRatio",
     "RiskLevel",
@@ -27,9 +33,9 @@ REQUIRED_COLUMNS = [
 
 
 NUMERIC_COLUMNS = [
-    "BacktestScore",
-    "AverageReturn",
-    "WinRate",
+    "CandidateRank",
+    "FinalScore",
+    "LatestClose",
     "MaxDrawdown",
     "SharpeRatio",
     "RiskWeightMultiplier",

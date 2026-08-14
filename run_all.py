@@ -39,6 +39,10 @@ from production_candidate_builder import (
     run_production_candidate_builder,
 )
 from portfolio_risk import print_model_portfolio
+from portfolio_risk_calculator import (
+    DEFAULT_OUTPUT_PATH as PRODUCTION_RISK_INPUT_OUTPUT_PATH,
+    build_production_risk_inputs,
+)
 from position_sizing import print_position_sizing
 from rank_stocks_v2 import run_ranking_pipeline
 from system_health_check import get_manual_input_readiness, run_system_health_check
@@ -338,6 +342,11 @@ def build_pipeline_steps():
             "name": "Production candidate build",
             "action": run_production_candidate_builder,
             "artifacts": (PRODUCTION_CANDIDATE_OUTPUT_PATH,),
+        },
+        {
+            "name": "Production risk input build",
+            "action": build_production_risk_inputs,
+            "artifacts": (PRODUCTION_RISK_INPUT_OUTPUT_PATH,),
         },
         {
             "name": "Model portfolio",

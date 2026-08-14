@@ -1,8 +1,5 @@
 """Build a risk-ready model portfolio with fail-safe allocation boundaries."""
 
-from datetime import date
-from pathlib import Path
-
 import numpy as np
 import pandas as pd
 
@@ -15,17 +12,17 @@ from config import (
     HIGH_RISK_WEIGHT_MULTIPLIER,
     UNKNOWN_RISK_WEIGHT_MULTIPLIER,
     MODEL_PORTFOLIO_OUTPUT_PATH,
+    PRIMARY_UNIVERSE_VERSION,
     display_path,
 )
-from portfolio_candidate_adapter import (
-    DEFAULT_INPUT_PATH as PRODUCTION_CANDIDATE_OUTPUT_PATH,
-    build_validated_portfolio_candidates,
-    load_production_candidates,
+from portfolio_risk_calculator import (
+    DEFAULT_OUTPUT_PATH as PRODUCTION_RISK_INPUT_PATH,
+    RISK_MODEL_VERSION,
+    load_production_risk_inputs,
 )
-from production_candidate_builder import MAX_STALENESS_DAYS
 
 
-PRODUCTION_CANDIDATE_OUTPUT = PRODUCTION_CANDIDATE_OUTPUT_PATH
+PRODUCTION_RISK_INPUT = PRODUCTION_RISK_INPUT_PATH
 MODEL_PORTFOLIO_OUTPUT = MODEL_PORTFOLIO_OUTPUT_PATH
 MAX_POSITION_WEIGHT = MAX_SINGLE_POSITION_WEIGHT
 ALLOCATION_TOLERANCE = 1e-12
@@ -33,11 +30,8 @@ ALLOCATION_TOLERANCE = 1e-12
 NO_QUALIFIED_CANDIDATES = "NO_QUALIFIED_CANDIDATES"
 NO_RISK_READY_CANDIDATES = "NO_RISK_READY_CANDIDATES"
 NO_SIZABLE_POSITIONS = "NO_SIZABLE_POSITIONS"
-PRODUCTION_CANDIDATES_MISSING = "PRODUCTION_CANDIDATES_MISSING_NO_ACTION"
-PRODUCTION_CANDIDATES_EMPTY = "PRODUCTION_CANDIDATES_EMPTY_NO_ACTION"
-PRODUCTION_CANDIDATES_STALE = "PRODUCTION_CANDIDATES_STALE_NO_ACTION"
-PRODUCTION_CANDIDATES_INCOMPATIBLE = "PRODUCTION_CANDIDATES_INCOMPATIBLE_NO_ACTION"
-PRODUCTION_RISK_INPUTS_NOT_READY = "PRODUCTION_RISK_INPUTS_NOT_READY_NO_ACTION"
+PRODUCTION_RISK_INPUTS_MISSING = "PRODUCTION_RISK_INPUTS_MISSING_NO_ACTION"
+PRODUCTION_RISK_INPUTS_INCOMPATIBLE = "PRODUCTION_RISK_INPUTS_INCOMPATIBLE_NO_ACTION"
 PORTFOLIO_READY = "PORTFOLIO_READY"
 
 RISK_LEVEL_WEIGHT_MULTIPLIERS = {
@@ -49,9 +43,21 @@ RISK_LEVEL_WEIGHT_MULTIPLIERS = {
 
 PORTFOLIO_COLUMNS = (
     "Ticker",
+    "RunId",
+    "AsOfDate",
+    "UniverseVersion",
+    "ScoreModelVersion",
+    "RiskModelVersion",
+    "CandidateRank",
+    "FinalScore",
     "BacktestScore",
-    "AverageReturn",
-    "WinRate",
+    "TradeSignal",
+    "Eligibility",
+    "PortfolioEligible",
+    "RiskStatus",
+    "RiskReadyForPortfolio",
+    "LatestClose",
+    "LatestCloseAsOf",
     "MaxDrawdown",
     "SharpeRatio",
     "RiskLevel",
@@ -71,38 +77,19 @@ def _empty_portfolio(status):
 
 
 def load_qualified_candidates():
-    """Load the sole production candidate authority; never use backtest fallback."""
+    """Load the sole production risk-input authority; never use fallback."""
     try:
-        source = load_production_candidates(PRODUCTION_CANDIDATE_OUTPUT)
-        validated = build_validated_portfolio_candidates(source)
+        source = load_production_risk_inputs(PRODUCTION_RISK_INPUT)
     except FileNotFoundError:
-        return _empty_portfolio(PRODUCTION_CANDIDATES_MISSING)
+        return _empty_portfolio(PRODUCTION_RISK_INPUTS_MISSING)
     except (TypeError, ValueError):
-        return _empty_portfolio(PRODUCTION_CANDIDATES_INCOMPATIBLE)
-
-    if validated.empty:
-        return _empty_portfolio(PRODUCTION_CANDIDATES_EMPTY)
-
+        return _empty_portfolio(PRODUCTION_RISK_INPUTS_INCOMPATIBLE)
+    if source.empty:
+        return _empty_portfolio(NO_QUALIFIED_CANDIDATES)
     try:
-        as_of_date = pd.to_datetime(
-            validated["AsOfDate"].iloc[0], errors="raise"
-        ).date()
-    except (TypeError, ValueError, OverflowError):
-        return _empty_portfolio(PRODUCTION_CANDIDATES_INCOMPATIBLE)
-    age = (date.today() - as_of_date).days
-    if age < 0:
-        return _empty_portfolio(PRODUCTION_CANDIDATES_INCOMPATIBLE)
-    if age > MAX_STALENESS_DAYS:
-        return _empty_portfolio(PRODUCTION_CANDIDATES_STALE)
-
-    eligible = validated.loc[validated["PortfolioEligible"]].copy()
-    if eligible.empty:
-        return _empty_portfolio(PRODUCTION_CANDIDATES_EMPTY)
-
-    # B1 removes legacy authority but does not force the pending production
-    # candidate-to-risk allocation cutover. Until that contract is complete,
-    # valid candidates fail closed instead of borrowing legacy backtest metrics.
-    return _empty_portfolio(PRODUCTION_RISK_INPUTS_NOT_READY)
+        return _validate_production_risk_inputs(source)
+    except (TypeError, ValueError):
+        return _empty_portfolio(PRODUCTION_RISK_INPUTS_INCOMPATIBLE)
 
 
 def assign_risk_level(row):
@@ -129,25 +116,71 @@ def get_risk_weight_multiplier(risk_level):
 
 def _prepare_candidates(candidates):
     required = {
-        "Ticker", "BacktestScore", "AverageReturn", "WinRate",
-        "MaxDrawdown", "SharpeRatio",
+        "Ticker", "RunId", "AsOfDate", "UniverseVersion", "ScoreModelVersion",
+        "RiskModelVersion", "CandidateRank", "FinalScore", "TradeSignal",
+        "Eligibility", "PortfolioEligible", "MaxDrawdown", "SharpeRatio",
+        "RiskLevel", "RiskWeightMultiplier", "RiskStatus",
+        "RiskReadyForPortfolio", "LatestClose", "LatestCloseAsOf",
     }
     missing = sorted(required - set(candidates.columns))
     if missing:
         raise ValueError("qualified candidates missing columns: " + ", ".join(missing))
     prepared = candidates.copy(deep=True)
     prepared["Ticker"] = prepared["Ticker"].fillna("").astype(str).str.strip().str.upper()
-    for column in ("BacktestScore", "MaxDrawdown", "SharpeRatio"):
+    for column in (
+        "CandidateRank", "FinalScore", "MaxDrawdown", "SharpeRatio",
+        "RiskWeightMultiplier", "LatestClose",
+    ):
         prepared[column] = pd.to_numeric(prepared[column], errors="coerce")
-    prepared["RiskLevel"] = prepared.apply(assign_risk_level, axis=1)
+    for column in ("PortfolioEligible", "RiskReadyForPortfolio"):
+        values = prepared[column]
+        if values.dtype != bool:
+            values = values.astype(str).str.strip().str.upper().map(
+                {"TRUE": True, "FALSE": False}
+            )
+        prepared[column] = values.fillna(False).astype(bool)
     prepared["RiskReady"] = (
         prepared["Ticker"].ne("")
-        & np.isfinite(prepared["BacktestScore"])
-        & prepared["RiskLevel"].ne("Unknown")
+        & prepared["PortfolioEligible"]
+        & prepared["RiskReadyForPortfolio"]
+        & prepared["RiskStatus"].eq("RISK_READY")
+        & np.isfinite(prepared["FinalScore"])
+        & np.isfinite(prepared["MaxDrawdown"])
+        & np.isfinite(prepared["SharpeRatio"])
+        & prepared["RiskLevel"].isin({"Low", "Medium", "High"})
+        & np.isfinite(prepared["RiskWeightMultiplier"])
+        & prepared["RiskWeightMultiplier"].gt(0)
     )
-    prepared["RiskWeightMultiplier"] = prepared["RiskLevel"].map(
-        get_risk_weight_multiplier
-    )
+    if "BacktestScore" not in prepared:
+        prepared["BacktestScore"] = prepared["FinalScore"]
+    return prepared
+
+
+def _single(frame, column):
+    values = frame[column].fillna("").astype(str).str.strip()
+    if values.eq("").any() or values.nunique(dropna=False) != 1:
+        raise ValueError(f"production risk inputs contain missing or mixed {column}")
+    return values
+
+
+def _validate_production_risk_inputs(source):
+    prepared = _prepare_candidates(source)
+    for column in (
+        "RunId", "AsOfDate", "UniverseVersion", "ScoreModelVersion",
+        "RiskModelVersion",
+    ):
+        prepared[column] = _single(prepared, column)
+    if prepared.UniverseVersion.iloc[0] != PRIMARY_UNIVERSE_VERSION:
+        raise ValueError("production risk inputs contain incompatible UniverseVersion")
+    if prepared.RiskModelVersion.iloc[0] != RISK_MODEL_VERSION:
+        raise ValueError("production risk inputs contain incompatible RiskModelVersion")
+    as_of = pd.to_datetime(prepared.AsOfDate, errors="raise")
+    latest = pd.to_datetime(prepared.LatestCloseAsOf, errors="coerce")
+    ready = prepared.RiskReadyForPortfolio
+    if latest.loc[ready].isna().any() or (latest.loc[ready] > as_of.loc[ready]).any():
+        raise ValueError("production risk inputs contain incompatible LatestCloseAsOf")
+    if prepared.Ticker.duplicated().any():
+        raise ValueError("production risk inputs contain duplicate Ticker")
     return prepared
 
 
@@ -160,16 +193,24 @@ def build_model_portfolio(candidates_df=None):
         status = candidates.attrs.get("PortfolioStatus", NO_QUALIFIED_CANDIDATES)
         return _empty_portfolio(status)
 
-    prepared = _prepare_candidates(candidates)
+    if candidates_df is not None:
+        try:
+            prepared = _validate_production_risk_inputs(candidates)
+        except (TypeError, ValueError):
+            return _empty_portfolio(PRODUCTION_RISK_INPUTS_INCOMPATIBLE)
+    else:
+        prepared = _prepare_candidates(candidates)
+    qualified_count = int(prepared.PortfolioEligible.sum())
+    if qualified_count == 0:
+        return _empty_portfolio(NO_QUALIFIED_CANDIDATES)
     eligible = prepared.loc[prepared["RiskReady"]].copy()
     if eligible.empty:
         return _empty_portfolio(NO_RISK_READY_CANDIDATES)
 
-    # BacktestScore remains the primary ranking authority. Ticker is only a
-    # deterministic tie-break, applied after risk readiness filtering.
+    excluded = prepared.loc[prepared.PortfolioEligible & ~prepared.RiskReady, ["Ticker", "RiskStatus"]]
     eligible = eligible.sort_values(
-        ["BacktestScore", "Ticker"],
-        ascending=[False, True],
+        ["FinalScore", "CandidateRank", "Ticker"],
+        ascending=[False, True, True],
         kind="mergesort",
     )
     selected = eligible.head(MAX_HOLDINGS).copy()
@@ -203,6 +244,7 @@ def build_model_portfolio(candidates_df=None):
     selected["PortfolioRole"] = "candidate"
     selected["PortfolioStatus"] = PORTFOLIO_READY
     selected.attrs["PortfolioStatus"] = PORTFOLIO_READY
+    selected.attrs["ExcludedRiskCandidates"] = excluded.to_dict("records")
     return selected
 
 
@@ -223,7 +265,7 @@ def print_model_portfolio():
     else:
         print(
             portfolio_df[
-                ["Ticker", "BacktestScore", "AverageReturn", "WinRate",
+                ["Ticker", "FinalScore", "CandidateRank",
                  "MaxDrawdown", "SharpeRatio", "RiskLevel", "RiskReady",
                  "RiskWeightMultiplier", "TargetWeightPercent", "PortfolioRole"]
             ].to_string(index=False)
