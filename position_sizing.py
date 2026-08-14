@@ -128,12 +128,26 @@ def add_target_dollar_amount(portfolio_df, capital=ACCOUNT_VALUE):
 
 def add_share_sizing(position_df):
     position_df = position_df.copy()
-    prices = []
-    for ticker in position_df.get("Ticker", []):
-        try: prices.append(get_latest_close(ticker))
-        except (FileNotFoundError, ValueError, OSError): prices.append(np.nan)
-    position_df["LatestClose"] = prices
+    if "LatestClose" not in position_df:
+        prices = []
+        for ticker in position_df.get("Ticker", []):
+            try: prices.append(get_latest_close(ticker))
+            except (FileNotFoundError, ValueError, OSError): prices.append(np.nan)
+        position_df["LatestClose"] = prices
+    else:
+        position_df["LatestClose"] = pd.to_numeric(
+            position_df["LatestClose"], errors="coerce"
+        )
+    if "LatestCloseAsOf" in position_df and "AsOfDate" in position_df:
+        latest_dates = pd.to_datetime(position_df["LatestCloseAsOf"], errors="coerce")
+        as_of_dates = pd.to_datetime(position_df["AsOfDate"], errors="coerce")
+        point_in_time_safe = (
+            latest_dates.notna() & as_of_dates.notna() & (latest_dates <= as_of_dates)
+        )
+    else:
+        point_in_time_safe = pd.Series(True, index=position_df.index, dtype=bool)
     valid_price = position_df["LatestClose"].notna() & np.isfinite(position_df["LatestClose"]) & (position_df["LatestClose"] > 0)
+    valid_price &= point_in_time_safe
     valid_value = position_df["TargetDollarAmount"].notna() & np.isfinite(position_df["TargetDollarAmount"]) & (position_df["TargetDollarAmount"] >= 0)
     ready = position_df["SizingStatus"].eq(POSITION_READY) & valid_price & valid_value
     raw_shares = (position_df["TargetDollarAmount"] / position_df["LatestClose"]).where(ready)

@@ -39,6 +39,11 @@ REQUIRED_COLUMNS = [
 
 ORDER_COLUMNS = [
     "Ticker",
+    "RunId",
+    "AsOfDate",
+    "UniverseVersion",
+    "ScoreModelVersion",
+    "RiskModelVersion",
     "BacktestScore",
     "FundamentalScore",
     "CombinedScore",
@@ -46,6 +51,7 @@ ORDER_COLUMNS = [
     "Action",
     "TargetShares",
     "LatestClose",
+    "LatestCloseAsOf",
     "EstimatedOrderValue",
     "TargetDollarAmount",
     "PositionCashRemainder",
@@ -104,6 +110,13 @@ def build_order_draft(position_df=None):
     ).round(2)
 
     order_df["OrderStatus"] = DEFAULT_ORDER_STATUS
+
+    for column in (
+        "RunId", "AsOfDate", "UniverseVersion", "ScoreModelVersion",
+        "RiskModelVersion", "LatestCloseAsOf",
+    ):
+        if column not in order_df:
+            order_df[column] = pd.NA
 
     order_df = order_df[ORDER_COLUMNS]
     order_df.attrs["OrderDraftStatus"] = DRAFT_READY if not order_df.empty else NO_DRAFT_ORDERS

@@ -100,6 +100,7 @@ def build_historical_score_table(tickers=None, market_data=None):
                     ],
                     "VolumeScore": components["VolumeScore"],
                     "RiskScore": components["RiskScore"],
+                    "Confidence": components["Confidence"],
                 }
             )
     scores = pd.DataFrame(rows)

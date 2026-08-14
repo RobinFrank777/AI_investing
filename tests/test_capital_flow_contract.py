@@ -56,12 +56,9 @@ def run_flow(candidates, prices=None, capital=CAPITAL):
     portfolio = enrich_empty_portfolio(portfolio)
     sized = position_sizing.add_target_dollar_amount(portfolio, capital)
     prices = prices or {ticker: 100.0 for ticker in sized.get("Ticker", [])}
-    with patch.object(
-        position_sizing,
-        "get_latest_close",
-        side_effect=lambda ticker: prices[ticker],
-    ):
-        sized = position_sizing.add_share_sizing(sized)
+    if not sized.empty:
+        sized["LatestClose"] = sized["Ticker"].map(prices)
+    sized = position_sizing.add_share_sizing(sized)
     draft = order_draft.build_order_draft(sized)
     review = order_review.build_order_review(draft)
     return portfolio, sized, draft, review

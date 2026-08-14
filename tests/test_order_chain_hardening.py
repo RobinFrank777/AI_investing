@@ -26,10 +26,20 @@ class PositionSizingHardeningTests(unittest.TestCase):
     def test_invalid_prices_and_zero_shares(self):
         base=sizing.add_target_dollar_amount(portfolio(),1000)
         for price in (np.nan,np.inf,-np.inf,0,-1):
-            with self.subTest(price=price),patch.object(sizing,"get_latest_close",return_value=price):
-                result=sizing.add_share_sizing(base); self.assertEqual(result.at[0,"SizingStatus"],sizing.INVALID_PRICE); self.assertEqual(result.at[0,"TargetShares"],0)
-        with patch.object(sizing,"get_latest_close",return_value=2000):
-            result=sizing.add_share_sizing(base); self.assertEqual(result.at[0,"SizingStatus"],sizing.NO_SIZABLE_POSITION)
+            with self.subTest(price=price):
+                data=base.copy(); data["LatestClose"]=price
+                result=sizing.add_share_sizing(data); self.assertEqual(result.at[0,"SizingStatus"],sizing.INVALID_PRICE); self.assertEqual(result.at[0,"TargetShares"],0)
+        data=base.copy(); data["LatestClose"]=2000
+        result=sizing.add_share_sizing(data); self.assertEqual(result.at[0,"SizingStatus"],sizing.NO_SIZABLE_POSITION)
+
+    def test_point_in_time_price_is_preserved_without_latest_reader(self):
+        data=sizing.add_target_dollar_amount(portfolio(),1000)
+        data["LatestClose"] = 125.0; data["LatestCloseAsOf"]="2026-06-18"; data["AsOfDate"]="2026-06-18"
+        with patch.object(sizing,"get_latest_close",side_effect=AssertionError("must not read current price")):
+            result=sizing.add_share_sizing(data)
+        self.assertEqual(result.at[0,"LatestClose"],125.0)
+        future=data.copy(); future["LatestCloseAsOf"]="2026-06-19"
+        self.assertEqual(sizing.add_share_sizing(future).at[0,"SizingStatus"],sizing.INVALID_PRICE)
 
     def test_invalid_weight_and_capital(self):
         for weight in (np.nan,np.inf,-1):
