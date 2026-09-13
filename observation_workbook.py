@@ -672,6 +672,271 @@ def append_candidate_tracking(
 
 
 # ============================================================
+# Candidate_Tracking controlled outcome update
+# ============================================================
+
+CANDIDATE_TRACKING_MUTABLE_FIELDS = {
+    "30D": 11,
+    "60D": 12,
+    "90D": 13,
+    "Outcome": 14,
+}
+
+CANDIDATE_TRACKING_PROTECTED_COLUMNS = tuple(range(1, 11))
+
+
+def _candidate_tracking_find_row(ws, date, ticker) -> int:
+    """Locate exactly one Candidate_Tracking row by Date + Ticker."""
+
+    target_date = _normalize_daily_run_date(date)
+    target_ticker = str(ticker).strip().upper()
+
+    if not target_ticker:
+        raise RuntimeError("Candidate_Tracking Ticker must not be empty.")
+
+    matches = []
+
+    for row in range(CANDIDATE_TRACKING_FIRST_DATA_ROW, ws.max_row + 1):
+        existing_date = ws.cell(row=row, column=1).value
+        existing_ticker = ws.cell(row=row, column=2).value
+
+        if existing_date is None and existing_ticker is None:
+            continue
+
+        existing_day = _normalize_daily_run_date(existing_date)
+        existing_symbol = str(existing_ticker or "").strip().upper()
+
+        if existing_day == target_date and existing_symbol == target_ticker:
+            matches.append(row)
+
+    if not matches:
+        raise RuntimeError(
+            "Candidate_Tracking row not found for "
+            f"{target_date} / {target_ticker}. Workbook was NOT modified."
+        )
+
+    if len(matches) != 1:
+        raise RuntimeError(
+            "Candidate_Tracking key is not unique for "
+            f"{target_date} / {target_ticker}: rows {matches}. "
+            "Workbook was NOT modified."
+        )
+
+    return matches[0]
+
+
+def _validate_candidate_outcome_value(field_name: str, value) -> None:
+    """Validate values allowed in the controlled outcome fields."""
+
+    if field_name in {"30D", "60D", "90D"}:
+        if value is not None and (
+            not isinstance(value, (int, float)) or isinstance(value, bool)
+        ):
+            raise RuntimeError(
+                f"Candidate_Tracking {field_name} must be numeric or None."
+            )
+
+    elif field_name == "Outcome":
+        if value is not None and not str(value).strip():
+            raise RuntimeError(
+                "Candidate_Tracking Outcome must be a non-empty string or None."
+            )
+
+
+def _validate_candidate_horizon_maturity(
+    signal_date,
+    evaluation_date,
+    *,
+    day_30,
+    day_60,
+    day_90,
+) -> None:
+    """Do not allow 30D/60D/90D values before their calendar-day horizon matures."""
+
+    signal_day = _normalize_daily_run_date(signal_date)
+    evaluation_day = _normalize_daily_run_date(evaluation_date)
+
+    if not isinstance(signal_day, date_type) or not isinstance(evaluation_day, date_type):
+        raise RuntimeError(
+            "Candidate_Tracking maturity validation requires valid dates."
+        )
+
+    if evaluation_day < signal_day:
+        raise RuntimeError(
+            "Candidate_Tracking evaluation date cannot precede signal date."
+        )
+
+    elapsed_days = (evaluation_day - signal_day).days
+
+    required = {
+        "30D": (day_30, 30),
+        "60D": (day_60, 60),
+        "90D": (day_90, 90),
+    }
+
+    for field_name, (value, minimum_days) in required.items():
+        if value is not None and elapsed_days < minimum_days:
+            raise RuntimeError(
+                f"Candidate_Tracking {field_name} is not mature: "
+                f"only {elapsed_days} calendar days have elapsed; "
+                f"requires at least {minimum_days}. Workbook was NOT modified."
+            )
+
+
+def update_candidate_outcome(
+    file_path: Path,
+    *,
+    date,
+    ticker,
+    evaluation_date,
+    day_30=None,
+    day_60=None,
+    day_90=None,
+    outcome=None,
+    overwrite: bool = False,
+    create_backup: bool = True,
+) -> int:
+    """
+    Controlled update for Candidate_Tracking outcome fields only.
+
+    The immutable research snapshot (Date through ResearchNote) is never changed.
+    By default, an already populated 30D/60D/90D/Outcome value cannot be overwritten.
+    """
+
+    if not file_path.exists():
+        raise FileNotFoundError(file_path)
+
+    updates = {
+        "30D": day_30,
+        "60D": day_60,
+        "90D": day_90,
+        "Outcome": outcome,
+    }
+
+    if all(value is None for value in updates.values()):
+        raise RuntimeError(
+            "Candidate_Tracking outcome update requires at least one value."
+        )
+
+    for field_name, value in updates.items():
+        _validate_candidate_outcome_value(field_name, value)
+
+    _validate_candidate_horizon_maturity(
+        date,
+        evaluation_date,
+        day_30=day_30,
+        day_60=day_60,
+        day_90=day_90,
+    )
+
+    wb = load_workbook(file_path)
+
+    if CANDIDATE_TRACKING_SHEET not in wb.sheetnames:
+        raise RuntimeError(
+            f"Required sheet '{CANDIDATE_TRACKING_SHEET}' does not exist."
+        )
+
+    ws = wb[CANDIDATE_TRACKING_SHEET]
+
+    validate_candidate_tracking_schema(ws)
+    validate_candidate_tracking_history_contiguous(ws)
+
+    target_row = _candidate_tracking_find_row(ws, date, ticker)
+
+    protected_before = [
+        ws.cell(row=target_row, column=col).value
+        for col in CANDIDATE_TRACKING_PROTECTED_COLUMNS
+    ]
+
+    for field_name, value in updates.items():
+        if value is None:
+            continue
+
+        col = CANDIDATE_TRACKING_MUTABLE_FIELDS[field_name]
+        existing_value = ws.cell(row=target_row, column=col).value
+
+        allow_open_transition = (
+            field_name == "Outcome"
+            and isinstance(existing_value, str)
+            and existing_value.strip().upper() == "OPEN"
+            and str(value).strip().upper() != "OPEN"
+        )
+
+        if existing_value is not None and not overwrite and not allow_open_transition:
+            raise RuntimeError(
+                f"Candidate_Tracking {field_name} already contains "
+                f"{existing_value!r} at row {target_row}. "
+                "Use overwrite=True only after explicit review. "
+                "Workbook was NOT modified."
+            )
+
+    if create_backup:
+        make_backup(file_path)
+
+    for field_name, value in updates.items():
+        if value is None:
+            continue
+
+        col = CANDIDATE_TRACKING_MUTABLE_FIELDS[field_name]
+        if field_name == "Outcome":
+            value = str(value).strip()
+        cell = ws.cell(row=target_row, column=col)
+        cell.value = value
+        if field_name in {"30D", "60D", "90D"}:
+            cell.number_format = "0.00%"
+
+    wb.save(file_path)
+
+    verify_wb = load_workbook(file_path, data_only=False)
+    verify_ws = verify_wb[CANDIDATE_TRACKING_SHEET]
+
+    protected_after = [
+        verify_ws.cell(row=target_row, column=col).value
+        for col in CANDIDATE_TRACKING_PROTECTED_COLUMNS
+    ]
+
+    if protected_after != protected_before:
+        raise RuntimeError(
+            "Candidate_Tracking protected historical fields changed unexpectedly."
+        )
+
+    for field_name, value in updates.items():
+        if value is None:
+            continue
+
+        col = CANDIDATE_TRACKING_MUTABLE_FIELDS[field_name]
+        expected = str(value).strip() if field_name == "Outcome" else value
+        actual = verify_ws.cell(row=target_row, column=col).value
+
+        if actual != expected:
+            raise RuntimeError(
+                f"Candidate_Tracking {field_name} post-save verification failed."
+            )
+
+        if field_name in {"30D", "60D", "90D"}:
+            actual_format = verify_ws.cell(row=target_row, column=col).number_format
+            if actual_format != "0.00%":
+                raise RuntimeError(
+                    f"Candidate_Tracking {field_name} number format verification failed: "
+                    f"{actual_format!r}."
+                )
+
+    print("\nCandidate_Tracking outcome update PASS")
+    print(f"Workbook : {file_path}")
+    print(f"Sheet    : {CANDIDATE_TRACKING_SHEET}")
+    print(f"Row      : {target_row}")
+    print(f"Date     : {date}")
+    print(f"Ticker   : {str(ticker).strip().upper()}")
+    print(f"EvalDate : {evaluation_date}")
+    print(f"30D      : {day_30}")
+    print(f"60D      : {day_60}")
+    print(f"90D      : {day_90}")
+    print(f"Outcome  : {outcome}")
+
+    return target_row
+
+
+# ============================================================
 # Test copy
 # ============================================================
 
@@ -764,4 +1029,16 @@ if __name__ == "__main__":
         day_60=None,
         day_90=None,
         outcome="OPEN",
+    )
+
+    update_candidate_outcome(
+        test_file,
+        date=datetime(2099, 1, 1),
+        ticker="TESTCAND",
+        evaluation_date=datetime(2099, 4, 2),
+        day_30=0.10,
+        day_60=0.20,
+        day_90=0.30,
+        outcome="TEST_MATURED",
+        create_backup=False,
     )
