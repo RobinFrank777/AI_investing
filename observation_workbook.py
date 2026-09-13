@@ -144,6 +144,22 @@ MAINTENANCE_LOG_SEVERITIES = {"P0", "P1", "P2", "P3"}
 MAINTENANCE_LOG_STATUSES = {"OPEN", "MONITORING", "DEFERRED", "CLOSED"}
 
 
+WEEKLY_REVIEW_SHEET = "Weekly_Review"
+WEEKLY_REVIEW_HEADER_ROW = 4
+WEEKLY_REVIEW_FIRST_DATA_ROW = 5
+
+WEEKLY_REVIEW_HEADERS = [
+    "Week",
+    "PipelineReliability",
+    "DataQuality",
+    "BestCandidates",
+    "ReviewIssues",
+    "MaintenanceSummary",
+    "InvestmentLessons",
+    "NextWeekFocus",
+]
+
+
 # ============================================================
 # Validation
 # ============================================================
@@ -886,6 +902,151 @@ def copy_maintenance_log_row_format(ws, source_row: int, target_row: int) -> Non
     """Copy Maintenance_Log formatting only; never copy historical values."""
 
     for col in range(1, len(MAINTENANCE_LOG_HEADERS) + 1):
+        source_cell = ws.cell(row=source_row, column=col)
+        target_cell = ws.cell(row=target_row, column=col)
+
+        if source_cell.has_style:
+            target_cell._style = copy(source_cell._style)
+
+        if source_cell.number_format:
+            target_cell.number_format = source_cell.number_format
+
+        target_cell.font = copy(source_cell.font)
+        target_cell.fill = copy(source_cell.fill)
+        target_cell.border = copy(source_cell.border)
+        target_cell.alignment = copy(source_cell.alignment)
+        target_cell.protection = copy(source_cell.protection)
+
+    if ws.row_dimensions[source_row].height:
+        ws.row_dimensions[target_row].height = ws.row_dimensions[source_row].height
+
+
+
+# ============================================================
+# Weekly_Review validation / row discovery
+# ============================================================
+
+def validate_weekly_review_schema(ws) -> None:
+    """Fail closed if Weekly_Review headers changed."""
+
+    actual_headers = [
+        ws.cell(row=WEEKLY_REVIEW_HEADER_ROW, column=col).value
+        for col in range(1, len(WEEKLY_REVIEW_HEADERS) + 1)
+    ]
+
+    if actual_headers != WEEKLY_REVIEW_HEADERS:
+        print("\nERROR: Weekly_Review schema mismatch.")
+        print("\nExpected:")
+        print(WEEKLY_REVIEW_HEADERS)
+        print("\nActual:")
+        print(actual_headers)
+        raise RuntimeError(
+            "Weekly_Review schema validation failed. Workbook was NOT modified."
+        )
+
+
+def validate_weekly_review_history_contiguous(ws) -> None:
+    """Reject an empty historical row followed by later populated rows."""
+
+    first_empty_row = None
+
+    for row in range(WEEKLY_REVIEW_FIRST_DATA_ROW, ws.max_row + 1):
+        values = [
+            ws.cell(row=row, column=col).value
+            for col in range(1, len(WEEKLY_REVIEW_HEADERS) + 1)
+        ]
+        row_is_empty = all(value is None for value in values)
+
+        if row_is_empty:
+            if first_empty_row is None:
+                first_empty_row = row
+            continue
+
+        if first_empty_row is not None:
+            raise RuntimeError(
+                "Weekly_Review history gap detected: "
+                f"row {first_empty_row} is empty but row {row} contains data. "
+                "Workbook was NOT modified."
+            )
+
+
+def _normalize_week_key(week) -> str:
+    """Normalize the weekly key while preserving the workbook's human-readable format."""
+
+    normalized = " ".join(str(week or "").strip().split())
+    if not normalized:
+        raise RuntimeError("Weekly_Review Week must not be empty.")
+    return normalized
+
+
+def validate_weekly_review_duplicate(ws, week) -> None:
+    """Reject duplicate Week records; Weekly_Review allows one record per week."""
+
+    target_week = _normalize_week_key(week)
+
+    for row in range(WEEKLY_REVIEW_FIRST_DATA_ROW, ws.max_row + 1):
+        existing_week = ws.cell(row=row, column=1).value
+
+        if existing_week is None:
+            continue
+
+        if _normalize_week_key(existing_week) == target_week:
+            raise RuntimeError(
+                f"Duplicate Weekly_Review Week detected: {target_week}. "
+                f"Existing row: {row}. Workbook was NOT modified."
+            )
+
+
+def validate_weekly_review_values(
+    *,
+    week,
+    pipeline_reliability,
+    data_quality,
+    best_candidates,
+    review_issues,
+    maintenance_summary,
+    investment_lessons,
+    next_week_focus,
+) -> None:
+    """Validate stable Weekly_Review invariants without interpreting review content."""
+
+    _normalize_week_key(week)
+
+    required_text_fields = {
+        "PipelineReliability": pipeline_reliability,
+        "DataQuality": data_quality,
+        "BestCandidates": best_candidates,
+        "ReviewIssues": review_issues,
+        "MaintenanceSummary": maintenance_summary,
+        "InvestmentLessons": investment_lessons,
+        "NextWeekFocus": next_week_focus,
+    }
+
+    for field_name, value in required_text_fields.items():
+        if not str(value or "").strip():
+            raise RuntimeError(
+                f"Weekly_Review {field_name} must not be empty."
+            )
+
+
+def find_first_empty_weekly_review_row(ws) -> int:
+    """Find the first truly empty Weekly_Review row."""
+
+    for row in range(WEEKLY_REVIEW_FIRST_DATA_ROW, ws.max_row + 2):
+        values = [
+            ws.cell(row=row, column=col).value
+            for col in range(1, len(WEEKLY_REVIEW_HEADERS) + 1)
+        ]
+        if all(value is None for value in values):
+            return row
+
+    raise RuntimeError("No empty Weekly_Review row found.")
+
+
+def copy_weekly_review_row_format(ws, source_row: int, target_row: int) -> None:
+    """Copy Weekly_Review formatting only; never copy historical values."""
+
+    for col in range(1, len(WEEKLY_REVIEW_HEADERS) + 1):
         source_cell = ws.cell(row=source_row, column=col)
         target_cell = ws.cell(row=target_row, column=col)
 
@@ -1756,6 +1917,93 @@ def append_maintenance_log(
     return target_row
 
 
+
+# ============================================================
+# Weekly_Review writer
+# ============================================================
+
+def append_weekly_review(
+    file_path: Path,
+    *,
+    week,
+    pipeline_reliability,
+    data_quality,
+    best_candidates,
+    review_issues,
+    maintenance_summary,
+    investment_lessons,
+    next_week_focus,
+) -> int:
+
+    if not file_path.exists():
+        raise FileNotFoundError(file_path)
+
+    wb = load_workbook(file_path)
+
+    if WEEKLY_REVIEW_SHEET not in wb.sheetnames:
+        raise RuntimeError(
+            f"Required sheet '{WEEKLY_REVIEW_SHEET}' does not exist."
+        )
+
+    ws = wb[WEEKLY_REVIEW_SHEET]
+
+    validate_weekly_review_schema(ws)
+    validate_weekly_review_history_contiguous(ws)
+    validate_weekly_review_duplicate(ws, week)
+    validate_weekly_review_values(
+        week=week,
+        pipeline_reliability=pipeline_reliability,
+        data_quality=data_quality,
+        best_candidates=best_candidates,
+        review_issues=review_issues,
+        maintenance_summary=maintenance_summary,
+        investment_lessons=investment_lessons,
+        next_week_focus=next_week_focus,
+    )
+
+    target_row = find_first_empty_weekly_review_row(ws)
+    previous_row = target_row - 1
+
+    if previous_row >= WEEKLY_REVIEW_FIRST_DATA_ROW:
+        copy_weekly_review_row_format(ws, previous_row, target_row)
+
+    week_norm = _normalize_week_key(week)
+
+    values = [
+        week_norm,
+        str(pipeline_reliability).strip(),
+        str(data_quality).strip(),
+        str(best_candidates).strip(),
+        str(review_issues).strip(),
+        str(maintenance_summary).strip(),
+        str(investment_lessons).strip(),
+        str(next_week_focus).strip(),
+    ]
+
+    for col, value in enumerate(values, start=1):
+        ws.cell(row=target_row, column=col).value = value
+
+    wb.save(file_path)
+
+    verify_wb = load_workbook(file_path, data_only=False)
+    verify_ws = verify_wb[WEEKLY_REVIEW_SHEET]
+    verify_values = [
+        verify_ws.cell(row=target_row, column=col).value
+        for col in range(1, len(WEEKLY_REVIEW_HEADERS) + 1)
+    ]
+
+    if verify_values != values:
+        raise RuntimeError("Weekly_Review post-save verification failed.")
+
+    print("\nWeekly_Review append PASS")
+    print(f"Workbook : {file_path}")
+    print(f"Sheet    : {WEEKLY_REVIEW_SHEET}")
+    print(f"Row      : {target_row}")
+    print(f"Week     : {week_norm}")
+
+    return target_row
+
+
 # ============================================================
 # Test copy
 # ============================================================
@@ -1908,5 +2156,17 @@ if __name__ == "__main__":
         follow_up_date=datetime(2099, 2, 1),
         status="MONITORING",
         notes="AUTOMATION TEST ROW — SAFE TO DELETE FROM TEST COPY.",
+    )
+
+    append_weekly_review(
+        test_file,
+        week="2098-12-28 to 2099-01-03",
+        pipeline_reliability="WEEKLY-REVIEW-AUTOMATION-TEST: pipeline reliability PASS.",
+        data_quality="TEST_ONLY — data quality summary.",
+        best_candidates="TESTCAND remained the test candidate.",
+        review_issues="TEST_ONLY — no production inference.",
+        maintenance_summary="TEST_ONLY — maintenance summary.",
+        investment_lessons="TEST_ONLY — investment lessons.",
+        next_week_focus="TEST ONLY — SAFE TO DELETE FROM TEST COPY.",
     )
 
