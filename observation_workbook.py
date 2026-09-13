@@ -104,6 +104,45 @@ REVIEW_LOG_HEADERS = [
     "ResolutionDate",
 ]
 
+MAINTENANCE_LOG_SHEET = "Maintenance_Log"
+MAINTENANCE_LOG_HEADER_ROW = 4
+MAINTENANCE_LOG_FIRST_DATA_ROW = 5
+
+MAINTENANCE_LOG_HEADERS = [
+    "Date",
+    "Category",
+    "Severity",
+    "Ticker/Scope",
+    "Issue",
+    "Evidence",
+    "Action",
+    "FileChanged",
+    "Before",
+    "After",
+    "Result",
+    "FollowUpDate",
+    "Status",
+    "Notes",
+]
+
+MAINTENANCE_LOG_CATEGORIES = {
+    "MARKET_DATA",
+    "UNIVERSE",
+    "FUNDAMENTALS",
+    "COMPANY_PROFILE",
+    "PIPELINE",
+    "REVIEW",
+    "REPORT",
+    "CONFIG",
+    "ENVIRONMENT",
+    "CODE_BUG",
+    "DOCUMENTATION",
+    "OTHER",
+}
+
+MAINTENANCE_LOG_SEVERITIES = {"P0", "P1", "P2", "P3"}
+MAINTENANCE_LOG_STATUSES = {"OPEN", "MONITORING", "DEFERRED", "CLOSED"}
+
 
 # ============================================================
 # Validation
@@ -676,6 +715,177 @@ def copy_review_log_row_format(ws, source_row: int, target_row: int) -> None:
     """Copy Review_Log formatting only; never copy historical values."""
 
     for col in range(1, len(REVIEW_LOG_HEADERS) + 1):
+        source_cell = ws.cell(row=source_row, column=col)
+        target_cell = ws.cell(row=target_row, column=col)
+
+        if source_cell.has_style:
+            target_cell._style = copy(source_cell._style)
+
+        if source_cell.number_format:
+            target_cell.number_format = source_cell.number_format
+
+        target_cell.font = copy(source_cell.font)
+        target_cell.fill = copy(source_cell.fill)
+        target_cell.border = copy(source_cell.border)
+        target_cell.alignment = copy(source_cell.alignment)
+        target_cell.protection = copy(source_cell.protection)
+
+    if ws.row_dimensions[source_row].height:
+        ws.row_dimensions[target_row].height = ws.row_dimensions[source_row].height
+
+
+# ============================================================
+# Maintenance_Log validation / row discovery
+# ============================================================
+
+def validate_maintenance_log_schema(ws) -> None:
+    """Fail closed if Maintenance_Log headers changed."""
+
+    actual_headers = [
+        ws.cell(row=MAINTENANCE_LOG_HEADER_ROW, column=col).value
+        for col in range(1, len(MAINTENANCE_LOG_HEADERS) + 1)
+    ]
+
+    if actual_headers != MAINTENANCE_LOG_HEADERS:
+        print("\nERROR: Maintenance_Log schema mismatch.")
+        print("\nExpected:")
+        print(MAINTENANCE_LOG_HEADERS)
+        print("\nActual:")
+        print(actual_headers)
+        raise RuntimeError(
+            "Maintenance_Log schema validation failed. Workbook was NOT modified."
+        )
+
+
+def validate_maintenance_log_history_contiguous(ws) -> None:
+    """Reject an empty historical row followed by later populated rows."""
+
+    first_empty_row = None
+
+    for row in range(MAINTENANCE_LOG_FIRST_DATA_ROW, ws.max_row + 1):
+        values = [
+            ws.cell(row=row, column=col).value
+            for col in range(1, len(MAINTENANCE_LOG_HEADERS) + 1)
+        ]
+        row_is_empty = all(value is None for value in values)
+
+        if row_is_empty:
+            if first_empty_row is None:
+                first_empty_row = row
+            continue
+
+        if first_empty_row is not None:
+            raise RuntimeError(
+                "Maintenance_Log history gap detected: "
+                f"row {first_empty_row} is empty but row {row} contains data. "
+                "Workbook was NOT modified."
+            )
+
+
+def validate_maintenance_log_duplicate(
+    ws, date, category, ticker_scope, issue
+) -> None:
+    """Reject duplicate Date + Category + Ticker/Scope + Issue records."""
+
+    target_date = _normalize_daily_run_date(date)
+    target_category = str(category or "").strip().upper()
+    target_scope = str(ticker_scope or "").strip().upper()
+    target_issue = str(issue or "").strip()
+
+    for row in range(MAINTENANCE_LOG_FIRST_DATA_ROW, ws.max_row + 1):
+        existing_date = ws.cell(row=row, column=1).value
+        existing_category = ws.cell(row=row, column=2).value
+        existing_scope = ws.cell(row=row, column=4).value
+        existing_issue = ws.cell(row=row, column=5).value
+
+        if (
+            existing_date is None
+            and existing_category is None
+            and existing_scope is None
+            and existing_issue is None
+        ):
+            continue
+
+        existing_day = _normalize_daily_run_date(existing_date)
+        existing_category_norm = str(existing_category or "").strip().upper()
+        existing_scope_norm = str(existing_scope or "").strip().upper()
+        existing_issue_norm = str(existing_issue or "").strip()
+
+        if (
+            existing_day == target_date
+            and existing_category_norm == target_category
+            and existing_scope_norm == target_scope
+            and existing_issue_norm == target_issue
+        ):
+            raise RuntimeError(
+                "Duplicate Maintenance_Log record detected: "
+                f"{target_date} / {target_category} / {target_scope} / {target_issue}. "
+                f"Existing row: {row}. Workbook was NOT modified."
+            )
+
+
+def validate_maintenance_log_values(
+    *,
+    date,
+    category,
+    severity,
+    ticker_scope,
+    issue,
+    evidence,
+    status,
+) -> None:
+    """Validate stable Maintenance_Log governance invariants."""
+
+    if _normalize_daily_run_date(date) in (None, ""):
+        raise RuntimeError("Maintenance_Log Date must not be empty.")
+
+    category_norm = str(category or "").strip().upper()
+    if category_norm not in MAINTENANCE_LOG_CATEGORIES:
+        raise RuntimeError(
+            "Maintenance_Log Category must be one of: "
+            + ", ".join(sorted(MAINTENANCE_LOG_CATEGORIES))
+        )
+
+    severity_norm = str(severity or "").strip().upper()
+    if severity_norm not in MAINTENANCE_LOG_SEVERITIES:
+        raise RuntimeError(
+            "Maintenance_Log Severity must be one of P0/P1/P2/P3."
+        )
+
+    if not str(ticker_scope or "").strip():
+        raise RuntimeError("Maintenance_Log Ticker/Scope must not be empty.")
+
+    if not str(issue or "").strip():
+        raise RuntimeError("Maintenance_Log Issue must not be empty.")
+
+    if not str(evidence or "").strip():
+        raise RuntimeError("Maintenance_Log Evidence must not be empty.")
+
+    status_norm = str(status or "").strip().upper()
+    if status_norm not in MAINTENANCE_LOG_STATUSES:
+        raise RuntimeError(
+            "Maintenance_Log Status must be one of OPEN/MONITORING/DEFERRED/CLOSED."
+        )
+
+
+def find_first_empty_maintenance_log_row(ws) -> int:
+    """Find the first truly empty Maintenance_Log row."""
+
+    for row in range(MAINTENANCE_LOG_FIRST_DATA_ROW, ws.max_row + 2):
+        values = [
+            ws.cell(row=row, column=col).value
+            for col in range(1, len(MAINTENANCE_LOG_HEADERS) + 1)
+        ]
+        if all(value is None for value in values):
+            return row
+
+    raise RuntimeError("No empty Maintenance_Log row found.")
+
+
+def copy_maintenance_log_row_format(ws, source_row: int, target_row: int) -> None:
+    """Copy Maintenance_Log formatting only; never copy historical values."""
+
+    for col in range(1, len(MAINTENANCE_LOG_HEADERS) + 1):
         source_cell = ws.cell(row=source_row, column=col)
         target_cell = ws.cell(row=target_row, column=col)
 
@@ -1437,6 +1647,116 @@ def append_review_log(
 
 
 # ============================================================
+# Maintenance_Log writer
+# ============================================================
+
+def append_maintenance_log(
+    file_path: Path,
+    *,
+    date,
+    category,
+    severity,
+    ticker_scope,
+    issue,
+    evidence,
+    action=None,
+    file_changed=None,
+    before=None,
+    after=None,
+    result=None,
+    follow_up_date=None,
+    status="OPEN",
+    notes=None,
+) -> int:
+
+    if not file_path.exists():
+        raise FileNotFoundError(file_path)
+
+    wb = load_workbook(file_path)
+
+    if MAINTENANCE_LOG_SHEET not in wb.sheetnames:
+        raise RuntimeError(
+            f"Required sheet '{MAINTENANCE_LOG_SHEET}' does not exist."
+        )
+
+    ws = wb[MAINTENANCE_LOG_SHEET]
+
+    validate_maintenance_log_schema(ws)
+    validate_maintenance_log_history_contiguous(ws)
+    validate_maintenance_log_duplicate(
+        ws,
+        date,
+        category,
+        ticker_scope,
+        issue,
+    )
+    validate_maintenance_log_values(
+        date=date,
+        category=category,
+        severity=severity,
+        ticker_scope=ticker_scope,
+        issue=issue,
+        evidence=evidence,
+        status=status,
+    )
+
+    target_row = find_first_empty_maintenance_log_row(ws)
+    previous_row = target_row - 1
+
+    if previous_row >= MAINTENANCE_LOG_FIRST_DATA_ROW:
+        copy_maintenance_log_row_format(ws, previous_row, target_row)
+
+    category_norm = str(category).strip().upper()
+    severity_norm = str(severity).strip().upper()
+    scope_norm = str(ticker_scope).strip().upper()
+    status_norm = str(status).strip().upper()
+
+    values = [
+        date,
+        category_norm,
+        severity_norm,
+        scope_norm,
+        issue,
+        evidence,
+        action,
+        file_changed,
+        before,
+        after,
+        result,
+        follow_up_date,
+        status_norm,
+        notes,
+    ]
+
+    for col, value in enumerate(values, start=1):
+        ws.cell(row=target_row, column=col).value = value
+
+    wb.save(file_path)
+
+    verify_wb = load_workbook(file_path, data_only=False)
+    verify_ws = verify_wb[MAINTENANCE_LOG_SHEET]
+    verify_values = [
+        verify_ws.cell(row=target_row, column=col).value
+        for col in range(1, len(MAINTENANCE_LOG_HEADERS) + 1)
+    ]
+
+    if verify_values != values:
+        raise RuntimeError("Maintenance_Log post-save verification failed.")
+
+    print("\nMaintenance_Log append PASS")
+    print(f"Workbook     : {file_path}")
+    print(f"Sheet        : {MAINTENANCE_LOG_SHEET}")
+    print(f"Row          : {target_row}")
+    print(f"Date         : {date}")
+    print(f"Category     : {category_norm}")
+    print(f"Severity     : {severity_norm}")
+    print(f"Ticker/Scope : {scope_norm}")
+    print(f"Status       : {status_norm}")
+
+    return target_row
+
+
+# ============================================================
 # Test copy
 # ============================================================
 
@@ -1569,5 +1889,24 @@ if __name__ == "__main__":
         action_taken="NO_ACTION",
         resolved=False,
         resolution_date=None,
+    )
+
+
+    append_maintenance_log(
+        test_file,
+        date=datetime(2099, 1, 1),
+        category="CODE_BUG",
+        severity="P3",
+        ticker_scope="ALL",
+        issue="MAINTENANCE-LOG-AUTOMATION-TEST",
+        evidence="TEST ONLY — SAFE TO DELETE FROM TEST COPY.",
+        action="NO_CHANGE_OBSERVE",
+        file_changed=None,
+        before="TEST_BEFORE",
+        after="TEST_AFTER",
+        result="NO_CHANGE",
+        follow_up_date=datetime(2099, 2, 1),
+        status="MONITORING",
+        notes="AUTOMATION TEST ROW — SAFE TO DELETE FROM TEST COPY.",
     )
 
