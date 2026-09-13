@@ -160,6 +160,34 @@ WEEKLY_REVIEW_HEADERS = [
 ]
 
 
+MONTHLY_REVIEW_SHEET = "Monthly_Review"
+MONTHLY_REVIEW_HEADER_ROW = 4
+MONTHLY_REVIEW_FIRST_DATA_ROW = 5
+
+MONTHLY_REVIEW_HEADERS = [
+    "Month",
+    "RunSuccessRate",
+    "AvgReady",
+    "MinReady",
+    "BUYDays",
+    "WATCHDays",
+    "ReviewCount",
+    "BlockedCount",
+    "TopMaintenanceIssue",
+    "SystemValue",
+    "MainWeakness",
+    "ChangeRecommended",
+]
+
+MONTHLY_REVIEW_CHANGE_RECOMMENDED = {
+    "NO_CHANGE",
+    "OBSERVE",
+    "DATA_IMPROVEMENT",
+    "DOCUMENTATION",
+    "NEXT_VERSION_CANDIDATE",
+}
+
+
 # ============================================================
 # Validation
 # ============================================================
@@ -1047,6 +1075,191 @@ def copy_weekly_review_row_format(ws, source_row: int, target_row: int) -> None:
     """Copy Weekly_Review formatting only; never copy historical values."""
 
     for col in range(1, len(WEEKLY_REVIEW_HEADERS) + 1):
+        source_cell = ws.cell(row=source_row, column=col)
+        target_cell = ws.cell(row=target_row, column=col)
+
+        if source_cell.has_style:
+            target_cell._style = copy(source_cell._style)
+
+        if source_cell.number_format:
+            target_cell.number_format = source_cell.number_format
+
+        target_cell.font = copy(source_cell.font)
+        target_cell.fill = copy(source_cell.fill)
+        target_cell.border = copy(source_cell.border)
+        target_cell.alignment = copy(source_cell.alignment)
+        target_cell.protection = copy(source_cell.protection)
+
+    if ws.row_dimensions[source_row].height:
+        ws.row_dimensions[target_row].height = ws.row_dimensions[source_row].height
+
+
+
+# ============================================================
+# Monthly_Review validation / row discovery
+# ============================================================
+
+def validate_monthly_review_schema(ws) -> None:
+    """Fail closed if Monthly_Review headers changed."""
+
+    actual_headers = [
+        ws.cell(row=MONTHLY_REVIEW_HEADER_ROW, column=col).value
+        for col in range(1, len(MONTHLY_REVIEW_HEADERS) + 1)
+    ]
+
+    if actual_headers != MONTHLY_REVIEW_HEADERS:
+        print("\nERROR: Monthly_Review schema mismatch.")
+        print("\nExpected:")
+        print(MONTHLY_REVIEW_HEADERS)
+        print("\nActual:")
+        print(actual_headers)
+        raise RuntimeError(
+            "Monthly_Review schema validation failed. Workbook was NOT modified."
+        )
+
+
+def validate_monthly_review_history_contiguous(ws) -> None:
+    """Reject an empty historical row followed by later populated rows."""
+
+    first_empty_row = None
+
+    for row in range(MONTHLY_REVIEW_FIRST_DATA_ROW, ws.max_row + 1):
+        values = [
+            ws.cell(row=row, column=col).value
+            for col in range(1, len(MONTHLY_REVIEW_HEADERS) + 1)
+        ]
+        row_is_empty = all(value is None for value in values)
+
+        if row_is_empty:
+            if first_empty_row is None:
+                first_empty_row = row
+            continue
+
+        if first_empty_row is not None:
+            raise RuntimeError(
+                "Monthly_Review history gap detected: "
+                f"row {first_empty_row} is empty but row {row} contains data. "
+                "Workbook was NOT modified."
+            )
+
+
+def _normalize_month_key(month) -> str:
+    """Normalize Month to YYYY-MM."""
+
+    if isinstance(month, datetime):
+        return f"{month.year:04d}-{month.month:02d}"
+
+    if isinstance(month, date_type):
+        return f"{month.year:04d}-{month.month:02d}"
+
+    normalized = str(month or "").strip()
+
+    if (
+        len(normalized) == 7
+        and normalized[4] == "-"
+        and normalized[:4].isdigit()
+        and normalized[5:].isdigit()
+    ):
+        month_number = int(normalized[5:])
+        if 1 <= month_number <= 12:
+            return f"{int(normalized[:4]):04d}-{month_number:02d}"
+
+    raise RuntimeError(
+        "Monthly_Review Month must use YYYY-MM format, for example 2026-09."
+    )
+
+
+def validate_monthly_review_duplicate(ws, month) -> None:
+    """Reject duplicate Month records; Monthly_Review allows one record per month."""
+
+    target_month = _normalize_month_key(month)
+
+    for row in range(MONTHLY_REVIEW_FIRST_DATA_ROW, ws.max_row + 1):
+        existing_month = ws.cell(row=row, column=1).value
+
+        if existing_month is None:
+            continue
+
+        if _normalize_month_key(existing_month) == target_month:
+            raise RuntimeError(
+                f"Duplicate Monthly_Review Month detected: {target_month}. "
+                f"Existing row: {row}. Workbook was NOT modified."
+            )
+
+
+def validate_monthly_review_values(
+    *,
+    month,
+    run_success_rate,
+    avg_ready,
+    min_ready,
+    buy_days,
+    watch_days,
+    review_count,
+    blocked_count,
+    top_maintenance_issue,
+    system_value,
+    main_weakness,
+    change_recommended,
+) -> None:
+    """Validate stable Monthly_Review invariants without interpreting conclusions."""
+
+    _normalize_month_key(month)
+
+    if not str(run_success_rate or "").strip():
+        raise RuntimeError("Monthly_Review RunSuccessRate must not be empty.")
+
+    numeric_fields = {
+        "AvgReady": avg_ready,
+        "MinReady": min_ready,
+        "BUYDays": buy_days,
+        "WATCHDays": watch_days,
+        "ReviewCount": review_count,
+        "BlockedCount": blocked_count,
+    }
+
+    for field_name, value in numeric_fields.items():
+        if not isinstance(value, (int, float)) or isinstance(value, bool):
+            raise RuntimeError(f"Monthly_Review {field_name} must be numeric.")
+        if value < 0:
+            raise RuntimeError(f"Monthly_Review {field_name} must not be negative.")
+
+    required_text_fields = {
+        "TopMaintenanceIssue": top_maintenance_issue,
+        "SystemValue": system_value,
+        "MainWeakness": main_weakness,
+    }
+
+    for field_name, value in required_text_fields.items():
+        if not str(value or "").strip():
+            raise RuntimeError(f"Monthly_Review {field_name} must not be empty.")
+
+    change_norm = str(change_recommended or "").strip().upper()
+    if change_norm not in MONTHLY_REVIEW_CHANGE_RECOMMENDED:
+        raise RuntimeError(
+            "Monthly_Review ChangeRecommended must be one of: "
+            + ", ".join(sorted(MONTHLY_REVIEW_CHANGE_RECOMMENDED))
+        )
+
+
+def find_first_empty_monthly_review_row(ws) -> int:
+    """Find the first truly empty Monthly_Review row."""
+
+    for row in range(MONTHLY_REVIEW_FIRST_DATA_ROW, ws.max_row + 2):
+        values = [
+            ws.cell(row=row, column=col).value
+            for col in range(1, len(MONTHLY_REVIEW_HEADERS) + 1)
+        ]
+        if all(value is None for value in values):
+            return row
+
+    raise RuntimeError("No empty Monthly_Review row found.")
+
+
+def copy_monthly_review_row_format(ws, source_row: int, target_row: int) -> None:
+    """Copy Monthly_Review formatting only; never copy historical values."""
+
+    for col in range(1, len(MONTHLY_REVIEW_HEADERS) + 1):
         source_cell = ws.cell(row=source_row, column=col)
         target_cell = ws.cell(row=target_row, column=col)
 
@@ -2004,6 +2217,110 @@ def append_weekly_review(
     return target_row
 
 
+
+# ============================================================
+# Monthly_Review writer
+# ============================================================
+
+def append_monthly_review(
+    file_path: Path,
+    *,
+    month,
+    run_success_rate,
+    avg_ready,
+    min_ready,
+    buy_days,
+    watch_days,
+    review_count,
+    blocked_count,
+    top_maintenance_issue,
+    system_value,
+    main_weakness,
+    change_recommended,
+) -> int:
+
+    if not file_path.exists():
+        raise FileNotFoundError(file_path)
+
+    wb = load_workbook(file_path)
+
+    if MONTHLY_REVIEW_SHEET not in wb.sheetnames:
+        raise RuntimeError(
+            f"Required sheet '{MONTHLY_REVIEW_SHEET}' does not exist."
+        )
+
+    ws = wb[MONTHLY_REVIEW_SHEET]
+
+    validate_monthly_review_schema(ws)
+    validate_monthly_review_history_contiguous(ws)
+    validate_monthly_review_duplicate(ws, month)
+    validate_monthly_review_values(
+        month=month,
+        run_success_rate=run_success_rate,
+        avg_ready=avg_ready,
+        min_ready=min_ready,
+        buy_days=buy_days,
+        watch_days=watch_days,
+        review_count=review_count,
+        blocked_count=blocked_count,
+        top_maintenance_issue=top_maintenance_issue,
+        system_value=system_value,
+        main_weakness=main_weakness,
+        change_recommended=change_recommended,
+    )
+
+    target_row = find_first_empty_monthly_review_row(ws)
+    previous_row = target_row - 1
+
+    if previous_row >= MONTHLY_REVIEW_FIRST_DATA_ROW:
+        copy_monthly_review_row_format(ws, previous_row, target_row)
+
+    month_norm = _normalize_month_key(month)
+    change_norm = str(change_recommended).strip().upper()
+
+    values = [
+        month_norm,
+        str(run_success_rate).strip(),
+        avg_ready,
+        min_ready,
+        buy_days,
+        watch_days,
+        review_count,
+        blocked_count,
+        str(top_maintenance_issue).strip(),
+        str(system_value).strip(),
+        str(main_weakness).strip(),
+        change_norm,
+    ]
+
+    for col, value in enumerate(values, start=1):
+        ws.cell(row=target_row, column=col).value = value
+
+    wb.save(file_path)
+
+    verify_wb = load_workbook(file_path, data_only=False)
+    verify_ws = verify_wb[MONTHLY_REVIEW_SHEET]
+    verify_values = [
+        verify_ws.cell(row=target_row, column=col).value
+        for col in range(1, len(MONTHLY_REVIEW_HEADERS) + 1)
+    ]
+
+    if verify_values != values:
+        raise RuntimeError("Monthly_Review post-save verification failed.")
+
+    print("\nMonthly_Review append PASS")
+    print(f"Workbook          : {file_path}")
+    print(f"Sheet             : {MONTHLY_REVIEW_SHEET}")
+    print(f"Row               : {target_row}")
+    print(f"Month             : {month_norm}")
+    print(f"RunSuccessRate    : {run_success_rate}")
+    print(f"AvgReady          : {avg_ready}")
+    print(f"MinReady          : {min_ready}")
+    print(f"ChangeRecommended : {change_norm}")
+
+    return target_row
+
+
 # ============================================================
 # Test copy
 # ============================================================
@@ -2168,5 +2485,22 @@ if __name__ == "__main__":
         maintenance_summary="TEST_ONLY — maintenance summary.",
         investment_lessons="TEST_ONLY — investment lessons.",
         next_week_focus="TEST ONLY — SAFE TO DELETE FROM TEST COPY.",
+    )
+
+
+    append_monthly_review(
+        test_file,
+        month="2099-01",
+        run_success_rate="100% (TEST)",
+        avg_ready=148.0,
+        min_ready=147,
+        buy_days=0,
+        watch_days=1,
+        review_count=1,
+        blocked_count=0,
+        top_maintenance_issue="TEST_ONLY — monthly maintenance issue summary.",
+        system_value="TEST_ONLY — monthly system value summary.",
+        main_weakness="TEST_ONLY — monthly main weakness summary.",
+        change_recommended="OBSERVE",
     )
 
