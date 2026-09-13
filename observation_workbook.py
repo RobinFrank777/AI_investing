@@ -88,6 +88,23 @@ DECISION_LOG_HEADERS = [
 ]
 
 
+REVIEW_LOG_SHEET = "Review_Log"
+REVIEW_LOG_HEADER_ROW = 4
+REVIEW_LOG_FIRST_DATA_ROW = 5
+
+REVIEW_LOG_HEADERS = [
+    "Date",
+    "Ticker",
+    "ReviewStatus",
+    "ReviewReason",
+    "PortfolioFlag",
+    "RootCauseType",
+    "ActionTaken",
+    "Resolved",
+    "ResolutionDate",
+]
+
+
 # ============================================================
 # Validation
 # ============================================================
@@ -506,6 +523,159 @@ def copy_decision_log_row_format(ws, source_row: int, target_row: int) -> None:
     """Copy Decision_Log formatting only; never copy historical values."""
 
     for col in range(1, len(DECISION_LOG_HEADERS) + 1):
+        source_cell = ws.cell(row=source_row, column=col)
+        target_cell = ws.cell(row=target_row, column=col)
+
+        if source_cell.has_style:
+            target_cell._style = copy(source_cell._style)
+
+        if source_cell.number_format:
+            target_cell.number_format = source_cell.number_format
+
+        target_cell.font = copy(source_cell.font)
+        target_cell.fill = copy(source_cell.fill)
+        target_cell.border = copy(source_cell.border)
+        target_cell.alignment = copy(source_cell.alignment)
+        target_cell.protection = copy(source_cell.protection)
+
+    if ws.row_dimensions[source_row].height:
+        ws.row_dimensions[target_row].height = ws.row_dimensions[source_row].height
+
+
+
+# ============================================================
+# Review_Log validation / row discovery
+# ============================================================
+
+def validate_review_log_schema(ws) -> None:
+    """Fail closed if Review_Log headers changed."""
+
+    actual_headers = [
+        ws.cell(row=REVIEW_LOG_HEADER_ROW, column=col).value
+        for col in range(1, len(REVIEW_LOG_HEADERS) + 1)
+    ]
+
+    if actual_headers != REVIEW_LOG_HEADERS:
+        print("\nERROR: Review_Log schema mismatch.")
+        print("\nExpected:")
+        print(REVIEW_LOG_HEADERS)
+        print("\nActual:")
+        print(actual_headers)
+        raise RuntimeError(
+            "Review_Log schema validation failed. Workbook was NOT modified."
+        )
+
+
+def validate_review_log_history_contiguous(ws) -> None:
+    """Reject an empty historical row followed by later populated rows."""
+
+    first_empty_row = None
+
+    for row in range(REVIEW_LOG_FIRST_DATA_ROW, ws.max_row + 1):
+        values = [
+            ws.cell(row=row, column=col).value
+            for col in range(1, len(REVIEW_LOG_HEADERS) + 1)
+        ]
+        row_is_empty = all(value is None for value in values)
+
+        if row_is_empty:
+            if first_empty_row is None:
+                first_empty_row = row
+            continue
+
+        if first_empty_row is not None:
+            raise RuntimeError(
+                "Review_Log history gap detected: "
+                f"row {first_empty_row} is empty but row {row} contains data. "
+                "Workbook was NOT modified."
+            )
+
+
+def validate_review_log_duplicate(ws, date, ticker, review_status) -> None:
+    """Reject duplicate Date + Ticker + ReviewStatus records."""
+
+    target_date = _normalize_daily_run_date(date)
+    target_ticker = str(ticker or "").strip().upper()
+    target_status = str(review_status or "").strip().upper()
+
+    for row in range(REVIEW_LOG_FIRST_DATA_ROW, ws.max_row + 1):
+        existing_date = ws.cell(row=row, column=1).value
+        existing_ticker = ws.cell(row=row, column=2).value
+        existing_status = ws.cell(row=row, column=3).value
+
+        if existing_date is None and existing_ticker is None and existing_status is None:
+            continue
+
+        existing_day = _normalize_daily_run_date(existing_date)
+        existing_symbol = str(existing_ticker or "").strip().upper()
+        existing_status_norm = str(existing_status or "").strip().upper()
+
+        if (
+            existing_day == target_date
+            and existing_symbol == target_ticker
+            and existing_status_norm == target_status
+        ):
+            raise RuntimeError(
+                "Duplicate Review_Log Date + Ticker + ReviewStatus detected: "
+                f"{target_date} / {target_ticker or '<BLANK>'} / {target_status}. "
+                f"Existing row: {row}. Workbook was NOT modified."
+            )
+
+
+def validate_review_log_values(
+    *,
+    date,
+    review_status,
+    review_reason,
+    portfolio_flag,
+    action_taken,
+    resolved,
+) -> None:
+    """Validate stable, low-risk Review_Log invariants."""
+
+    if _normalize_daily_run_date(date) in (None, ""):
+        raise RuntimeError("Review_Log Date must not be empty.")
+
+    if not str(review_status or "").strip():
+        raise RuntimeError("Review_Log ReviewStatus must not be empty.")
+
+    if not str(review_reason or "").strip():
+        raise RuntimeError("Review_Log ReviewReason must not be empty.")
+
+    if not str(portfolio_flag or "").strip():
+        raise RuntimeError("Review_Log PortfolioFlag must not be empty.")
+
+    if not str(action_taken or "").strip():
+        raise RuntimeError("Review_Log ActionTaken must not be empty.")
+
+    if isinstance(resolved, bool):
+        return
+
+    normalized = str(resolved or "").strip().upper()
+    if normalized not in {"YES", "NO", "TRUE", "FALSE"}:
+        raise RuntimeError(
+            "Review_Log Resolved must be boolean or one of YES/NO/TRUE/FALSE."
+        )
+
+
+def find_first_empty_review_log_row(ws) -> int:
+    """Find the first truly empty Review_Log row."""
+
+    for row in range(REVIEW_LOG_FIRST_DATA_ROW, ws.max_row + 2):
+        values = [
+            ws.cell(row=row, column=col).value
+            for col in range(1, len(REVIEW_LOG_HEADERS) + 1)
+        ]
+        if all(value is None for value in values):
+            return row
+
+    raise RuntimeError("No empty Review_Log row found.")
+
+
+def copy_review_log_row_format(ws, source_row: int, target_row: int) -> None:
+    """Copy Review_Log formatting only; never copy historical values."""
+
+    for col in range(1, len(REVIEW_LOG_HEADERS) + 1):
         source_cell = ws.cell(row=source_row, column=col)
         target_cell = ws.cell(row=target_row, column=col)
 
@@ -1176,6 +1346,96 @@ def append_decision_log(
     return target_row
 
 
+
+# ============================================================
+# Review_Log writer
+# ============================================================
+
+def append_review_log(
+    file_path: Path,
+    *,
+    date,
+    ticker,
+    review_status,
+    review_reason,
+    portfolio_flag,
+    root_cause_type,
+    action_taken,
+    resolved,
+    resolution_date,
+) -> int:
+
+    if not file_path.exists():
+        raise FileNotFoundError(file_path)
+
+    wb = load_workbook(file_path)
+
+    if REVIEW_LOG_SHEET not in wb.sheetnames:
+        raise RuntimeError(
+            f"Required sheet '{REVIEW_LOG_SHEET}' does not exist."
+        )
+
+    ws = wb[REVIEW_LOG_SHEET]
+
+    validate_review_log_schema(ws)
+    validate_review_log_history_contiguous(ws)
+    validate_review_log_duplicate(ws, date, ticker, review_status)
+    validate_review_log_values(
+        date=date,
+        review_status=review_status,
+        review_reason=review_reason,
+        portfolio_flag=portfolio_flag,
+        action_taken=action_taken,
+        resolved=resolved,
+    )
+
+    target_row = find_first_empty_review_log_row(ws)
+    previous_row = target_row - 1
+
+    if previous_row >= REVIEW_LOG_FIRST_DATA_ROW:
+        copy_review_log_row_format(ws, previous_row, target_row)
+
+    normalized_ticker = str(ticker or "").strip().upper()
+
+    values = [
+        date,
+        normalized_ticker or None,
+        review_status,
+        review_reason,
+        portfolio_flag,
+        root_cause_type,
+        action_taken,
+        resolved,
+        resolution_date,
+    ]
+
+    for col, value in enumerate(values, start=1):
+        ws.cell(row=target_row, column=col).value = value
+
+    wb.save(file_path)
+
+    verify_wb = load_workbook(file_path, data_only=False)
+    verify_ws = verify_wb[REVIEW_LOG_SHEET]
+    verify_values = [
+        verify_ws.cell(row=target_row, column=col).value
+        for col in range(1, len(REVIEW_LOG_HEADERS) + 1)
+    ]
+
+    if verify_values != values:
+        raise RuntimeError("Review_Log post-save verification failed.")
+
+    print("\nReview_Log append PASS")
+    print(f"Workbook     : {file_path}")
+    print(f"Sheet        : {REVIEW_LOG_SHEET}")
+    print(f"Row          : {target_row}")
+    print(f"Date         : {date}")
+    print(f"Ticker       : {normalized_ticker or '<BLANK>'}")
+    print(f"ReviewStatus : {review_status}")
+    print(f"Resolved     : {resolved}")
+
+    return target_row
+
+
 # ============================================================
 # Test copy
 # ============================================================
@@ -1296,5 +1556,18 @@ if __name__ == "__main__":
         expected_risk="TEST_ONLY",
         review_date=datetime(2099, 4, 2),
         result="OPEN",
+    )
+
+    append_review_log(
+        test_file,
+        date=datetime(2099, 1, 1),
+        ticker="TESTCAND",
+        review_status="REVIEW",
+        review_reason="REVIEW-LOG-AUTOMATION-TEST",
+        portfolio_flag="TEST_ONLY",
+        root_cause_type="TEST",
+        action_taken="NO_ACTION",
+        resolved=False,
+        resolution_date=None,
     )
 
