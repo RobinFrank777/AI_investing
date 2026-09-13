@@ -40,3 +40,5 @@ charts/compare_chart.png
 charts/heatmap.png
 charts/top10_scores.png
 outputs/
+.DS_Store
+**/.DS_Store
