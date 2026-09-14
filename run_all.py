@@ -465,6 +465,8 @@ def run_pipeline(steps=None):
     started_at = datetime.now()
     steps = build_pipeline_steps() if steps is None else steps
     results = execute_steps(steps)
+    passed_steps = sum(result["status"] == "PASS" for result in results)
+    total_steps = len(results)
     finished_at = datetime.now()
     status = print_summary(results, started_at, finished_at)
     if status == "PASS":
@@ -472,6 +474,7 @@ def run_pipeline(steps=None):
         finish_current_run(
             context, status="PASS", current_run_id=candidate_run_id,
             as_of_date=candidate_as_of,
+            passed_steps=passed_steps, total_steps=total_steps,
         )
     else:
         failed = next(
@@ -482,6 +485,7 @@ def run_pipeline(steps=None):
             status="FAILED",
             failed_stage=failed["name"] if failed else "UNKNOWN",
             reason=failed["error"] if failed else "Required pipeline stage failed",
+            passed_steps=passed_steps, total_steps=total_steps,
         )
         write_failed_current_reports(context)
     return 0 if status == "PASS" else 1

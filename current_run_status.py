@@ -50,6 +50,7 @@ def start_current_run(path=CURRENT_RUN_STATUS_PATH):
 
 def finish_current_run(context, *, status, failed_stage="", reason="",
                        current_run_id=None, as_of_date=None,
+                       passed_steps=None, total_steps=None,
                        path=CURRENT_RUN_STATUS_PATH):
     result = dict(context)
     result.update(
@@ -57,6 +58,8 @@ def finish_current_run(context, *, status, failed_stage="", reason="",
             "CurrentRunId": current_run_id or context["CurrentRunId"],
             "AsOfDate": as_of_date or context.get("AsOfDate", ""),
             "OverallRunStatus": status,
+            "PassedSteps": passed_steps,
+            "TotalSteps": total_steps,
             "FailedStage": failed_stage,
             "FailureReason": reason,
         }
