@@ -1,24 +1,28 @@
-"""Dry-run authority mapper for the Observation Workbook.
+"""Observation Workbook authority mapper and test-workbook writer.
 
-Phase 2:
+Phase 3:
 - reads current production artifacts
 - validates run identity consistency
-- prints the Daily_Run mapping
-- prints Candidate_Tracking mappings for BUY/WATCH candidates
-- NEVER writes the Observation Workbook
+- prints Daily_Run and Candidate_Tracking mappings
+- --dry-run performs no workbook writes
+- --write-test writes ONLY AI_investing_observation_test.xlsx
+- NEVER writes the production Observation Workbook
 """
 
 from __future__ import annotations
 
 import argparse
 import math
-from datetime import date
+import shutil
+from datetime import date, datetime
 from pathlib import Path
 
 import pandas as pd
+from openpyxl import load_workbook
 
 from config import PROJECT_VERSION, REPO_ROOT
 from current_run_status import load_current_run_status
+from observation_workbook import append_candidate_tracking, append_daily_run
 
 
 RESULTS_DIR = REPO_ROOT / "results"
@@ -26,6 +30,11 @@ CANDIDATES_PATH = RESULTS_DIR / "production_candidates.csv"
 ACTION_REPORT_PATH = RESULTS_DIR / "portfolio_action_report.txt"
 STOCK_RANK_PATH = RESULTS_DIR / "stock_rank.csv"
 COMBINED_SCORE_PATH = RESULTS_DIR / "combined_score.csv"
+
+OBSERVATION_DIR = Path.home() / "Documents" / "AI_investing_observation"
+PRODUCTION_WORKBOOK_PATH = OBSERVATION_DIR / "AI_investing_observation.xlsx"
+TEST_WORKBOOK_PATH = OBSERVATION_DIR / "AI_investing_observation_test.xlsx"
+TEST_TEMP_PATH = OBSERVATION_DIR / "AI_investing_observation_test.write-test.tmp.xlsx"
 
 TRACKED_SIGNALS = {"BUY", "WATCH"}
 
@@ -77,10 +86,65 @@ def parse_int(value: str, field_name: str) -> int:
         ) from exc
 
 
+def require_run_date() -> date:
+    status = load_current_run_status()
+    if not status:
+        raise RuntimeError("current_run_status.json is missing or invalid")
+
+    current_run_id = str(status.get("CurrentRunId", "")).strip()
+    if not current_run_id:
+        raise RuntimeError("CurrentRunId is missing from current_run_status.json")
+
+    if PRODUCTION_WORKBOOK_PATH.is_file():
+        history = pd.read_excel(
+            PRODUCTION_WORKBOOK_PATH,
+            sheet_name="Daily_Run",
+            header=3,
+            usecols=["Date", "RunId"],
+        )
+
+        matches = history.loc[
+            history["RunId"]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+            .eq(current_run_id),
+            "Date",
+        ].dropna()
+
+        if not matches.empty:
+            dates = (
+                pd.to_datetime(matches, errors="coerce")
+                .dropna()
+                .dt.date
+                .unique()
+                .tolist()
+            )
+
+            if len(dates) != 1:
+                raise RuntimeError(
+                    f"RunId {current_run_id!r} has ambiguous Observation dates: "
+                    f"{dates}"
+                )
+
+            return dates[0]
+
+    start_time = str(status.get("StartTime", "")).strip()
+    if not start_time:
+        raise RuntimeError("StartTime is missing from current_run_status.json")
+
+    try:
+        return datetime.fromisoformat(start_time).date()
+    except ValueError as exc:
+        raise RuntimeError(f"Invalid StartTime: {start_time!r}") from exc
+
+
 def build_daily_run_preview() -> dict[str, object]:
     status = load_current_run_status()
     if not status:
         raise RuntimeError("current_run_status.json is missing or invalid")
+
+    run_date = require_run_date()
 
     if status.get("OverallRunStatus") != "PASS":
         raise RuntimeError(
@@ -208,7 +272,7 @@ def build_daily_run_preview() -> dict[str, object]:
         )
 
     return {
-        "Date": date.fromisoformat(candidate_as_of),
+        "Date": run_date,
         "Version": PROJECT_VERSION,
         "PipelineStatus": status["OverallRunStatus"],
         "PassSteps": f"{passed_steps}/{total_steps}",
@@ -230,9 +294,8 @@ def build_daily_run_preview() -> dict[str, object]:
         "IGNORE": ignore,
         "FinalStatus": final_status,
         "Notes": (
-            "DRY_RUN authority mapping only; "
-            "current_run_status.json + production_candidates.csv + "
-            "portfolio_action_report.txt"
+            "Authority mapping; current_run_status.json + "
+            "production_candidates.csv + portfolio_action_report.txt"
         ),
     }
 
@@ -309,6 +372,7 @@ def _optional_combined_values(
 
 def build_candidate_tracking_previews() -> list[dict[str, object]]:
     candidates = pd.read_csv(CANDIDATES_PATH)
+    run_date = require_run_date()
     if candidates.empty:
         raise RuntimeError("production_candidates.csv is empty")
 
@@ -430,7 +494,7 @@ def build_candidate_tracking_previews() -> list[dict[str, object]]:
 
         previews.append(
             {
-                "Date": date.fromisoformat(as_of_date),
+                "Date": run_date,
                 "Ticker": ticker,
                 "Signal": signal,
                 "Rank": rank,
@@ -450,33 +514,17 @@ def build_candidate_tracking_previews() -> list[dict[str, object]]:
     return previews
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Observation Workbook authority mapper (dry-run only)"
-    )
-    parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help=(
-            "Validate production authorities and print Daily_Run plus "
-            "Candidate_Tracking mappings"
-        ),
-    )
-    args = parser.parse_args()
-
-    if not args.dry_run:
-        parser.error("Phase 2 supports --dry-run only; workbook writes are disabled")
-
-    daily_preview = build_daily_run_preview()
-    candidate_previews = build_candidate_tracking_previews()
-
-    print("\nOBSERVATION RUNNER — DAILY_RUN DRY RUN")
+def print_previews(
+    daily_preview: dict[str, object],
+    candidate_previews: list[dict[str, object]],
+) -> None:
+    print("\\nOBSERVATION RUNNER — DAILY_RUN")
     print("=" * 72)
     for key, value in daily_preview.items():
         print(f"{key:<20}: {value}")
     print("=" * 72)
 
-    print("\nOBSERVATION RUNNER — CANDIDATE_TRACKING DRY RUN")
+    print("\\nOBSERVATION RUNNER — CANDIDATE_TRACKING")
     print("=" * 72)
     if not candidate_previews:
         print("No BUY/WATCH candidates for this run.")
@@ -488,8 +536,237 @@ def main() -> int:
                 print(f"{key:<20}: {value}")
     print("=" * 72)
 
-    print("PASS: authority checks completed")
-    print("NO WORKBOOK WRITE WAS PERFORMED")
+
+
+def prepare_test_fixture(
+    daily_preview: dict[str, object],
+    candidate_previews: list[dict[str, object]],
+) -> None:
+    """Build a disposable fixture from the production workbook.
+
+    The production workbook is read/copy source only. The current Daily_Run
+    RunId and current Candidate_Tracking Date+Ticker rows are removed only
+    from the temporary fixture so the existing append writers can be tested
+    without disabling duplicate protection.
+    """
+
+    if PRODUCTION_WORKBOOK_PATH.name != "AI_investing_observation.xlsx":
+        raise RuntimeError("Refusing fixture build: unexpected production workbook filename")
+    if TEST_WORKBOOK_PATH.name != "AI_investing_observation_test.xlsx":
+        raise RuntimeError("Refusing fixture build: unexpected test workbook filename")
+    if PRODUCTION_WORKBOOK_PATH.resolve() == TEST_WORKBOOK_PATH.resolve():
+        raise RuntimeError("Production and test workbook paths must be different")
+    if not PRODUCTION_WORKBOOK_PATH.is_file():
+        raise FileNotFoundError(PRODUCTION_WORKBOOK_PATH)
+
+    TEST_WORKBOOK_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+    if TEST_TEMP_PATH.exists():
+        TEST_TEMP_PATH.unlink()
+
+    shutil.copy2(PRODUCTION_WORKBOOK_PATH, TEST_TEMP_PATH)
+
+    wb = None
+    try:
+        wb = load_workbook(TEST_TEMP_PATH)
+
+        if "Daily_Run" not in wb.sheetnames:
+            raise RuntimeError("Test fixture missing Daily_Run sheet")
+        if "Candidate_Tracking" not in wb.sheetnames:
+            raise RuntimeError("Test fixture missing Candidate_Tracking sheet")
+
+        daily_ws = wb["Daily_Run"]
+        candidate_ws = wb["Candidate_Tracking"]
+
+        target_run_id = str(daily_preview["RunId"]).strip()
+        if not target_run_id:
+            raise RuntimeError("Daily_Run RunId must not be empty")
+
+        daily_rows = []
+        for row in range(5, daily_ws.max_row + 1):
+            existing_run_id = daily_ws.cell(row=row, column=5).value
+            if str(existing_run_id or "").strip() == target_run_id:
+                daily_rows.append(row)
+
+        if len(daily_rows) > 1:
+            raise RuntimeError(
+                f"Production fixture contains duplicate Daily_Run RunId "
+                f"{target_run_id!r}: rows {daily_rows}"
+            )
+
+        for row in reversed(daily_rows):
+            daily_ws.delete_rows(row, 1)
+
+        target_keys = {
+            (item["Date"], str(item["Ticker"]).strip().upper())
+            for item in candidate_previews
+        }
+
+        key_rows: dict[tuple[date, str], list[int]] = {
+            key: [] for key in target_keys
+        }
+
+        for row in range(5, candidate_ws.max_row + 1):
+            existing_date = candidate_ws.cell(row=row, column=1).value
+            existing_ticker = candidate_ws.cell(row=row, column=2).value
+
+            if existing_date is None or existing_ticker is None:
+                continue
+
+            try:
+                existing_day = pd.to_datetime(existing_date).date()
+            except (TypeError, ValueError):
+                continue
+
+            key = (
+                existing_day,
+                str(existing_ticker).strip().upper(),
+            )
+            if key in key_rows:
+                key_rows[key].append(row)
+
+        duplicate_keys = {
+            key: rows for key, rows in key_rows.items() if len(rows) > 1
+        }
+        if duplicate_keys:
+            raise RuntimeError(
+                f"Production fixture contains duplicate Candidate_Tracking "
+                f"Date+Ticker rows: {duplicate_keys}"
+            )
+
+        candidate_rows = sorted(
+            (rows[0] for rows in key_rows.values() if rows),
+            reverse=True,
+        )
+        for row in candidate_rows:
+            candidate_ws.delete_rows(row, 1)
+
+        wb.save(TEST_TEMP_PATH)
+
+    except Exception:
+        if wb is not None:
+            wb.close()
+        if TEST_TEMP_PATH.exists():
+            TEST_TEMP_PATH.unlink()
+        raise
+    else:
+        wb.close()
+
+
+def _excel_roundtrip_datetime(value):
+    """Use datetime values for Excel date fields so reopen verification is stable."""
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, date):
+        return datetime.combine(value, datetime.min.time())
+    return value
+
+def write_test_workbook(
+    daily_preview: dict[str, object],
+    candidate_previews: list[dict[str, object]],
+) -> tuple[int, list[int]]:
+    if TEST_WORKBOOK_PATH.name != "AI_investing_observation_test.xlsx":
+        raise RuntimeError("Refusing write: unexpected test workbook filename")
+
+    prepare_test_fixture(
+        daily_preview,
+        candidate_previews,
+    )
+
+    try:
+        daily_row = append_daily_run(
+            file_path=TEST_TEMP_PATH,
+            date=_excel_roundtrip_datetime(daily_preview["Date"]),
+            version=daily_preview["Version"],
+            pipeline_status=daily_preview["PipelineStatus"],
+            pass_steps=daily_preview["PassSteps"],
+            run_id=daily_preview["RunId"],
+            as_of_date=_excel_roundtrip_datetime(daily_preview["AsOfDate"]),
+            universe_version=daily_preview["UniverseVersion"],
+            score_model_version=daily_preview["ScoreModelVersion"],
+            risk_model_version=daily_preview["RiskModelVersion"],
+            universe_configured=daily_preview["UniverseConfigured"],
+            ready=daily_preview["Ready"],
+            excluded=daily_preview["Excluded"],
+            provider_rejected=daily_preview["ProviderRejected"],
+            stale_market_data=daily_preview["StaleMarketData"],
+            insufficient_history=daily_preview["InsufficientHistory"],
+            excluded_symbols=daily_preview["ExcludedSymbols"],
+            coverage_status=daily_preview["CoverageStatus"],
+            buy=daily_preview["BUY"],
+            watch=daily_preview["WATCH"],
+            ignore=daily_preview["IGNORE"],
+            final_status=daily_preview["FinalStatus"],
+            notes="WRITE_TEST " + str(daily_preview["Notes"]),
+        )
+
+        candidate_rows = []
+        for item in candidate_previews:
+            candidate_rows.append(
+                append_candidate_tracking(
+                    file_path=TEST_TEMP_PATH,
+                    date=_excel_roundtrip_datetime(item["Date"]),
+                    ticker=item["Ticker"],
+                    signal=item["Signal"],
+                    rank=item["Rank"],
+                    final_score=item["FinalScore"],
+                    fundamental_score=item["FundamentalScore"],
+                    combined_score=item["CombinedScore"],
+                    price=item["Price"],
+                    why_tracked=item["WhyTracked"],
+                    research_note=item["ResearchNote"],
+                    day_30=item["30D"],
+                    day_60=item["60D"],
+                    day_90=item["90D"],
+                    outcome=item["Outcome"],
+                )
+            )
+
+        TEST_TEMP_PATH.replace(TEST_WORKBOOK_PATH)
+        return daily_row, candidate_rows
+
+    except Exception:
+        if TEST_TEMP_PATH.exists():
+            TEST_TEMP_PATH.unlink()
+        raise
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Observation Workbook authority mapper / test writer"
+    )
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Validate authorities and print mappings without workbook writes",
+    )
+    mode.add_argument(
+        "--write-test",
+        action="store_true",
+        help="Write mappings to the hard-coded test workbook only",
+    )
+    args = parser.parse_args()
+
+    daily_preview = build_daily_run_preview()
+    candidate_previews = build_candidate_tracking_previews()
+    print_previews(daily_preview, candidate_previews)
+
+    if args.dry_run:
+        print("PASS: authority checks completed")
+        print("NO WORKBOOK WRITE WAS PERFORMED")
+        return 0
+
+    daily_row, candidate_rows = write_test_workbook(
+        daily_preview,
+        candidate_previews,
+    )
+
+    print("\\nPASS: TEST WORKBOOK WRITE COMPLETED")
+    print(f"Workbook             : {TEST_WORKBOOK_PATH}")
+    print(f"Daily_Run row        : {daily_row}")
+    print(f"Candidate rows       : {candidate_rows}")
+    print("PRODUCTION WORKBOOK  : NOT TOUCHED")
     return 0
 
 
