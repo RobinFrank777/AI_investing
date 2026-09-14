@@ -1,15 +1,17 @@
 """Dry-run authority mapper for the Observation Workbook.
 
-Phase 1 only:
+Phase 2:
 - reads current production artifacts
 - validates run identity consistency
 - prints the Daily_Run mapping
+- prints Candidate_Tracking mappings for BUY/WATCH candidates
 - NEVER writes the Observation Workbook
 """
 
 from __future__ import annotations
 
 import argparse
+import math
 from datetime import date
 from pathlib import Path
 
@@ -22,6 +24,10 @@ from current_run_status import load_current_run_status
 RESULTS_DIR = REPO_ROOT / "results"
 CANDIDATES_PATH = RESULTS_DIR / "production_candidates.csv"
 ACTION_REPORT_PATH = RESULTS_DIR / "portfolio_action_report.txt"
+STOCK_RANK_PATH = RESULTS_DIR / "stock_rank.csv"
+COMBINED_SCORE_PATH = RESULTS_DIR / "combined_score.csv"
+
+TRACKED_SIGNALS = {"BUY", "WATCH"}
 
 
 def parse_colon_report(path: Path) -> dict[str, str]:
@@ -231,6 +237,219 @@ def build_daily_run_preview() -> dict[str, object]:
     }
 
 
+def _require_columns(frame: pd.DataFrame, columns: tuple[str, ...], label: str) -> None:
+    missing = [column for column in columns if column not in frame.columns]
+    if missing:
+        raise RuntimeError(
+            f"{label} missing required columns: {', '.join(missing)}"
+        )
+
+
+def _optional_combined_values(
+    ticker: str,
+    *,
+    run_id: str,
+    as_of_date: str,
+    universe_version: str,
+    score_model_version: str,
+) -> tuple[object, object]:
+    if not COMBINED_SCORE_PATH.is_file():
+        return None, None
+
+    frame = pd.read_csv(COMBINED_SCORE_PATH)
+    if frame.empty:
+        return None, None
+
+    _require_columns(
+        frame,
+        (
+            "Ticker",
+            "RunId",
+            "AsOfDate",
+            "UniverseVersion",
+            "ScoreModelVersion",
+            "FundamentalScore",
+            "CombinedScore",
+        ),
+        "combined_score.csv",
+    )
+
+    matches = frame.loc[
+        frame["Ticker"].astype(str).str.strip().str.upper().eq(ticker)
+    ].copy()
+
+    if matches.empty:
+        return None, None
+    if len(matches) != 1:
+        raise RuntimeError(
+            f"combined_score.csv expected one row for {ticker}; found {len(matches)}"
+        )
+
+    row = matches.iloc[0]
+    checks = {
+        "RunId": run_id,
+        "AsOfDate": as_of_date,
+        "UniverseVersion": universe_version,
+        "ScoreModelVersion": score_model_version,
+    }
+    for field_name, expected in checks.items():
+        actual = str(row[field_name]).strip()
+        if actual != expected:
+            raise RuntimeError(
+                f"combined_score.csv {ticker} {field_name} mismatch: "
+                f"{actual!r} != {expected!r}"
+            )
+
+    fundamental = row["FundamentalScore"]
+    combined = row["CombinedScore"]
+    fundamental = None if pd.isna(fundamental) else float(fundamental)
+    combined = None if pd.isna(combined) else float(combined)
+    return fundamental, combined
+
+
+def build_candidate_tracking_previews() -> list[dict[str, object]]:
+    candidates = pd.read_csv(CANDIDATES_PATH)
+    if candidates.empty:
+        raise RuntimeError("production_candidates.csv is empty")
+
+    _require_columns(
+        candidates,
+        (
+            "Ticker",
+            "RunId",
+            "AsOfDate",
+            "CandidateRank",
+            "FinalScore",
+            "TradeSignal",
+            "ScoreModelVersion",
+            "UniverseVersion",
+        ),
+        "production_candidates.csv",
+    )
+
+    run_id = require_unique(candidates, "RunId")
+    as_of_date = require_unique(candidates, "AsOfDate")
+    universe_version = require_unique(candidates, "UniverseVersion")
+    score_model_version = require_unique(candidates, "ScoreModelVersion")
+
+    signals = candidates["TradeSignal"].fillna("").astype(str).str.strip().str.upper()
+    tracked = candidates.loc[signals.isin(TRACKED_SIGNALS)].copy()
+    tracked["_Signal"] = signals.loc[tracked.index]
+
+    if tracked.empty:
+        return []
+
+    stock_rank = pd.read_csv(STOCK_RANK_PATH)
+    if stock_rank.empty:
+        raise RuntimeError("stock_rank.csv is empty")
+
+    _require_columns(
+        stock_rank,
+        (
+            "Ticker",
+            "MarketDataDate",
+            "Close",
+            "FinalScore",
+            "TradeSignal",
+            "Reason",
+            "ScoreModelVersion",
+            "UniverseVersion",
+        ),
+        "stock_rank.csv",
+    )
+
+    previews: list[dict[str, object]] = []
+
+    for _, candidate in tracked.sort_values(
+        ["CandidateRank", "Ticker"], kind="mergesort"
+    ).iterrows():
+        ticker = str(candidate["Ticker"]).strip().upper()
+        signal = str(candidate["_Signal"]).strip().upper()
+
+        rank_value = candidate["CandidateRank"]
+        if pd.isna(rank_value):
+            raise RuntimeError(f"{ticker} CandidateRank is missing")
+        rank = int(rank_value)
+        if float(rank_value) != rank or rank < 1:
+            raise RuntimeError(f"{ticker} CandidateRank is invalid: {rank_value!r}")
+
+        final_score = float(candidate["FinalScore"])
+        if not math.isfinite(final_score):
+            raise RuntimeError(f"{ticker} FinalScore is not finite")
+
+        matches = stock_rank.loc[
+            stock_rank["Ticker"].astype(str).str.strip().str.upper().eq(ticker)
+        ].copy()
+        if len(matches) != 1:
+            raise RuntimeError(
+                f"stock_rank.csv expected exactly one row for {ticker}; "
+                f"found {len(matches)}"
+            )
+
+        rank_row = matches.iloc[0]
+        checks = {
+            "MarketDataDate": as_of_date,
+            "ScoreModelVersion": score_model_version,
+            "UniverseVersion": universe_version,
+            "TradeSignal": signal,
+        }
+        for field_name, expected in checks.items():
+            actual = str(rank_row[field_name]).strip()
+            if field_name == "TradeSignal":
+                actual = actual.upper()
+            if actual != expected:
+                raise RuntimeError(
+                    f"stock_rank.csv {ticker} {field_name} mismatch: "
+                    f"{actual!r} != {expected!r}"
+                )
+
+        rank_final_score = float(rank_row["FinalScore"])
+        if not math.isclose(
+            final_score, rank_final_score, rel_tol=0.0, abs_tol=1e-9
+        ):
+            raise RuntimeError(
+                f"stock_rank.csv {ticker} FinalScore mismatch: "
+                f"{rank_final_score} != {final_score}"
+            )
+
+        price = float(rank_row["Close"])
+        if not math.isfinite(price) or price <= 0:
+            raise RuntimeError(f"stock_rank.csv {ticker} Close is invalid")
+
+        why_tracked = str(rank_row["Reason"]).strip()
+        if not why_tracked:
+            raise RuntimeError(f"stock_rank.csv {ticker} Reason is missing")
+
+        fundamental_score, combined_score = _optional_combined_values(
+            ticker,
+            run_id=run_id,
+            as_of_date=as_of_date,
+            universe_version=universe_version,
+            score_model_version=score_model_version,
+        )
+
+        previews.append(
+            {
+                "Date": date.fromisoformat(as_of_date),
+                "Ticker": ticker,
+                "Signal": signal,
+                "Rank": rank,
+                "FinalScore": final_score,
+                "FundamentalScore": fundamental_score,
+                "CombinedScore": combined_score,
+                "Price": price,
+                "WhyTracked": why_tracked,
+                "ResearchNote": None,
+                "30D": None,
+                "60D": None,
+                "90D": None,
+                "Outcome": "OPEN",
+            }
+        )
+
+    return previews
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Observation Workbook authority mapper (dry-run only)"
@@ -238,20 +457,37 @@ def main() -> int:
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Validate production authorities and print Daily_Run mapping",
+        help=(
+            "Validate production authorities and print Daily_Run plus "
+            "Candidate_Tracking mappings"
+        ),
     )
     args = parser.parse_args()
 
     if not args.dry_run:
-        parser.error("Phase 1 supports --dry-run only; workbook writes are disabled")
+        parser.error("Phase 2 supports --dry-run only; workbook writes are disabled")
 
-    preview = build_daily_run_preview()
+    daily_preview = build_daily_run_preview()
+    candidate_previews = build_candidate_tracking_previews()
 
     print("\nOBSERVATION RUNNER — DAILY_RUN DRY RUN")
     print("=" * 72)
-    for key, value in preview.items():
+    for key, value in daily_preview.items():
         print(f"{key:<20}: {value}")
     print("=" * 72)
+
+    print("\nOBSERVATION RUNNER — CANDIDATE_TRACKING DRY RUN")
+    print("=" * 72)
+    if not candidate_previews:
+        print("No BUY/WATCH candidates for this run.")
+    else:
+        for index, preview in enumerate(candidate_previews, start=1):
+            if index > 1:
+                print("-" * 72)
+            for key, value in preview.items():
+                print(f"{key:<20}: {value}")
+    print("=" * 72)
+
     print("PASS: authority checks completed")
     print("NO WORKBOOK WRITE WAS PERFORMED")
     return 0
