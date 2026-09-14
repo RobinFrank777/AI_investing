@@ -1,12 +1,14 @@
-"""Observation Workbook authority mapper and test-workbook writer.
+"""Observation Workbook authority mapper and guarded workbook writer.
 
-Phase 3:
+Phase 4:
 - reads current production artifacts
 - validates run identity consistency
 - prints Daily_Run and Candidate_Tracking mappings
 - --dry-run performs no workbook writes
 - --write-test writes ONLY AI_investing_observation_test.xlsx
-- NEVER writes the production Observation Workbook
+- --write-production requires --confirm-production-write
+- production writes use a same-directory temp file, pre-write backup,
+  duplicate gates, existing workbook writers, and atomic replacement
 """
 
 from __future__ import annotations
@@ -33,6 +35,10 @@ COMBINED_SCORE_PATH = RESULTS_DIR / "combined_score.csv"
 
 OBSERVATION_DIR = Path.home() / "Documents" / "AI_investing_observation"
 PRODUCTION_WORKBOOK_PATH = OBSERVATION_DIR / "AI_investing_observation.xlsx"
+PRODUCTION_TEMP_PATH = (
+    OBSERVATION_DIR / "AI_investing_observation.write-production.tmp.xlsx"
+)
+PRODUCTION_BACKUP_DIR = OBSERVATION_DIR / "backups"
 TEST_WORKBOOK_PATH = OBSERVATION_DIR / "AI_investing_observation_test.xlsx"
 TEST_TEMP_PATH = OBSERVATION_DIR / "AI_investing_observation_test.write-test.tmp.xlsx"
 
@@ -731,9 +737,203 @@ def write_test_workbook(
         raise
 
 
+
+def validate_production_write_gate(
+    daily_preview: dict[str, object],
+    candidate_previews: list[dict[str, object]],
+) -> None:
+    """Fail closed unless the production workbook is safe for one new append."""
+
+    if PRODUCTION_WORKBOOK_PATH.name != "AI_investing_observation.xlsx":
+        raise RuntimeError("Refusing production write: unexpected workbook filename")
+    if not PRODUCTION_WORKBOOK_PATH.is_file():
+        raise FileNotFoundError(PRODUCTION_WORKBOOK_PATH)
+    if PRODUCTION_TEMP_PATH.resolve() == PRODUCTION_WORKBOOK_PATH.resolve():
+        raise RuntimeError("Production temp path must differ from production workbook")
+
+    wb = load_workbook(PRODUCTION_WORKBOOK_PATH, data_only=False, read_only=False)
+    try:
+        for required_sheet in ("Daily_Run", "Candidate_Tracking"):
+            if required_sheet not in wb.sheetnames:
+                raise RuntimeError(
+                    f"Production workbook missing required sheet: {required_sheet}"
+                )
+
+        daily_ws = wb["Daily_Run"]
+        candidate_ws = wb["Candidate_Tracking"]
+
+        target_date = daily_preview["Date"]
+        target_run_id = str(daily_preview["RunId"]).strip()
+
+        if not target_run_id:
+            raise RuntimeError("Production write requires non-empty RunId")
+
+        daily_date_matches = []
+        daily_run_id_matches = []
+
+        for row in range(5, daily_ws.max_row + 1):
+            existing_date = daily_ws.cell(row=row, column=1).value
+            existing_run_id = daily_ws.cell(row=row, column=5).value
+
+            if existing_date is not None:
+                try:
+                    existing_day = pd.to_datetime(existing_date).date()
+                except (TypeError, ValueError):
+                    existing_day = None
+                if existing_day == target_date:
+                    daily_date_matches.append(row)
+
+            if str(existing_run_id or "").strip() == target_run_id:
+                daily_run_id_matches.append(row)
+
+        if daily_date_matches:
+            raise RuntimeError(
+                f"Production write blocked: Daily_Run Date {target_date} "
+                f"already exists at rows {daily_date_matches}"
+            )
+
+        if daily_run_id_matches:
+            raise RuntimeError(
+                f"Production write blocked: RunId {target_run_id!r} "
+                f"already exists at rows {daily_run_id_matches}"
+            )
+
+        candidate_targets = {
+            (item["Date"], str(item["Ticker"]).strip().upper())
+            for item in candidate_previews
+        }
+
+        candidate_matches: dict[tuple[date, str], list[int]] = {
+            key: [] for key in candidate_targets
+        }
+
+        for row in range(5, candidate_ws.max_row + 1):
+            existing_date = candidate_ws.cell(row=row, column=1).value
+            existing_ticker = candidate_ws.cell(row=row, column=2).value
+
+            if existing_date is None or existing_ticker is None:
+                continue
+
+            try:
+                existing_day = pd.to_datetime(existing_date).date()
+            except (TypeError, ValueError):
+                continue
+
+            key = (
+                existing_day,
+                str(existing_ticker).strip().upper(),
+            )
+            if key in candidate_matches:
+                candidate_matches[key].append(row)
+
+        existing_candidate_keys = {
+            key: rows for key, rows in candidate_matches.items() if rows
+        }
+        if existing_candidate_keys:
+            raise RuntimeError(
+                "Production write blocked: Candidate_Tracking Date+Ticker "
+                f"already exists: {existing_candidate_keys}"
+            )
+
+    finally:
+        wb.close()
+
+
+def _make_production_backup_path() -> Path:
+    """Create a unique timestamped backup path without modifying the workbook."""
+    timestamp = datetime.now().astimezone().strftime("%Y%m%d-%H%M%S")
+    path = (
+        PRODUCTION_BACKUP_DIR
+        / f"AI_investing_observation.before-production-write-{timestamp}.xlsx"
+    )
+    if path.exists():
+        raise RuntimeError(f"Backup path already exists: {path}")
+    return path
+
+
+def write_production_workbook(
+    daily_preview: dict[str, object],
+    candidate_previews: list[dict[str, object]],
+) -> tuple[int, list[int], Path]:
+    """Transactionally append the current authority mapping to production."""
+
+    validate_production_write_gate(daily_preview, candidate_previews)
+
+    PRODUCTION_BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+
+    if PRODUCTION_TEMP_PATH.exists():
+        PRODUCTION_TEMP_PATH.unlink()
+
+    shutil.copy2(PRODUCTION_WORKBOOK_PATH, PRODUCTION_TEMP_PATH)
+
+    backup_path = _make_production_backup_path()
+
+    try:
+        daily_row = append_daily_run(
+            file_path=PRODUCTION_TEMP_PATH,
+            date=_excel_roundtrip_datetime(daily_preview["Date"]),
+            version=daily_preview["Version"],
+            pipeline_status=daily_preview["PipelineStatus"],
+            pass_steps=daily_preview["PassSteps"],
+            run_id=daily_preview["RunId"],
+            as_of_date=_excel_roundtrip_datetime(daily_preview["AsOfDate"]),
+            universe_version=daily_preview["UniverseVersion"],
+            score_model_version=daily_preview["ScoreModelVersion"],
+            risk_model_version=daily_preview["RiskModelVersion"],
+            universe_configured=daily_preview["UniverseConfigured"],
+            ready=daily_preview["Ready"],
+            excluded=daily_preview["Excluded"],
+            provider_rejected=daily_preview["ProviderRejected"],
+            stale_market_data=daily_preview["StaleMarketData"],
+            insufficient_history=daily_preview["InsufficientHistory"],
+            excluded_symbols=daily_preview["ExcludedSymbols"],
+            coverage_status=daily_preview["CoverageStatus"],
+            buy=daily_preview["BUY"],
+            watch=daily_preview["WATCH"],
+            ignore=daily_preview["IGNORE"],
+            final_status=daily_preview["FinalStatus"],
+            notes="AUTOMATED " + str(daily_preview["Notes"]),
+        )
+
+        candidate_rows = []
+        for item in candidate_previews:
+            candidate_rows.append(
+                append_candidate_tracking(
+                    file_path=PRODUCTION_TEMP_PATH,
+                    date=_excel_roundtrip_datetime(item["Date"]),
+                    ticker=item["Ticker"],
+                    signal=item["Signal"],
+                    rank=item["Rank"],
+                    final_score=item["FinalScore"],
+                    fundamental_score=item["FundamentalScore"],
+                    combined_score=item["CombinedScore"],
+                    price=item["Price"],
+                    why_tracked=item["WhyTracked"],
+                    research_note=item["ResearchNote"],
+                    day_30=item["30D"],
+                    day_60=item["60D"],
+                    day_90=item["90D"],
+                    outcome=item["Outcome"],
+                )
+            )
+
+        # Backup the untouched production workbook only after every temp-file
+        # append and post-save verification has passed.
+        shutil.copy2(PRODUCTION_WORKBOOK_PATH, backup_path)
+
+        # Same-directory replacement is atomic on the normal local filesystem.
+        PRODUCTION_TEMP_PATH.replace(PRODUCTION_WORKBOOK_PATH)
+
+        return daily_row, candidate_rows, backup_path
+
+    except Exception:
+        if PRODUCTION_TEMP_PATH.exists():
+            PRODUCTION_TEMP_PATH.unlink()
+        raise
+
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Observation Workbook authority mapper / test writer"
+        description="Observation Workbook authority mapper / guarded writer"
     )
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument(
@@ -746,7 +946,27 @@ def main() -> int:
         action="store_true",
         help="Write mappings to the hard-coded test workbook only",
     )
+    mode.add_argument(
+        "--write-production",
+        action="store_true",
+        help="Request a guarded production workbook write",
+    )
+    parser.add_argument(
+        "--confirm-production-write",
+        action="store_true",
+        help="Required second gate for --write-production",
+    )
     args = parser.parse_args()
+
+    if args.confirm_production_write and not args.write_production:
+        parser.error(
+            "--confirm-production-write is valid only with --write-production"
+        )
+
+    if args.write_production and not args.confirm_production_write:
+        parser.error(
+            "--write-production requires --confirm-production-write"
+        )
 
     daily_preview = build_daily_run_preview()
     candidate_previews = build_candidate_tracking_previews()
@@ -757,16 +977,29 @@ def main() -> int:
         print("NO WORKBOOK WRITE WAS PERFORMED")
         return 0
 
-    daily_row, candidate_rows = write_test_workbook(
+    if args.write_test:
+        daily_row, candidate_rows = write_test_workbook(
+            daily_preview,
+            candidate_previews,
+        )
+
+        print("\\nPASS: TEST WORKBOOK WRITE COMPLETED")
+        print(f"Workbook             : {TEST_WORKBOOK_PATH}")
+        print(f"Daily_Run row        : {daily_row}")
+        print(f"Candidate rows       : {candidate_rows}")
+        print("PRODUCTION WORKBOOK  : NOT TOUCHED")
+        return 0
+
+    daily_row, candidate_rows, backup_path = write_production_workbook(
         daily_preview,
         candidate_previews,
     )
 
-    print("\\nPASS: TEST WORKBOOK WRITE COMPLETED")
-    print(f"Workbook             : {TEST_WORKBOOK_PATH}")
+    print("\\nPASS: PRODUCTION WORKBOOK WRITE COMPLETED")
+    print(f"Workbook             : {PRODUCTION_WORKBOOK_PATH}")
+    print(f"Backup               : {backup_path}")
     print(f"Daily_Run row        : {daily_row}")
     print(f"Candidate rows       : {candidate_rows}")
-    print("PRODUCTION WORKBOOK  : NOT TOUCHED")
     return 0
 
 
