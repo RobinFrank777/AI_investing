@@ -537,11 +537,11 @@ def _optional_combined_values(
     score_model_version: str,
 ) -> tuple[object, object]:
     if not COMBINED_SCORE_PATH.is_file():
-        return None, None
+        return "MISSING", "MISSING"
 
     frame = pd.read_csv(COMBINED_SCORE_PATH)
     if frame.empty:
-        return None, None
+        return "MISSING", "MISSING"
 
     _require_columns(
         frame,
@@ -562,7 +562,7 @@ def _optional_combined_values(
     ].copy()
 
     if matches.empty:
-        return None, None
+        return "MISSING", "MISSING"
     if len(matches) != 1:
         raise RuntimeError(
             f"combined_score.csv expected one row for {ticker}; found {len(matches)}"
@@ -585,8 +585,8 @@ def _optional_combined_values(
 
     fundamental = row["FundamentalScore"]
     combined = row["CombinedScore"]
-    fundamental = None if pd.isna(fundamental) else float(fundamental)
-    combined = None if pd.isna(combined) else float(combined)
+    fundamental = "MISSING" if pd.isna(fundamental) else float(fundamental)
+    combined = "MISSING" if pd.isna(combined) else float(combined)
     return fundamental, combined
 
 
