@@ -931,6 +931,121 @@ def write_production_workbook(
             PRODUCTION_TEMP_PATH.unlink()
         raise
 
+
+def build_research_status(
+    candidate_previews: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    # Read-only ResearchNote completeness check for current BUY/WATCH candidates.
+
+    if not PRODUCTION_WORKBOOK_PATH.is_file():
+        raise FileNotFoundError(PRODUCTION_WORKBOOK_PATH)
+
+    wb = load_workbook(PRODUCTION_WORKBOOK_PATH, data_only=False, read_only=False)
+    try:
+        if "Candidate_Tracking" not in wb.sheetnames:
+            raise RuntimeError("Production workbook missing Candidate_Tracking sheet")
+
+        ws = wb["Candidate_Tracking"]
+        results: list[dict[str, object]] = []
+
+        for item in candidate_previews:
+            target_date = item["Date"]
+            target_ticker = str(item["Ticker"]).strip().upper()
+            matches: list[int] = []
+
+            for row in range(5, ws.max_row + 1):
+                existing_date = ws.cell(row=row, column=1).value
+                existing_ticker = ws.cell(row=row, column=2).value
+
+                if existing_date is None or existing_ticker is None:
+                    continue
+
+                try:
+                    existing_day = pd.to_datetime(existing_date).date()
+                except (TypeError, ValueError):
+                    continue
+
+                if (
+                    existing_day == target_date
+                    and str(existing_ticker).strip().upper() == target_ticker
+                ):
+                    matches.append(row)
+
+            if len(matches) > 1:
+                raise RuntimeError(
+                    "Candidate_Tracking key is not unique for "
+                    f"{target_date} / {target_ticker}: rows {matches}"
+                )
+
+            if not matches:
+                status = "NOT_WRITTEN"
+                row = None
+            else:
+                row = matches[0]
+                note = ws.cell(row=row, column=10).value
+                status = (
+                    "COMPLETE"
+                    if note is not None and str(note).strip()
+                    else "RESEARCH_REQUIRED"
+                )
+
+            results.append(
+                {
+                    "Date": target_date,
+                    "Ticker": target_ticker,
+                    "Row": row,
+                    "ResearchStatus": status,
+                }
+            )
+
+        return results
+    finally:
+        wb.close()
+
+
+def print_research_status(
+    candidate_previews: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    results = build_research_status(candidate_previews)
+
+    print("\nOBSERVATION RUNNER — RESEARCH STATUS")
+    print("=" * 72)
+
+    if not results:
+        print("No BUY/WATCH candidates for this run.")
+    else:
+        for item in results:
+            print(
+                f"{item['Date']}  {item['Ticker']:<8}  "
+                f"{item['ResearchStatus']}"
+            )
+
+    required = [
+        item for item in results
+        if item["ResearchStatus"] == "RESEARCH_REQUIRED"
+    ]
+    not_written = [
+        item for item in results
+        if item["ResearchStatus"] == "NOT_WRITTEN"
+    ]
+
+    if required:
+        print("-" * 72)
+        print("RESEARCH_REQUIRED:")
+        for item in required:
+            print(f"  {item['Ticker']}")
+    elif not_written:
+        print("-" * 72)
+        print("Research status is pending Candidate_Tracking production write.")
+    else:
+        print("-" * 72)
+        print("RESEARCH COMPLETE")
+
+    print("=" * 72)
+    return results
+
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Observation Workbook authority mapper / guarded writer"
@@ -950,6 +1065,11 @@ def main() -> int:
         "--write-production",
         action="store_true",
         help="Request a guarded production workbook write",
+    )
+    mode.add_argument(
+        "--research-status",
+        action="store_true",
+        help="Read-only ResearchNote completeness check for current BUY/WATCH candidates",
     )
     parser.add_argument(
         "--confirm-production-write",
@@ -971,6 +1091,10 @@ def main() -> int:
     daily_preview = build_daily_run_preview()
     candidate_previews = build_candidate_tracking_previews()
     print_previews(daily_preview, candidate_previews)
+
+    if args.research_status:
+        print_research_status(candidate_previews)
+        return 0
 
     if args.dry_run:
         print("PASS: authority checks completed")
@@ -1000,6 +1124,7 @@ def main() -> int:
     print(f"Backup               : {backup_path}")
     print(f"Daily_Run row        : {daily_row}")
     print(f"Candidate rows       : {candidate_rows}")
+    print_research_status(candidate_previews)
     return 0
 
 

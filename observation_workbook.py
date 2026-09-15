@@ -1634,6 +1634,130 @@ def _candidate_tracking_find_row(ws, date, ticker) -> int:
     return matches[0]
 
 
+
+# ============================================================
+# Candidate_Tracking controlled ResearchNote update
+# ============================================================
+
+CANDIDATE_RESEARCH_NOTE_COLUMN = 10
+
+CANDIDATE_RESEARCH_NOTE_PROTECTED_COLUMNS = tuple(
+    col
+    for col in range(1, len(CANDIDATE_TRACKING_HEADERS) + 1)
+    if col != CANDIDATE_RESEARCH_NOTE_COLUMN
+)
+
+
+def update_candidate_research_note(
+    file_path: Path,
+    *,
+    date,
+    ticker,
+    research_note,
+    overwrite: bool = False,
+    create_backup: bool = True,
+) -> int:
+    # Controlled update for Candidate_Tracking ResearchNote only.
+
+    if not file_path.exists():
+        raise FileNotFoundError(file_path)
+
+    normalized_note = str(research_note or "").strip()
+    if not normalized_note:
+        raise RuntimeError(
+            "Candidate_Tracking ResearchNote must not be empty."
+        )
+
+    wb = load_workbook(file_path)
+
+    if CANDIDATE_TRACKING_SHEET not in wb.sheetnames:
+        raise RuntimeError(
+            f"Required sheet '{CANDIDATE_TRACKING_SHEET}' does not exist."
+        )
+
+    ws = wb[CANDIDATE_TRACKING_SHEET]
+
+    validate_candidate_tracking_schema(ws)
+    validate_candidate_tracking_history_contiguous(ws)
+
+    target_row = _candidate_tracking_find_row(ws, date, ticker)
+
+    protected_before = [
+        ws.cell(row=target_row, column=col).value
+        for col in CANDIDATE_RESEARCH_NOTE_PROTECTED_COLUMNS
+    ]
+
+    existing_note = ws.cell(
+        row=target_row,
+        column=CANDIDATE_RESEARCH_NOTE_COLUMN,
+    ).value
+
+    if (
+        existing_note is not None
+        and str(existing_note).strip()
+        and not overwrite
+    ):
+        raise RuntimeError(
+            "Candidate_Tracking ResearchNote already contains "
+            f"{existing_note!r} at row {target_row}. "
+            "Use overwrite=True only after explicit review. "
+            "Workbook was NOT modified."
+        )
+
+    if create_backup:
+        timestamp = datetime.now().astimezone().strftime("%Y%m%d-%H%M%S")
+        backup_path = file_path.with_name(
+            f"{file_path.stem}.before-research-note-{timestamp}{file_path.suffix}"
+        )
+        if backup_path.exists():
+            raise RuntimeError(f"Backup path already exists: {backup_path}")
+        shutil.copy2(file_path, backup_path)
+
+    ws.cell(
+        row=target_row,
+        column=CANDIDATE_RESEARCH_NOTE_COLUMN,
+    ).value = normalized_note
+
+    wb.save(file_path)
+    wb.close()
+
+    verify_wb = load_workbook(file_path, data_only=False)
+    try:
+        verify_ws = verify_wb[CANDIDATE_TRACKING_SHEET]
+
+        protected_after = [
+            verify_ws.cell(row=target_row, column=col).value
+            for col in CANDIDATE_RESEARCH_NOTE_PROTECTED_COLUMNS
+        ]
+
+        if protected_after != protected_before:
+            raise RuntimeError(
+                "Candidate_Tracking protected fields changed unexpectedly "
+                "during ResearchNote update."
+            )
+
+        actual_note = verify_ws.cell(
+            row=target_row,
+            column=CANDIDATE_RESEARCH_NOTE_COLUMN,
+        ).value
+
+        if actual_note != normalized_note:
+            raise RuntimeError(
+                "Candidate_Tracking ResearchNote post-save verification failed."
+            )
+    finally:
+        verify_wb.close()
+
+    print("\nCandidate_Tracking ResearchNote update PASS")
+    print(f"Workbook     : {file_path}")
+    print(f"Sheet        : {CANDIDATE_TRACKING_SHEET}")
+    print(f"Row          : {target_row}")
+    print(f"Date         : {date}")
+    print(f"Ticker       : {str(ticker).strip().upper()}")
+
+    return target_row
+
+
 def _validate_candidate_outcome_value(field_name: str, value) -> None:
     """Validate values allowed in the controlled outcome fields."""
 
