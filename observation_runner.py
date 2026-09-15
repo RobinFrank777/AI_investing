@@ -248,6 +248,92 @@ def build_daily_run_notes(
 
 
 
+
+KNOWN_EXCLUSION_REASONS = {
+    "INSUFFICIENT_HISTORY",
+    "PROVIDER_REJECTED",
+    "STALE_MARKET_DATA",
+}
+
+
+def classify_observation_coverage_status(
+    *,
+    configured: int,
+    ready: int,
+    excluded: int,
+    provider_rejected: int,
+    stale_market_data: int,
+    insufficient_history: int,
+    excluded_symbols: str,
+) -> str:
+    """Classify Observation coverage from final authoritative readiness values."""
+    if ready + excluded != configured:
+        raise RuntimeError(
+            f"Coverage arithmetic mismatch: {ready} + {excluded} != {configured}"
+        )
+
+    grouped = parse_excluded_symbols(excluded_symbols)
+
+    unknown_reasons = sorted(set(grouped) - KNOWN_EXCLUSION_REASONS)
+    if unknown_reasons:
+        raise RuntimeError(
+            "Unknown exclusion reason(s): " + ", ".join(unknown_reasons)
+        )
+
+    parsed_total = sum(len(symbols) for symbols in grouped.values())
+    if parsed_total != excluded:
+        raise RuntimeError(
+            "Excluded Symbols count mismatch: "
+            f"parsed={parsed_total}, Excluded={excluded}"
+        )
+
+    provider_symbols = grouped.get("PROVIDER_REJECTED", [])
+    stale_symbols = grouped.get("STALE_MARKET_DATA", [])
+    insufficient_symbols = grouped.get("INSUFFICIENT_HISTORY", [])
+
+    if len(provider_symbols) != provider_rejected:
+        raise RuntimeError(
+            "ProviderRejected count mismatch with Excluded Symbols: "
+            f"{len(provider_symbols)} != {provider_rejected}"
+        )
+    if len(stale_symbols) != stale_market_data:
+        raise RuntimeError(
+            "StaleMarketData count mismatch with Excluded Symbols: "
+            f"{len(stale_symbols)} != {stale_market_data}"
+        )
+    if len(insufficient_symbols) != insufficient_history:
+        raise RuntimeError(
+            "InsufficientHistory count mismatch with Excluded Symbols: "
+            f"{len(insufficient_symbols)} != {insufficient_history}"
+        )
+
+    if excluded == 0:
+        if provider_rejected or stale_market_data or insufficient_history or grouped:
+            raise RuntimeError(
+                "FULL coverage cannot contain exclusion counts or symbols"
+            )
+        return "FULL"
+
+    if (
+        provider_rejected == 0
+        and stale_market_data == 0
+        and insufficient_history == excluded
+        and set(grouped) == {"INSUFFICIENT_HISTORY"}
+    ):
+        return "NORMAL_BASELINE"
+
+    if stale_market_data > 0:
+        return "DATA_READINESS_EXCEPTION"
+
+    if provider_rejected > 0:
+        return "PARTIAL_PROVIDER_REJECTION"
+
+    raise RuntimeError(
+        "Coverage state is not classifiable under Observation governance rules"
+    )
+
+
+
 def build_daily_run_preview() -> dict[str, object]:
     status = load_current_run_status()
     if not status:
@@ -380,6 +466,26 @@ def build_daily_run_preview() -> dict[str, object]:
             f"Portfolio Decision={final_status!r}, Report Status={report_status!r}"
         )
 
+    production_coverage = require_report_value(report, "Data Coverage")
+    expected_production_coverage = "FULL" if excluded == 0 else "PARTIAL"
+    if production_coverage != expected_production_coverage:
+        raise RuntimeError(
+            "Production Data Coverage mismatch: "
+            f"{production_coverage!r} != {expected_production_coverage!r}"
+        )
+
+    # Observation uses the final authoritative readiness state only.
+    # Intermediate first-pass/retry states are intentionally ignored.
+    coverage_status = classify_observation_coverage_status(
+        configured=configured,
+        ready=ready,
+        excluded=excluded,
+        provider_rejected=provider_rejected,
+        stale_market_data=stale_market_data,
+        insufficient_history=insufficient_history,
+        excluded_symbols=require_report_value(report, "Excluded Symbols"),
+    )
+
     return {
         "Date": run_date,
         "Version": PROJECT_VERSION,
@@ -397,7 +503,7 @@ def build_daily_run_preview() -> dict[str, object]:
         "StaleMarketData": stale_market_data,
         "InsufficientHistory": insufficient_history,
         "ExcludedSymbols": require_report_value(report, "Excluded Symbols"),
-        "CoverageStatus": require_report_value(report, "Data Coverage"),
+        "CoverageStatus": coverage_status,
         "BUY": buy,
         "WATCH": watch,
         "IGNORE": ignore,
