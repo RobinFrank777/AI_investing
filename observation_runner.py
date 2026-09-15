@@ -145,6 +145,109 @@ def require_run_date() -> date:
         raise RuntimeError(f"Invalid StartTime: {start_time!r}") from exc
 
 
+
+def parse_excluded_symbols(excluded_symbols: str) -> dict[str, list[str]]:
+    text = str(excluded_symbols or "").strip()
+    if not text:
+        return {}
+
+    grouped: dict[str, list[str]] = {}
+    for raw_item in text.split(","):
+        item = raw_item.strip()
+        if not item:
+            continue
+        if not item.endswith(")") or " (" not in item:
+            raise RuntimeError(
+                f"Excluded Symbols item has unexpected format: {item!r}"
+            )
+        ticker, reason = item[:-1].rsplit(" (", 1)
+        ticker = ticker.strip().upper()
+        reason = reason.strip().upper()
+        if not ticker or not reason:
+            raise RuntimeError(
+                f"Excluded Symbols item has empty ticker/reason: {item!r}"
+            )
+        grouped.setdefault(reason, []).append(ticker)
+    return grouped
+
+
+def build_daily_run_notes(
+    *,
+    configured: int,
+    ready: int,
+    excluded: int,
+    provider_rejected: int,
+    stale_market_data: int,
+    insufficient_history: int,
+    excluded_symbols: str,
+) -> str:
+    grouped = parse_excluded_symbols(excluded_symbols)
+
+    provider_symbols = grouped.get("PROVIDER_REJECTED", [])
+    stale_symbols = grouped.get("STALE_MARKET_DATA", [])
+    insufficient_symbols = grouped.get("INSUFFICIENT_HISTORY", [])
+
+    parsed_total = sum(len(symbols) for symbols in grouped.values())
+    if parsed_total != excluded:
+        raise RuntimeError(
+            "Excluded Symbols count mismatch: "
+            f"parsed={parsed_total}, Excluded={excluded}"
+        )
+
+    if len(provider_symbols) != provider_rejected:
+        raise RuntimeError(
+            "ProviderRejected count mismatch with Excluded Symbols: "
+            f"{len(provider_symbols)} != {provider_rejected}"
+        )
+    if len(stale_symbols) != stale_market_data:
+        raise RuntimeError(
+            "StaleMarketData count mismatch with Excluded Symbols: "
+            f"{len(stale_symbols)} != {stale_market_data}"
+        )
+    if len(insufficient_symbols) != insufficient_history:
+        raise RuntimeError(
+            "InsufficientHistory count mismatch with Excluded Symbols: "
+            f"{len(insufficient_symbols)} != {insufficient_history}"
+        )
+
+    parts: list[str] = []
+
+    parts.append(
+        "Provider rejection: "
+        + (", ".join(provider_symbols) + f" ({provider_rejected})"
+           if provider_symbols else "none")
+    )
+    parts.append(
+        "Stale market data: "
+        + (", ".join(stale_symbols) + f" ({stale_market_data})"
+           if stale_symbols else "none")
+    )
+    parts.append(
+        "Insufficient history: "
+        + (", ".join(insufficient_symbols) + f" ({insufficient_history})"
+           if insufficient_symbols else "none")
+    )
+
+    other_reasons = {
+        reason: symbols
+        for reason, symbols in grouped.items()
+        if reason not in {
+            "PROVIDER_REJECTED",
+            "STALE_MARKET_DATA",
+            "INSUFFICIENT_HISTORY",
+        }
+    }
+    for reason in sorted(other_reasons):
+        symbols = other_reasons[reason]
+        parts.append(
+            f"{reason}: " + ", ".join(symbols) + f" ({len(symbols)})"
+        )
+
+    parts.append(f"Readiness {ready}/{configured}; excluded {excluded}")
+    return "; ".join(parts) + "."
+
+
+
 def build_daily_run_preview() -> dict[str, object]:
     status = load_current_run_status()
     if not status:
@@ -299,9 +402,14 @@ def build_daily_run_preview() -> dict[str, object]:
         "WATCH": watch,
         "IGNORE": ignore,
         "FinalStatus": final_status,
-        "Notes": (
-            "Authority mapping; current_run_status.json + "
-            "production_candidates.csv + portfolio_action_report.txt"
+        "Notes": build_daily_run_notes(
+            configured=configured,
+            ready=ready,
+            excluded=excluded,
+            provider_rejected=provider_rejected,
+            stale_market_data=stale_market_data,
+            insufficient_history=insufficient_history,
+            excluded_symbols=require_report_value(report, "Excluded Symbols"),
         ),
     }
 
