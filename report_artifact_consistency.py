@@ -11,7 +11,6 @@ import pandas as pd
 from config import PRIMARY_UNIVERSE_VERSION
 from current_run_status import load_current_run_status
 from production_candidate_builder import MAX_STALENESS_DAYS
-from portfolio_risk_calculator import RISK_MODEL_VERSION
 from universe_metadata import MATCH, MISMATCH, dataframe_universe_compatibility
 
 
@@ -250,8 +249,6 @@ def evaluate_report_artifacts(artifacts, *, report_date=None):
         metadata[field] = unique[0] if len(unique) == 1 else (
             "MISMATCH" if len(unique) > 1 else "MISSING"
         )
-    if not action_required and metadata["RiskModelVersion"] == "MISSING":
-        metadata["RiskModelVersion"] = RISK_MODEL_VERSION
     metadata["UniverseVersionExpected"] = PRIMARY_UNIVERSE_VERSION
     return ReportAssessment(
         _aggregate(states or [PASS]), metadata, artifact_states,

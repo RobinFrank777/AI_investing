@@ -127,6 +127,21 @@ class ReportArtifactConsistencyTests(unittest.TestCase):
         values = {"Production Candidate": artifacts(action=False)["Production Candidate"]}
         self.assertEqual(self.evaluate(values).status, subject.NO_ACTION)
 
+    def test_no_action_preserves_missing_risk_model_version(self):
+        values = {"Production Candidate": artifacts(action=False)["Production Candidate"]}
+        result = self.evaluate(values)
+
+        self.assertEqual(result.status, subject.NO_ACTION)
+        self.assertFalse(result.action_required)
+        self.assertEqual(result.metadata["RiskModelVersion"], "MISSING")
+
+    def test_empty_candidate_preserves_missing_risk_model_version(self):
+        empty = pd.DataFrame(columns=artifacts()["Production Candidate"].columns)
+        result = self.evaluate({"Production Candidate": empty})
+
+        self.assertEqual(result.status, subject.NO_ACTION)
+        self.assertEqual(result.metadata["RiskModelVersion"], "MISSING")
+
     def test_required_artifact_validation_failure_is_failed(self):
         values = artifacts()
         values["Portfolio Risk"].loc[:, "RiskStatus"] = "INSUFFICIENT_HISTORY"
