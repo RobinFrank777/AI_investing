@@ -164,7 +164,75 @@ class UpdateOneStockTests(unittest.TestCase):
             row[["Open", "High", "Low", "Close", "Volume"]].tolist(),
             [20.0, 24.0, 19.0, 23.0, 999],
         )
+    def test_invalid_ohlcv_diagnostics_identify_failed_invariant(self):
+        frame = pd.DataFrame({
+            "Date": ["2026-08-13"],
+            "Open": [105.0],
+            "High": [104.0],
+            "Low": [100.0],
+            "Close": [103.0],
+            "Volume": [1200],
+        })
 
+        diagnostics = update_data.diagnose_canonical_ohlcv_violations(frame)
+
+        self.assertEqual(len(diagnostics), 1)
+        self.assertEqual(diagnostics[0]["date"], "2026-08-13")
+        self.assertEqual(
+            diagnostics[0]["failed_invariants"],
+            ["HIGH_LT_OHLC_MAX"],
+        )
+        self.assertEqual(diagnostics[0]["raw"]["Open"], 105.0)
+        self.assertEqual(diagnostics[0]["raw"]["High"], 104.0)
+
+
+    def test_valid_ohlcv_row_has_no_diagnostics(self):
+        frame = pd.DataFrame({
+            "Date": ["2026-08-13"],
+            "Open": [100.0],
+            "High": [102.0],
+            "Low": [99.0],
+            "Close": [101.0],
+            "Volume": [1000],
+        })
+
+        diagnostics = update_data.diagnose_canonical_ohlcv_violations(frame)
+
+        self.assertEqual(diagnostics, [])
+    @patch("builtins.print")
+    @patch("update_data.yf.download")
+    def test_provider_rejection_logs_diagnostics(self, download, mock_print):
+        existing = pd.DataFrame({
+            "Date": ["2026-08-12"],
+            "Open": [100.0],
+            "High": [102.0],
+            "Low": [99.0],
+            "Close": [101.0],
+            "Volume": [900],
+        })
+        existing.to_csv(self.data_dir / "AAA.csv", index=False)
+
+        invalid = pd.DataFrame({
+            "Open": [105.0],
+            "High": [104.0],
+            "Low": [100.0],
+            "Close": [103.0],
+            "Volume": [1200],
+        }, index=pd.DatetimeIndex(["2026-08-13"]))
+
+        download.return_value = invalid
+
+        result = update_data.update_one_stock("AAA")
+
+        self.assertEqual(result["status"], "provider_rejected")
+
+        output = "\n".join(str(call.args[0]) for call in mock_print.call_args_list)
+
+        self.assertIn("AAA OHLCV diagnostic:", output)
+        self.assertIn("date=2026-08-13", output)
+        self.assertIn("failed_invariants=HIGH_LT_OHLC_MAX", output)
+        self.assertIn("'Open': 105.0", output)
+        self.assertIn("'High': 104.0", output)
     def test_duplicate_date_resolution_is_deterministic_and_whole_row(self):
         frame = pd.DataFrame({
             "Date": ["2026-08-13", "2026-08-13"],

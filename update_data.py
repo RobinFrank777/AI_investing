@@ -25,6 +25,61 @@ def valid_canonical_ohlcv_rows(frame):
         numeric["Low"] <= numeric[["Open", "Close", "High"]].min(axis=1)
     )
 
+def diagnose_canonical_ohlcv_violations(frame):
+    """Explain canonical OHLCV violations without changing validation authority."""
+    diagnostics = []
+
+    dates = pd.to_datetime(frame["Date"], errors="coerce")
+    numeric = frame.loc[:, CANONICAL_COLUMNS[1:]].apply(
+        pd.to_numeric, errors="coerce"
+    )
+
+    for idx in frame.index:
+        failed = []
+
+        if pd.isna(dates.loc[idx]):
+            failed.append("INVALID_DATE")
+
+        row = numeric.loc[idx]
+
+        if not np.isfinite(row.to_numpy(dtype=float)).all():
+            failed.append("NON_FINITE_OHLCV")
+
+        ohlc = row[["Open", "High", "Low", "Close"]]
+
+        if not (ohlc > 0).all():
+            failed.append("NON_POSITIVE_OHLC")
+
+        if row["Volume"] < 0:
+            failed.append("NEGATIVE_VOLUME")
+
+        if row["High"] < max(row["Open"], row["Close"], row["Low"]):
+            failed.append("HIGH_LT_OHLC_MAX")
+
+        if row["Low"] > min(row["Open"], row["Close"], row["High"]):
+            failed.append("LOW_GT_OHLC_MIN")
+
+        if failed:
+            date_value = dates.loc[idx]
+            date_text = (
+                None
+                if pd.isna(date_value)
+                else date_value.strftime("%Y-%m-%d")
+            )
+
+            diagnostics.append({
+                "date": date_text,
+                "failed_invariants": failed,
+                "raw": {
+                    "Open": float(row["Open"]),
+                    "High": float(row["High"]),
+                    "Low": float(row["Low"]),
+                    "Close": float(row["Close"]),
+                    "Volume": float(row["Volume"]),
+                },
+            })
+
+    return diagnostics
 
 def build_atomic_canonical_history(downloaded, existing=None):
     """Replace each valid refreshed date as one row; reject invalid rows."""
@@ -116,6 +171,7 @@ def update_one_stock(ticker):
                 existing = pd.read_csv(output_file)
             except (pd.errors.EmptyDataError, pd.errors.ParserError, UnicodeError, OSError):
                 existing = None
+        fresh_for_diagnostics = df.copy()
         df, rejected_dates = build_atomic_canonical_history(df, existing)
         if df.empty:
             raise ValueError("Downloaded data contains no valid canonical OHLCV row.")
@@ -125,7 +181,24 @@ def update_one_stock(ticker):
 
         if rejected_dates:
             message = "Provider rows rejected by canonical OHLCV contract: " + ", ".join(rejected_dates)
+
+            diagnostics = diagnose_canonical_ohlcv_violations(
+                fresh_for_diagnostics
+            )
+
             print(f"{ticker} 更新受限：{message}；保留最新有效日期 {latest_date}")
+
+            for item in diagnostics:
+                if item["date"] not in rejected_dates:
+                    continue
+
+                print(
+                    f"{ticker} OHLCV diagnostic: "
+                    f"date={item['date']} "
+                    f"failed_invariants={','.join(item['failed_invariants'])} "
+                    f"raw={item['raw']}"
+                )
+
             return {
                 "symbol": ticker,
                 "status": "provider_rejected",
