@@ -58,7 +58,10 @@ class OrderDraftHardeningTests(unittest.TestCase):
 
     def test_invalid_rows_do_not_become_orders(self):
         for field,value in (("TargetShares",0),("TargetShares",-1),("TargetShares",np.nan),("TargetShares",np.inf),("LatestClose",0),("LatestClose",np.nan),("LatestClose",np.inf)):
-            data=sized(); data.loc[0,field]=value
+            data = sized()
+            if field == "TargetShares":
+                data["TargetShares"] = data["TargetShares"].astype(float)
+            data.loc[0, field] = value
             with self.subTest(field=field,value=value): self.assertTrue(draft.build_order_draft(data).empty)
 
 
@@ -73,7 +76,10 @@ class OrderReviewHardeningTests(unittest.TestCase):
 
     def test_invalid_numeric_never_passes(self):
         for field,value in (("TargetShares",np.nan),("TargetShares",np.inf),("TargetShares",0),("TargetShares",-1),("LatestClose",np.nan),("LatestClose",0),("LatestClose",-1),("EstimatedOrderValue",np.nan),("EstimatedOrderValue",0)):
-            data=self.order(); data.loc[0,field]=value
+            data = self.order()
+            if field == "TargetShares":
+                data["TargetShares"] = data["TargetShares"].astype(float)
+            data.loc[0, field] = value
             with self.subTest(field=field,value=value):
                 result=review.build_order_review(data); self.assertEqual(result.at[0,"ReviewStatus"],"BLOCKED"); self.assertEqual(result.at[0,"PortfolioReviewFlag"],"BLOCKED")
 
