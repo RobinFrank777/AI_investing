@@ -3,6 +3,7 @@ from __future__ import annotations
 from copy import copy
 from datetime import date as date_type, datetime
 from pathlib import Path
+import math
 import shutil
 
 from openpyxl import load_workbook
@@ -1484,7 +1485,17 @@ def append_daily_run(
 # ============================================================
 # Candidate_Tracking writer
 # ============================================================
+def candidate_tracking_roundtrip_values_equal(actual, expected):
+    """Allow only insignificant Excel float round-trip differences."""
+    if isinstance(actual, float) and isinstance(expected, float):
+        return math.isclose(
+            actual,
+            expected,
+            rel_tol=0.0,
+            abs_tol=1e-12,
+        )
 
+    return actual == expected
 def append_candidate_tracking(
     file_path: Path,
     *,
@@ -1563,7 +1574,10 @@ def append_candidate_tracking(
         for col in range(1, len(CANDIDATE_TRACKING_HEADERS) + 1)
     ]
 
-    if verify_values != values:
+    if not all(
+        candidate_tracking_roundtrip_values_equal(actual, expected)
+        for actual, expected in zip(verify_values, values)
+    ):
         raise RuntimeError("Candidate_Tracking post-save verification failed.")
 
     print("\nCandidate_Tracking append PASS")
