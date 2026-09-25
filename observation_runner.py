@@ -16,13 +16,13 @@ from __future__ import annotations
 import argparse
 import math
 import shutil
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import pandas as pd
 from openpyxl import load_workbook
 
-from config import PROJECT_VERSION, REPO_ROOT
+from config import FUNDAMENTAL_SCORE_OUTPUT_PATH, PROJECT_VERSION, REPO_ROOT
 from current_run_status import load_current_run_status
 from observation_workbook import append_candidate_tracking, append_daily_run
 
@@ -135,14 +135,33 @@ def require_run_date() -> date:
 
             return dates[0]
 
-    start_time = str(status.get("StartTime", "")).strip()
-    if not start_time:
-        raise RuntimeError("StartTime is missing from current_run_status.json")
+    return _parse_current_run_timestamp(status, "StartTime").date()
+
+
+def _parse_current_run_timestamp(
+    status: dict[str, object],
+    field_name: str,
+    *,
+    require_timezone: bool = False,
+) -> datetime:
+    value = str(status.get(field_name, "")).strip()
+    if not value:
+        raise RuntimeError(
+            f"{field_name} is missing from current_run_status.json"
+        )
 
     try:
-        return datetime.fromisoformat(start_time).date()
+        parsed = datetime.fromisoformat(value)
     except ValueError as exc:
-        raise RuntimeError(f"Invalid StartTime: {start_time!r}") from exc
+        raise RuntimeError(f"Invalid {field_name}: {value!r}") from exc
+
+    if require_timezone and (
+        parsed.tzinfo is None or parsed.utcoffset() is None
+    ):
+        raise RuntimeError(
+            f"{field_name} must be timezone-aware in current_run_status.json"
+        )
+    return parsed
 
 
 
@@ -528,20 +547,85 @@ def _require_columns(frame: pd.DataFrame, columns: tuple[str, ...], label: str) 
         )
 
 
-def _optional_combined_values(
+def _optional_fundamental_value(ticker: str) -> object:
+    path = Path(FUNDAMENTAL_SCORE_OUTPUT_PATH)
+    if not path.is_file():
+        raise RuntimeError("fundamental_score.csv is missing")
+
+    try:
+        frame = pd.read_csv(path)
+    except pd.errors.EmptyDataError as exc:
+        raise RuntimeError("fundamental_score.csv is empty") from exc
+    if frame.empty:
+        raise RuntimeError("fundamental_score.csv is empty")
+
+    _require_columns(
+        frame,
+        ("Ticker", "FundamentalScore"),
+        "fundamental_score.csv",
+    )
+
+    status = load_current_run_status()
+    if not status:
+        raise RuntimeError("current_run_status.json is missing or invalid")
+    start_time = _parse_current_run_timestamp(
+        status, "StartTime", require_timezone=True
+    )
+    updated_at = _parse_current_run_timestamp(
+        status, "UpdatedAt", require_timezone=True
+    )
+    artifact_time = datetime.fromtimestamp(
+        path.stat().st_mtime, tz=timezone.utc
+    )
+    start_utc = start_time.astimezone(timezone.utc)
+    upper_bound_utc = (updated_at + timedelta(seconds=1)).astimezone(
+        timezone.utc
+    )
+    if artifact_time < start_utc:
+        raise RuntimeError(
+            "fundamental_score.csv predates the current run: "
+            f"mtime={artifact_time.isoformat()} < StartTime={start_time.isoformat()}"
+        )
+    if artifact_time >= upper_bound_utc:
+        raise RuntimeError(
+            "fundamental_score.csv is newer than the current run window: "
+            f"mtime={artifact_time.isoformat()} >= "
+            f"UpdatedAt+1s={upper_bound_utc.isoformat()}"
+        )
+
+    normalized_ticker = str(ticker).strip().upper()
+    matches = frame.loc[
+        frame["Ticker"].astype(str).str.strip().str.upper().eq(normalized_ticker)
+    ]
+    if matches.empty:
+        return "MISSING"
+    if len(matches) != 1:
+        raise RuntimeError(
+            "fundamental_score.csv expected one normalized row for "
+            f"{normalized_ticker}; found {len(matches)}"
+        )
+
+    value = matches.iloc[0]["FundamentalScore"]
+    return "MISSING" if pd.isna(value) else float(value)
+
+
+def _optional_combined_value(
     ticker: str,
     *,
     run_id: str,
     as_of_date: str,
     universe_version: str,
     score_model_version: str,
-) -> tuple[object, object]:
+) -> object:
     if not COMBINED_SCORE_PATH.is_file():
-        return "MISSING", "MISSING"
+        return "MISSING"
 
-    frame = pd.read_csv(COMBINED_SCORE_PATH)
+    try:
+        frame = pd.read_csv(COMBINED_SCORE_PATH)
+    except pd.errors.EmptyDataError:
+        return "MISSING"
     if frame.empty:
-        return "MISSING", "MISSING"
+        return "MISSING"
 
     _require_columns(
         frame,
@@ -551,7 +635,6 @@ def _optional_combined_values(
             "AsOfDate",
             "UniverseVersion",
             "ScoreModelVersion",
-            "FundamentalScore",
             "CombinedScore",
         ),
         "combined_score.csv",
@@ -562,7 +645,7 @@ def _optional_combined_values(
     ].copy()
 
     if matches.empty:
-        return "MISSING", "MISSING"
+        return "MISSING"
     if len(matches) != 1:
         raise RuntimeError(
             f"combined_score.csv expected one row for {ticker}; found {len(matches)}"
@@ -583,11 +666,9 @@ def _optional_combined_values(
                 f"{actual!r} != {expected!r}"
             )
 
-    fundamental = row["FundamentalScore"]
     combined = row["CombinedScore"]
-    fundamental = "MISSING" if pd.isna(fundamental) else float(fundamental)
     combined = "MISSING" if pd.isna(combined) else float(combined)
-    return fundamental, combined
+    return combined
 
 
 def build_candidate_tracking_previews() -> list[dict[str, object]]:
@@ -704,7 +785,8 @@ def build_candidate_tracking_previews() -> list[dict[str, object]]:
         if not why_tracked:
             raise RuntimeError(f"stock_rank.csv {ticker} Reason is missing")
 
-        fundamental_score, combined_score = _optional_combined_values(
+        fundamental_score = _optional_fundamental_value(ticker)
+        combined_score = _optional_combined_value(
             ticker,
             run_id=run_id,
             as_of_date=as_of_date,
