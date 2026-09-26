@@ -143,6 +143,17 @@ MAINTENANCE_LOG_CATEGORIES = {
 
 MAINTENANCE_LOG_SEVERITIES = {"P0", "P1", "P2", "P3"}
 MAINTENANCE_LOG_STATUSES = {"OPEN", "MONITORING", "DEFERRED", "CLOSED"}
+MAINTENANCE_LOG_ACTIONS = {
+    "UPDATE_DATA",
+    "UPDATE_FUNDAMENTALS",
+    "UPDATE_PROFILE",
+    "RE-RUN_PIPELINE",
+    "FIX_INPUT_FORMAT",
+    "NO_CHANGE_OBSERVE",
+    "DEFER_TO_NEXT_VERSION",
+    "CODE_FIX",
+}
+MAINTENANCE_LOG_RESULTS = {"RESOLVED", "PARTIAL", "NO_CHANGE", "FAILED", "DEFERRED"}
 
 
 WEEKLY_REVIEW_SHEET = "Weekly_Review"
@@ -869,6 +880,10 @@ def validate_maintenance_log_duplicate(
             )
 
 
+def _local_today() -> date_type:
+    return date_type.today()
+
+
 def validate_maintenance_log_values(
     *,
     date,
@@ -878,11 +893,11 @@ def validate_maintenance_log_values(
     issue,
     evidence,
     status,
+    action=None,
+    result=None,
+    follow_up_date=None,
 ) -> None:
     """Validate stable Maintenance_Log governance invariants."""
-
-    if _normalize_daily_run_date(date) in (None, ""):
-        raise RuntimeError("Maintenance_Log Date must not be empty.")
 
     category_norm = str(category or "").strip().upper()
     if category_norm not in MAINTENANCE_LOG_CATEGORIES:
@@ -911,6 +926,35 @@ def validate_maintenance_log_values(
         raise RuntimeError(
             "Maintenance_Log Status must be one of OPEN/MONITORING/DEFERRED/CLOSED."
         )
+
+    for field, value, allowed in (
+        ("Action", action, MAINTENANCE_LOG_ACTIONS),
+        ("Result", result, MAINTENANCE_LOG_RESULTS),
+    ):
+        if value is not None and (
+            not isinstance(value, str) or value.strip() not in allowed
+        ):
+            raise RuntimeError(
+                f"Maintenance_Log {field} must be None or one of: "
+                + ", ".join(sorted(allowed))
+            )
+
+    if not isinstance(date, date_type):
+        raise RuntimeError("Maintenance_Log Date must be a date or datetime.")
+    if follow_up_date is not None and not isinstance(follow_up_date, date_type):
+        raise RuntimeError("Maintenance_Log FollowUpDate must be None, date or datetime.")
+
+    date_day = date.date() if isinstance(date, datetime) else date
+    if date_day > _local_today():
+        raise RuntimeError("Maintenance_Log Date must not be in the future.")
+    if follow_up_date is not None:
+        follow_up_day = (
+            follow_up_date.date()
+            if isinstance(follow_up_date, datetime)
+            else follow_up_date
+        )
+        if follow_up_day < date_day:
+            raise RuntimeError("Maintenance_Log FollowUpDate must be on or after Date.")
 
 
 def find_first_empty_maintenance_log_row(ws) -> int:
@@ -2184,6 +2228,25 @@ def append_maintenance_log(
     if not file_path.exists():
         raise FileNotFoundError(file_path)
 
+    validate_maintenance_log_values(
+        date=date,
+        category=category,
+        severity=severity,
+        ticker_scope=ticker_scope,
+        issue=issue,
+        evidence=evidence,
+        status=status,
+        action=action,
+        result=result,
+        follow_up_date=follow_up_date,
+    )
+
+    action = action.strip() if action is not None else None
+    result = result.strip() if result is not None else None
+    date = datetime.combine(date, datetime.min.time())
+    if follow_up_date is not None:
+        follow_up_date = datetime.combine(follow_up_date, datetime.min.time())
+
     wb = load_workbook(file_path)
 
     if MAINTENANCE_LOG_SHEET not in wb.sheetnames:
@@ -2201,15 +2264,6 @@ def append_maintenance_log(
         category,
         ticker_scope,
         issue,
-    )
-    validate_maintenance_log_values(
-        date=date,
-        category=category,
-        severity=severity,
-        ticker_scope=ticker_scope,
-        issue=issue,
-        evidence=evidence,
-        status=status,
     )
 
     target_row = find_first_empty_maintenance_log_row(ws)
@@ -2597,7 +2651,7 @@ if __name__ == "__main__":
 
     append_maintenance_log(
         test_file,
-        date=datetime(2099, 1, 1),
+        date=datetime(2000, 1, 1),
         category="CODE_BUG",
         severity="P3",
         ticker_scope="ALL",
@@ -2608,7 +2662,7 @@ if __name__ == "__main__":
         before="TEST_BEFORE",
         after="TEST_AFTER",
         result="NO_CHANGE",
-        follow_up_date=datetime(2099, 2, 1),
+        follow_up_date=datetime(2000, 2, 1),
         status="MONITORING",
         notes="AUTOMATION TEST ROW — SAFE TO DELETE FROM TEST COPY.",
     )
